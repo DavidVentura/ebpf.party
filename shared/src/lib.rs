@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bincode::{Decode, Encode};
 
 #[derive(Encode, Decode, Debug, Clone)]
@@ -6,14 +8,23 @@ pub struct BpfEvent {
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
-pub enum GuestMessage {
-    Booted,
+pub enum ExecutionMessage {
     LoadFail(Vec<u8>),
     VerifierFail(Vec<u8>),
-    Finished(Vec<BpfEvent>),
+    NoPerfMapsFound,
+    FoundProgram { name: String, section: String },
+    FoundMap { name: String },
+    Event(BpfEvent),
+    Finished(),
+}
+
+#[derive(Encode, Decode, Debug, Clone)]
+pub enum GuestMessage {
+    Booted,
+    ExecutionResult(ExecutionMessage),
 }
 
 #[derive(Encode, Decode, Debug, Clone)]
 pub enum HostMessage {
-    ExecuteProgram { timeout_ms: u16, program: Vec<u8> },
+    ExecuteProgram { timeout: Duration, program: Vec<u8> },
 }

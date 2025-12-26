@@ -1,10 +1,10 @@
 use libbpf_rs::{MapCore, MapType, ObjectBuilder, PerfBuffer, PerfBufferBuilder, PrintLevel};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
+use shared::{ExecutionMessage, GuestMessage};
 use std::ffi::{CStr, CString};
-use std::io::{Read, Write};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, SystemTime};
+use std::io::Write;
+use std::sync::mpsc::Sender;
+use std::time::{Duration, Instant, SystemTime};
 use vsock::{VMADDR_CID_HOST, VsockStream};
 
 fn printer(lvl: PrintLevel, s: String) {
@@ -75,25 +75,37 @@ fn real_main() {
         setup_host_env();
     }
 
-    println!("Sending Booted message to host");
-    let mut s = VsockStream::connect_with_cid_port(VMADDR_CID_HOST, 1234).unwrap();
+    //println!("Sending Booted message to host");
+    let mut s_send = VsockStream::connect_with_cid_port(VMADDR_CID_HOST, 1234).unwrap();
+    let mut s_rcv = s_send.try_clone().unwrap();
     let msg = shared::GuestMessage::Booted;
     let config = bincode::config::standard();
-    bincode::encode_into_std_write(&msg, &mut s, config).unwrap();
-    println!("Sent Booted message to host");
+    bincode::encode_into_std_write(&msg, &mut s_send, config).unwrap();
+    //println!("Sent Booted message to host");
 
-    println!("Waiting for ExecuteProgram message from host");
-    match bincode::decode_from_std_read::<shared::HostMessage, _, _>(&mut s, config) {
-        Ok(shared::HostMessage::ExecuteProgram { timeout_ms, program }) => {
-            println!("Received ExecuteProgram (timeout: {}ms, {} bytes)", timeout_ms, program.len());
-            drop(s);
-            run_ebpf_program(&program);
+    let (tx, rx) = std::sync::mpsc::channel::<ExecutionMessage>();
+
+    let jh = std::thread::spawn(move || {
+        while let Ok(v) = rx.recv() {
+            let _ = bincode::encode_into_std_write(
+                GuestMessage::ExecutionResult(v),
+                &mut s_send,
+                config,
+            )
+            .expect("can't send over vsock");
+        }
+    });
+    //println!("Waiting for ExecuteProgram message from host");
+    match bincode::decode_from_std_read::<shared::HostMessage, _, _>(&mut s_rcv, config) {
+        Ok(shared::HostMessage::ExecuteProgram { timeout, program }) => {
+            run_ebpf_program(&program, timeout, tx);
         }
         Err(e) => {
             eprintln!("Failed to deserialize HostMessage: {}", e);
-            std::process::exit(1);
+            //std::process::exit(1);
         }
     }
+    jh.join().unwrap();
 }
 
 fn handle_event(cpu: i32, data: &[u8]) {
@@ -245,47 +257,38 @@ fn setup_host_env() {
     }
 }
 
-fn run_ebpf_program(program: &[u8]) {
+fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessage>) {
     unsafe {
         libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
     }
     libbpf_rs::set_print(Some((PrintLevel::Info, printer)));
 
-    let exiting = Arc::new(AtomicBool::new(false));
-    let exiting_clone = exiting.clone();
-    ctrlc::set_handler(move || {
-        exiting_clone.store(true, Ordering::SeqCst);
-    })
-    .expect("Error setting Ctrl-C handler");
-
     let open_obj = ObjectBuilder::default().open_memory(program).unwrap();
-    let mut obj = open_obj.load().unwrap();
+    let mut obj = open_obj.load().unwrap(); // TODO verifier
 
-    println!("✓ BPF object loaded successfully\n");
-
-    println!("Attaching BPF programs:");
     let mut links: Vec<_> = Vec::new();
 
     for p in obj.progs_mut() {
-        print!(
-            "  - {} (section: {}) ... ",
-            p.name().to_string_lossy(),
-            p.section().to_string_lossy()
-        );
-        let link = p.attach().unwrap();
-        println!("attached");
+        tx.send(ExecutionMessage::FoundProgram {
+            name: p.name().to_string_lossy().to_string(),
+            section: p.section().to_string_lossy().to_string(),
+        })
+        .unwrap();
+        let link = p.attach().unwrap(); // TODO
         links.push(link);
     }
-
-    println!();
 
     let mut pb: Option<PerfBuffer> = None;
 
     for m in obj.maps_mut() {
         if m.map_type() == MapType::PerfEventArray {
-            println!("Found perf event array: {}", m.name().to_string_lossy());
+            tx.send(ExecutionMessage::FoundMap {
+                name: m.name().to_string_lossy().to_string(),
+            })
+            .unwrap();
 
             pb = Some(
+                // TODO pass tx clone to closure?
                 PerfBufferBuilder::new(&m)
                     .sample_cb(handle_event)
                     .lost_cb(handle_lost_events)
@@ -299,23 +302,18 @@ fn run_ebpf_program(program: &[u8]) {
 
     match pb {
         None => {
-            println!("No perf event array found. Programs are attached but not consuming events.");
-            println!("Press Ctrl-C to exit...");
-
-            while !exiting.load(Ordering::SeqCst) {
-                std::thread::sleep(std::time::Duration::from_secs(1));
-            }
+            tx.send(ExecutionMessage::NoPerfMapsFound).unwrap();
         }
         Some(pb) => {
-            let mut ticks = 0;
-            println!("Listening for events (Ctrl-C to exit)...\n");
-            while !exiting.load(Ordering::SeqCst) && ticks < 5 {
-                if let Err(e) = pb.poll(Duration::from_millis(100)) {
+            let start = Instant::now();
+            while start.elapsed() < timeout {
+                let time_left = timeout.saturating_sub(start.elapsed());
+                if let Err(e) = pb.poll(time_left) {
                     eprintln!("Error polling perf buffer: {}", e);
                     break;
                 }
-                ticks += 1;
             }
         }
     }
+    tx.send(ExecutionMessage::Finished()).unwrap();
 }
