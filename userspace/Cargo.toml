@@ -9,6 +9,8 @@ libbpf-sys = { version = "1.6.2", features = ["static-libelf", "static-zlib", "v
 vsock = "0.5.2"
 ctrlc = "3.4"
 libc = "0.2"
+shared = { path = "../shared" }
+bincode = "2.0.1"
 
 [patch.crates-io]
 libbpf-sys = { path = "/home/david/git/libbpf-sys" }

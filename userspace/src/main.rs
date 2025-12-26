@@ -1,7 +1,7 @@
 use libbpf_rs::{MapCore, MapType, ObjectBuilder, PerfBuffer, PerfBufferBuilder, PrintLevel};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
 use std::ffi::{CStr, CString};
-use std::io::Write;
+use std::io::{Read, Write};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
@@ -71,32 +71,29 @@ fn main() {
     }
 }
 fn real_main() {
-    let args: Vec<String> = std::env::args().collect();
-
-    if args.len() != 2 {
-        eprintln!("Usage: {} <bpf_object.o>", args[0]);
-        eprintln!("\nThis loader automatically:");
-        eprintln!("  - Loads any BPF object file");
-        eprintln!("  - Auto-attaches based on SEC() annotations");
-        eprintln!("  - Handles perf buffers/ring buffers");
-        eprintln!("  - Prints raw events as hex dumps");
-        std::process::exit(1);
-    }
-
     if std::process::id() <= 100 {
         setup_host_env();
     }
-    println!("Saying hi to host");
+
+    println!("Sending Booted message to host");
     let mut s = VsockStream::connect_with_cid_port(VMADDR_CID_HOST, 1234).unwrap();
-    let buf = vec![0x41, 0x42, 0x43, 0x44, 0x45, 0xa];
-    s.write_all(&buf).unwrap();
-    println!("Done with host");
+    let msg = shared::GuestMessage::Booted;
+    let config = bincode::config::standard();
+    bincode::encode_into_std_write(&msg, &mut s, config).unwrap();
+    println!("Sent Booted message to host");
 
-    println!("Loading BPF object: {}", args[1]);
-    println!();
-
-    let program = std::fs::read(&args[1]).unwrap();
-    run_ebpf_program(&program);
+    println!("Waiting for ExecuteProgram message from host");
+    match bincode::decode_from_std_read::<shared::HostMessage, _, _>(&mut s, config) {
+        Ok(shared::HostMessage::ExecuteProgram { timeout_ms, program }) => {
+            println!("Received ExecuteProgram (timeout: {}ms, {} bytes)", timeout_ms, program.len());
+            drop(s);
+            run_ebpf_program(&program);
+        }
+        Err(e) => {
+            eprintln!("Failed to deserialize HostMessage: {}", e);
+            std::process::exit(1);
+        }
+    }
 }
 
 fn handle_event(cpu: i32, data: &[u8]) {

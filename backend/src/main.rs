@@ -65,17 +65,28 @@ fn vm() {
             println!("Host Connected, at {:?}", start.elapsed());
             match stream {
                 Ok(mut stream) => {
-                    let mut buf = Vec::new();
-                    // this read_to_end waits for the conn to close
-                    stream.read_to_end(&mut buf).unwrap();
-                    println!("Host got {:?}", buf);
-                    assert_eq!(buf.len(), 6);
-                    assert_eq!(buf[0], 'A' as u8);
-                    assert_eq!(buf[1], 'B' as u8);
-                    assert_eq!(buf[2], 'C' as u8);
-                    assert_eq!(buf[3], 'D' as u8);
-                    assert_eq!(buf[4], 'E' as u8);
-                    assert_eq!(buf[5], '\n' as u8);
+                    let config = bincode::config::standard();
+                    match bincode::decode_from_std_read::<shared::GuestMessage, _, _>(&mut stream, config) {
+                        Ok(msg) => {
+                            println!("Host received message: {:?}", msg);
+
+                            match msg {
+                                shared::GuestMessage::Booted => {
+                                    let program = fs::read("execve.bpf.o").unwrap();
+                                    let host_msg = shared::HostMessage::ExecuteProgram {
+                                        timeout_ms: 5000,
+                                        program,
+                                    };
+                                    bincode::encode_into_std_write(&host_msg, &mut stream, config).unwrap();
+                                    println!("Sent ExecuteProgram to guest");
+                                }
+                                _ => {}
+                            }
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to deserialize GuestMessage: {}", e);
+                        }
+                    }
                     break;
                 }
                 Err(_) => panic!("uh"),
