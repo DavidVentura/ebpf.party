@@ -2,94 +2,59 @@ use shared::GuestMessage;
 use std::fs;
 use std::io;
 use std::io::{Read, Write};
+use std::net::TcpListener;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
-use std::sync::mpsc::{Receiver, channel};
+use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 use std::time::Instant;
-use tiny_http::{Response, Server};
 
 fn main() {
-    let server = Server::http("0.0.0.0:8081").unwrap();
+    let listener = TcpListener::bind("0.0.0.0:8081").unwrap();
     println!("Server running on http://0.0.0.0:8081");
 
-    let (tx, rx) = channel();
-    let jh = thread::spawn(move || {
-        vm(tx);
-    });
-    for msg in rx {
-        println!("rx got msg {msg:?}");
-    }
-    jh.join().unwrap();
+    for stream in listener.incoming() {
+        let mut stream = stream.unwrap();
 
-    for request in server.incoming_requests() {
-        let start = Instant::now();
-        let (tx, rx) = channel();
+        thread::spawn(move || {
+            let start = Instant::now();
 
-        let jh = thread::spawn(move || {
-            vm(tx);
+            // Parse HTTP request headers
+            let mut buf = [0u8; 4096];
+            let mut stream_clone = stream.try_clone().unwrap();
+            let n = stream_clone.read(&mut buf).unwrap();
+            let mut headers = [httparse::EMPTY_HEADER; 64];
+            let mut req = httparse::Request::new(&mut headers);
+            req.parse(&buf[..n]).unwrap();
+
+            // Send chunked HTTP response headers
+            stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
+            stream.write_all(b"Content-Type: text/plain\r\n").unwrap();
+            stream.write_all(b"Transfer-Encoding: chunked\r\n").unwrap();
+            stream.write_all(b"\r\n").unwrap();
+            stream.flush().unwrap();
+
+            let (tx, rx) = channel();
+            let jh = thread::spawn(move || {
+                vm(tx);
+            });
+
+            // Stream chunks as messages arrive
+            for msg in rx {
+                let data = format!("{:?}\n", msg);
+                let chunk = format!("{:x}\r\n{}\r\n", data.len(), data);
+                stream.write_all(chunk.as_bytes()).unwrap();
+                stream.flush().unwrap();
+            }
+
+            // Send final empty chunk
+            stream.write_all(b"0\r\n\r\n").unwrap();
+            stream.flush().unwrap();
+
+            jh.join().unwrap();
+            eprintln!("Request completed in {:?}", start.elapsed());
         });
-
-        let reader = ChannelReader::new(rx);
-
-        println!("building response");
-        let response = Response::new(
-            tiny_http::StatusCode(200),
-            vec![tiny_http::Header::from_bytes(&b"Content-Type"[..], &b"text/plain"[..]).unwrap()],
-            reader,
-            None,
-            None,
-        );
-
-        println!("responding response");
-        if let Err(e) = request.respond(response) {
-            eprintln!("Failed to send response: {}", e);
-        }
-        println!("waiting thread");
-
-        jh.join().unwrap();
-        eprintln!("Request completed in {:?}", start.elapsed());
-    }
-}
-
-struct ChannelReader {
-    rx: Receiver<GuestMessage>,
-    buffer: Vec<u8>,
-    pos: usize,
-}
-
-impl ChannelReader {
-    fn new(rx: Receiver<GuestMessage>) -> Self {
-        Self {
-            rx,
-            buffer: Vec::new(),
-            pos: 0,
-        }
-    }
-}
-
-impl Read for ChannelReader {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        loop {
-            if self.pos < self.buffer.len() {
-                let remaining = &self.buffer[self.pos..];
-                let to_copy = remaining.len().min(buf.len());
-                buf[..to_copy].copy_from_slice(&remaining[..to_copy]);
-                self.pos += to_copy;
-                println!("ret ok");
-                return Ok(to_copy);
-            }
-
-            match self.rx.recv() {
-                Ok(msg) => {
-                    println!("got msg");
-                    self.buffer = format!("{:?}\n", msg).into_bytes();
-                    self.pos = 0;
-                }
-                Err(_) => return Ok(0),
-            }
-        }
     }
 }
 
