@@ -1,0 +1,5 @@
+rootfs
+*/target/*
+vmlinux
+*ext4
+*.o

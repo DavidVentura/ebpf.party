@@ -1,0 +1,16 @@
+[package]
+name = "backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+firecracker-spawn = { version = "0.1.0", path = "../../firecracker-spawn" }
+rouille = "3.6.2"
+serde = { version = "1.0.228", features = ["derive"] }
+threadpool = "1.8.1"
+vmm-sys-util = "0.12.1"
+event-manager = "0.4.0"
+
+#[patch.crates-io]
+#kvm-bindings = { git = "https://github.com/firecracker-microvm/kvm-bindings", tag = "v0.7.0-2", features = ["fam-wrappers"] }
+#event-manager = { git = "https://github.com/firecracker-microvm/kvm-bindings", tag = "v0.4.0" }

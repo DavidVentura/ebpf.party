@@ -1,0 +1,11 @@
+[package]
+name = "userspace"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libbpf-rs = { version = "0.25.0", features = ["static", "vendored"] }
+libbpf-sys = { version = "1.6.2", features = ["static-libelf", "static-zlib", "vendored-zlib", "vendored-libelf", "static"] }
+vsock = "0.5.2"
+ctrlc = "3.4"
+libc = "0.2"
