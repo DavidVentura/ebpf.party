@@ -1,9 +1,11 @@
 use libbpf_rs::{MapCore, MapType, ObjectBuilder, PerfBuffer, PerfBufferBuilder, PrintLevel};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
+use std::io::Write;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, SystemTime};
+use vsock::{VMADDR_CID_HOST, VsockStream};
 
 fn printer(lvl: PrintLevel, s: String) {
     if lvl == PrintLevel::Debug {
@@ -52,6 +54,49 @@ union DebugEventData {
 struct DebugEvent {
     event_type: u8,
     data: DebugEventData,
+}
+
+fn handle_lost_events(cpu: i32, lost_cnt: u64) {
+    eprintln!("Lost {} events on CPU #{}!", lost_cnt, cpu);
+}
+
+fn main() {
+    let panics = std::panic::catch_unwind(|| {
+        real_main();
+    });
+    std::io::stdout().flush().unwrap();
+    std::io::stderr().flush().unwrap();
+    if let Err(e) = panics {
+        println!("panicked, bye! {e:?}");
+    }
+}
+fn real_main() {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.len() != 2 {
+        eprintln!("Usage: {} <bpf_object.o>", args[0]);
+        eprintln!("\nThis loader automatically:");
+        eprintln!("  - Loads any BPF object file");
+        eprintln!("  - Auto-attaches based on SEC() annotations");
+        eprintln!("  - Handles perf buffers/ring buffers");
+        eprintln!("  - Prints raw events as hex dumps");
+        std::process::exit(1);
+    }
+
+    if std::process::id() <= 100 {
+        setup_host_env();
+    }
+    println!("Saying hi to host");
+    let mut s = VsockStream::connect_with_cid_port(VMADDR_CID_HOST, 1234).unwrap();
+    let buf = vec![0x41, 0x42, 0x43, 0x44, 0x45, 0xa];
+    s.write_all(&buf).unwrap();
+    println!("Done with host");
+
+    println!("Loading BPF object: {}", args[1]);
+    println!();
+
+    let program = std::fs::read(&args[1]).unwrap();
+    run_ebpf_program(&program);
 }
 
 fn handle_event(cpu: i32, data: &[u8]) {
@@ -113,23 +158,97 @@ fn handle_event(cpu: i32, data: &[u8]) {
     println!();
 }
 
-fn handle_lost_events(cpu: i32, lost_cnt: u64) {
-    eprintln!("Lost {} events on CPU #{}!", lost_cnt, cpu);
-}
-
-fn main() {
-    let args: Vec<String> = std::env::args().collect();
-
-    if args.len() != 2 {
-        eprintln!("Usage: {} <bpf_object.o>", args[0]);
-        eprintln!("\nThis loader automatically:");
-        eprintln!("  - Loads any BPF object file");
-        eprintln!("  - Auto-attaches based on SEC() annotations");
-        eprintln!("  - Handles perf buffers/ring buffers");
-        eprintln!("  - Prints raw events as hex dumps");
-        std::process::exit(1);
+fn list_traces() {
+    eprintln!("\n=== Listing /sys/kernel/tracing ===");
+    if let Ok(entries) = std::fs::read_dir("/sys/kernel/tracing") {
+        for entry in entries.flatten() {
+            eprintln!("  {}", entry.file_name().to_string_lossy());
+        }
     }
 
+    eprintln!("\n=== Listing /sys/kernel/tracing/events ===");
+    if let Ok(entries) = std::fs::read_dir("/sys/kernel/tracing/events") {
+        for entry in entries.flatten() {
+            eprintln!("  {}", entry.file_name().to_string_lossy());
+        }
+    }
+
+    eprintln!("\n=== Listing /sys/kernel/tracing/events/syscalls ===");
+    if let Ok(entries) = std::fs::read_dir("/sys/kernel/tracing/events/syscalls") {
+        for entry in entries.flatten() {
+            eprintln!("  {}", entry.file_name().to_string_lossy());
+        }
+    } else {
+        eprintln!("  (directory does not exist or cannot be read)");
+    }
+
+    eprintln!("\n=== Listing /sys/kernel/tracing/events/syscalls/sys_enter_execve ===");
+    if let Ok(entries) = std::fs::read_dir("/sys/kernel/tracing/events/syscalls/sys_enter_execve") {
+        for entry in entries.flatten() {
+            eprintln!("  {}", entry.file_name().to_string_lossy());
+        }
+    } else {
+        eprintln!("  (directory does not exist or cannot be read)");
+    }
+    eprintln!();
+}
+
+fn setup_host_env() {
+    let target = CString::new("/sys").unwrap();
+
+    unsafe {
+        libc::mkdir(target.as_ptr(), 0o755);
+    }
+
+    let source = CString::new("sysfs").unwrap();
+    let fstype = CString::new("sysfs").unwrap();
+
+    unsafe {
+        let ret = libc::mount(
+            source.as_ptr(),
+            target.as_ptr(),
+            fstype.as_ptr(),
+            0,
+            std::ptr::null(),
+        );
+        if ret != 0 {
+            panic!("Failed to mount /sys: {}", std::io::Error::last_os_error());
+        }
+    }
+
+    let sys_kernel = CString::new("/sys/kernel").unwrap();
+    let sys_kernel_tracing = CString::new("/sys/kernel/tracing").unwrap();
+
+    unsafe {
+        libc::mkdir(sys_kernel.as_ptr(), 0o755);
+        libc::mkdir(sys_kernel_tracing.as_ptr(), 0o755);
+    }
+
+    let tracefs_source = CString::new("tracefs").unwrap();
+    let tracefs_type = CString::new("tracefs").unwrap();
+
+    unsafe {
+        let ret = libc::mount(
+            tracefs_source.as_ptr(),
+            sys_kernel_tracing.as_ptr(),
+            tracefs_type.as_ptr(),
+            0,
+            std::ptr::null(),
+        );
+        if ret != 0 {
+            panic!(
+                "Failed to mount tracefs: {}",
+                std::io::Error::last_os_error()
+            );
+        }
+    }
+
+    if false {
+        list_traces();
+    }
+}
+
+fn run_ebpf_program(program: &[u8]) {
     unsafe {
         libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
     }
@@ -142,9 +261,7 @@ fn main() {
     })
     .expect("Error setting Ctrl-C handler");
 
-    println!("Loading BPF object: {}", args[1]);
-
-    let open_obj = ObjectBuilder::default().open_file(&args[1]).unwrap();
+    let open_obj = ObjectBuilder::default().open_memory(program).unwrap();
     let mut obj = open_obj.load().unwrap();
 
     println!("✓ BPF object loaded successfully\n");
@@ -193,12 +310,14 @@ fn main() {
             }
         }
         Some(pb) => {
+            let mut ticks = 0;
             println!("Listening for events (Ctrl-C to exit)...\n");
-            while !exiting.load(Ordering::SeqCst) {
+            while !exiting.load(Ordering::SeqCst) && ticks < 5 {
                 if let Err(e) = pb.poll(Duration::from_millis(100)) {
                     eprintln!("Error polling perf buffer: {}", e);
                     break;
                 }
+                ticks += 1;
             }
         }
     }

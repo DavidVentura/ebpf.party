@@ -3,6 +3,7 @@ use serde::Serialize;
 use std::fs;
 use std::io;
 use std::io::Read;
+use std::io::Write;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 use std::thread;
@@ -45,7 +46,8 @@ fn vm() {
         vcpu_count: 1,
         mem_size_mib: 64,
         kernel,
-        kernel_cmdline: "ro panic=-1 reboot=t init=/main".to_string(),
+        //kernel_cmdline: "ro panic=-1 reboot=t init=/strace -- /main execve.bpf.o".to_string(),
+        kernel_cmdline: "ro panic=-1 reboot=t init=/main -- execve.bpf.o".to_string(),
         rootfs: Some(Disk {
             path: PathBuf::from("../rootfs.ext4"),
             read_only: true,
@@ -81,5 +83,7 @@ fn vm() {
         }
     });
     v.make(Box::new(io::stdout())).unwrap();
+    io::stdout().flush().unwrap();
+    io::stderr().flush().unwrap();
     handle.join().unwrap();
 }
