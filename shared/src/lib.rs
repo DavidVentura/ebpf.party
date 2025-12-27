@@ -14,8 +14,8 @@ pub struct BpfEvent {
 #[serde(tag = "type", content = "data")]
 #[serde(rename_all = "camelCase")]
 pub enum ExecutionMessage {
-    LoadFail(Vec<u8>),
-    VerifierFail(Vec<u8>),
+    LoadFail(String),
+    VerifierFail(String),
     NoPerfMapsFound,
     FoundProgram { name: String, section: String },
     FoundMap { name: String },

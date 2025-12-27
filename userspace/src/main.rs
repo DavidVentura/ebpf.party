@@ -4,15 +4,20 @@ use shared::{ExecutionMessage, GuestMessage};
 use std::ffi::{CStr, CString};
 use std::io::Write;
 use std::process::Command;
+use std::sync::Mutex;
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant, SystemTime};
 use vsock::{VMADDR_CID_HOST, VsockStream};
 
-fn printer(lvl: PrintLevel, s: String) {
+static VERIFIER_LOG: Mutex<String> = Mutex::new(String::new());
+
+fn capturing_printer(lvl: PrintLevel, s: String) {
     if lvl == PrintLevel::Debug {
         return;
     }
-    eprint!("{}", s);
+    if let Ok(mut log) = VERIFIER_LOG.lock() {
+        log.push_str(&s);
+    }
 }
 
 #[repr(u8)]
@@ -271,10 +276,32 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
     unsafe {
         libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
     }
-    libbpf_rs::set_print(Some((PrintLevel::Info, printer)));
 
-    let open_obj = ObjectBuilder::default().open_memory(program).unwrap();
-    let mut obj = open_obj.load().unwrap(); // TODO verifier
+    if let Ok(mut log) = VERIFIER_LOG.lock() {
+        log.clear();
+    }
+
+    libbpf_rs::set_print(Some((PrintLevel::Info, capturing_printer)));
+
+    let open_obj = match ObjectBuilder::default().open_memory(program) {
+        Ok(o) => o,
+        Err(_) => {
+            let captured_log = VERIFIER_LOG.lock().unwrap().clone();
+            tx.send(ExecutionMessage::LoadFail(captured_log)).unwrap();
+            return;
+        }
+    };
+
+    let mut obj = match open_obj.load() {
+        Ok(o) => o,
+        Err(_) => {
+            let captured_log = VERIFIER_LOG.lock().unwrap().clone();
+            tx.send(ExecutionMessage::VerifierFail(captured_log))
+                .unwrap();
+
+            return;
+        }
+    };
 
     let mut links: Vec<_> = Vec::new();
 
