@@ -53,6 +53,7 @@ dependencies = [
  "firecracker-spawn",
  "httparse",
  "serde",
+ "serde_json",
  "shared",
  "threadpool",
  "vmm-sys-util 0.12.1",
@@ -704,6 +705,7 @@ name = "shared"
 version = "0.1.0"
 dependencies = [
  "bincode",
+ "serde",
 ]
 
 [[package]]

@@ -3,6 +3,7 @@ use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
 use shared::{ExecutionMessage, GuestMessage};
 use std::ffi::{CStr, CString};
 use std::io::Write;
+use std::process::Command;
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant, SystemTime};
 use vsock::{VMADDR_CID_HOST, VsockStream};
@@ -95,6 +96,14 @@ fn real_main() {
             .expect("can't send over vsock");
         }
     });
+
+    let jh2 = std::thread::spawn(|| {
+        for i in 0..10 {
+            let mut cmd = Command::new("/true").spawn().expect("where true");
+            cmd.wait().unwrap();
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    });
     //println!("Waiting for ExecuteProgram message from host");
     match bincode::decode_from_std_read::<shared::HostMessage, _, _>(&mut s_rcv, config) {
         Ok(shared::HostMessage::ExecuteProgram { timeout, program }) => {
@@ -106,6 +115,7 @@ fn real_main() {
         }
     }
     jh.join().unwrap();
+    jh2.join().unwrap();
 }
 
 fn handle_event(cpu: i32, data: &[u8]) {
@@ -287,10 +297,15 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
             })
             .unwrap();
 
+            let txer = tx.clone();
+            let closure = move |cpu: i32, data: &[u8]| {
+                //let ev = handle_event(cpu, data);
+                txer.send(ExecutionMessage::Event(data.into())).unwrap();
+            };
             pb = Some(
                 // TODO pass tx clone to closure?
                 PerfBufferBuilder::new(&m)
-                    .sample_cb(handle_event)
+                    .sample_cb(closure)
                     .lost_cb(handle_lost_events)
                     .pages(8)
                     .build()

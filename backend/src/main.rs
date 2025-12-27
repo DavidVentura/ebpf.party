@@ -22,13 +22,14 @@ fn main() {
 
             // Parse HTTP request headers
             let mut buf = [0u8; 4096];
-            let mut stream_clone = stream.try_clone().unwrap();
-            let n = stream_clone.read(&mut buf).unwrap();
+            let n = {
+                let mut stream_r = stream.try_clone().unwrap();
+                stream_r.read(&mut buf).unwrap()
+            };
             let mut headers = [httparse::EMPTY_HEADER; 64];
             let mut req = httparse::Request::new(&mut headers);
             req.parse(&buf[..n]).unwrap();
 
-            // Send chunked HTTP response headers
             stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
             stream.write_all(b"Content-Type: text/plain\r\n").unwrap();
             stream.write_all(b"Transfer-Encoding: chunked\r\n").unwrap();
@@ -40,20 +41,22 @@ fn main() {
                 vm(tx);
             });
 
-            // Stream chunks as messages arrive
             for msg in rx {
-                let data = format!("{:?}\n", msg);
+                let json = serde_json::to_string(&msg).unwrap();
+                let data = format!("{}\n", json);
                 let chunk = format!("{:x}\r\n{}\r\n", data.len(), data);
                 stream.write_all(chunk.as_bytes()).unwrap();
                 stream.flush().unwrap();
             }
 
-            // Send final empty chunk
             stream.write_all(b"0\r\n\r\n").unwrap();
             stream.flush().unwrap();
 
-            jh.join().unwrap();
             eprintln!("Request completed in {:?}", start.elapsed());
+            // this `jh.join` requires running through `Drop`
+            // which takes like 30ms
+            jh.join().unwrap();
+            eprintln!("Resources freed in {:?}", start.elapsed());
         });
     }
 }
@@ -73,7 +76,7 @@ fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>) {
         vcpu_count: 1,
         mem_size_mib: 64,
         kernel,
-        //kernel_cmdline: "ro panic=-1 reboot=t init=/strace -- /main execve.bpf.o".to_string(),
+        //kernel_cmdline: "ro panic=-1 reboot=t init=/strace -- -F /main execve.bpf.o".to_string(),
         kernel_cmdline: "ro panic=-1 reboot=t init=/main -- execve.bpf.o".to_string(),
         rootfs: Some(Disk {
             path: PathBuf::from("../rootfs.ext4"),
