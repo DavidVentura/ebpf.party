@@ -5,11 +5,13 @@ use std::ffi::{CStr, CString};
 use std::io::Write;
 use std::process::Command;
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant, SystemTime};
 use vsock::{VMADDR_CID_HOST, VsockStream};
 
 static VERIFIER_LOG: Mutex<String> = Mutex::new(String::new());
+static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
 
 fn capturing_printer(lvl: PrintLevel, s: String) {
     if lvl == PrintLevel::Debug {
@@ -81,29 +83,39 @@ fn real_main() {
         setup_host_env();
     }
 
-    //println!("Sending Booted message to host");
     let mut s_send = VsockStream::connect_with_cid_port(VMADDR_CID_HOST, 1234).unwrap();
     let mut s_rcv = s_send.try_clone().unwrap();
     let msg = shared::GuestMessage::Booted;
     let config = bincode::config::standard();
     bincode::encode_into_std_write(&msg, &mut s_send, config).unwrap();
-    //println!("Sent Booted message to host");
 
     let (tx, rx) = std::sync::mpsc::channel::<ExecutionMessage>();
 
     let jh = std::thread::spawn(move || {
         while let Ok(v) = rx.recv() {
+            let is_terminal = matches!(
+                v,
+                ExecutionMessage::LoadFail(_)
+                    | ExecutionMessage::VerifierFail(_)
+                    | ExecutionMessage::NoPerfMapsFound
+                    | ExecutionMessage::Finished()
+            );
+
             let _ = bincode::encode_into_std_write(
                 GuestMessage::ExecutionResult(v),
                 &mut s_send,
                 config,
             )
             .expect("can't send over vsock");
+
+            if is_terminal {
+                SHOULD_STOP.store(true, Ordering::Relaxed);
+            }
         }
     });
 
     let jh2 = std::thread::spawn(|| {
-        for i in 0..10 {
+        while !SHOULD_STOP.load(Ordering::Relaxed) {
             let mut cmd = Command::new("/true").spawn().expect("where true");
             cmd.wait().unwrap();
             std::thread::sleep(Duration::from_millis(50));
@@ -298,7 +310,6 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
             let captured_log = VERIFIER_LOG.lock().unwrap().clone();
             tx.send(ExecutionMessage::VerifierFail(captured_log))
                 .unwrap();
-
             return;
         }
     };
