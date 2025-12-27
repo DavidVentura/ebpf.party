@@ -29,6 +29,23 @@ fn main() {
             let mut headers = [httparse::EMPTY_HEADER; 64];
             let mut req = httparse::Request::new(&mut headers);
             req.parse(&buf[..n]).unwrap();
+            let path = req.path.unwrap_or("/");
+            println!("path is '{path}'");
+            let parts = path.rsplit_once("/").unwrap();
+            let fname = parts.1.replace("/", "");
+            println!("fname is '{fname}'");
+            if let Ok(v) = fs::exists(&fname)
+                && !v
+            {
+                stream.write_all(b"HTTP/1.1 400 Bad Request\r\n").unwrap();
+                stream.write_all(b"Content-Length: 0\r\n").unwrap();
+                stream.write_all(b"\r\n").unwrap();
+                stream.flush().unwrap();
+                drop(stream);
+                return;
+            }
+            let program = fs::read(fname).unwrap();
+            println!("parts {parts:?}");
 
             stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
             stream.write_all(b"Content-Type: text/plain\r\n").unwrap();
@@ -38,7 +55,7 @@ fn main() {
 
             let (tx, rx) = channel();
             let jh = thread::spawn(move || {
-                vm(tx);
+                vm(tx, &program);
             });
 
             for msg in rx {
@@ -61,7 +78,7 @@ fn main() {
     }
 }
 
-fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>) {
+fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: &[u8]) {
     let start = Instant::now();
     use firecracker_spawn::{Disk, Vm};
 
@@ -89,13 +106,13 @@ fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>) {
         vsock: Some(vsock_path.to_string()), // TODO
     };
 
+    let program = program.to_vec();
     let handle = thread::spawn(move || {
         let listener = UnixListener::bind(vsock_listener).unwrap();
         for stream in listener.incoming() {
             eprintln!("Host Connected, at {:?}", start.elapsed());
             match stream {
                 Ok(mut stream) => {
-                    let program = fs::read("execve.bpf.o").unwrap();
                     let host_msg = shared::HostMessage::ExecuteProgram {
                         timeout: Duration::from_millis(500),
                         program,
