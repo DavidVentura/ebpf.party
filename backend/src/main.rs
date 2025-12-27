@@ -48,8 +48,8 @@ fn main() {
             println!("parts {parts:?}");
 
             stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
-            stream.write_all(b"Content-Type: text/plain\r\n").unwrap();
-            stream.write_all(b"Transfer-Encoding: chunked\r\n").unwrap();
+            stream.write_all(b"Content-Type: text/event-stream\r\n").unwrap();
+            stream.write_all(b"Cache-Control: no-cache\r\n").unwrap();
             stream.write_all(b"\r\n").unwrap();
             stream.flush().unwrap();
 
@@ -60,13 +60,9 @@ fn main() {
 
             for msg in rx {
                 let json = serde_json::to_string(&msg).unwrap();
-                let data = format!("{}\n", json);
-                let chunk = format!("{:x}\r\n{}\r\n", data.len(), data);
-                stream.write_all(chunk.as_bytes()).unwrap();
+                stream.write_all(format!("data: {}\n\n", json).as_bytes()).unwrap();
                 stream.flush().unwrap();
             }
-
-            stream.write_all(b"0\r\n\r\n").unwrap();
             stream.flush().unwrap();
 
             eprintln!("Request completed in {:?}", start.elapsed());
