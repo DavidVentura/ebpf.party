@@ -51,8 +51,7 @@ fn run_code_handler(
 
     let has_expect_continue = headers
         .iter()
-        .any(|h| h.name.eq_ignore_ascii_case("Expect")
-            && h.value == b"100-continue");
+        .any(|h| h.name.eq_ignore_ascii_case("Expect") && h.value == b"100-continue");
 
     if has_expect_continue {
         stream.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").unwrap();
@@ -106,20 +105,8 @@ fn run_code_handler(
     // clang = ~50ms to fail, tinycc should be .. 2?
     // clang = 90~100ms to succeed
     // -- about 15ms to strip
-    let s = Instant::now();
-    let c = compile::compile(&program);
-    println!("Compile of {} bytes took {:?}", program.len(), s.elapsed());
-    let compiled = match c {
-        Ok(bytes) => bytes,
-        Err(e) => {
-            stream.write_all(b"HTTP/1.1 400 Bad Request\r\n").unwrap();
-            stream.write_all(b"\r\n").unwrap();
-            stream
-                .write_all(serde_json::to_string(&e).unwrap().as_bytes())
-                .unwrap();
-            return;
-        }
-    };
+    // with static, ~50ms to succeed, no strip needed (ish)
+    let (tx, rx) = channel();
 
     stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
     stream
@@ -129,26 +116,43 @@ fn run_code_handler(
     stream.write_all(b"\r\n").unwrap();
     stream.flush().unwrap();
 
-    let (tx, rx) = channel();
     let jh = thread::spawn(move || {
-        vm(tx, &compiled);
+        for msg in rx {
+            let json = serde_json::to_string(&msg).unwrap();
+            stream
+                .write_all(format!("data: {}\n\n", json).as_bytes())
+                .unwrap();
+            stream.flush().unwrap();
+        }
+        stream.flush().unwrap();
     });
 
-    for msg in rx {
-        let json = serde_json::to_string(&msg).unwrap();
-        stream
-            .write_all(format!("data: {}\n\n", json).as_bytes())
-            .unwrap();
-        stream.flush().unwrap();
+    let s = Instant::now();
+    tx.send(GuestMessage::Compiling).unwrap();
+    let c = compile::compile(&program);
+    println!("Compile of {} bytes took {:?}", program.len(), s.elapsed());
+    let compiled = match c {
+        Ok(bytes) => Some(bytes),
+        Err(e) => {
+            let _ = tx.send(GuestMessage::CompileError(e));
+            None
+        }
+    };
+
+    if let Some(compiled) = compiled {
+        vm(tx, compiled);
+        // running `vm` requires running through a KVM `Drop`
+        // which takes like 30ms -- the request insta-flushed the msgs
+        // so it only delays closing the connection, and skews
+        // the VM measurement time
+    } else {
+        drop(tx);
     }
-    stream.flush().unwrap();
-    eprintln!("Run-code completed in {:?}", start.elapsed());
-    // this `jh.join` requires running through `Drop`
-    // which takes like 30ms
     jh.join().unwrap();
+    eprintln!("Run-code completed in {:?}", start.elapsed());
 }
 
-fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: &[u8]) {
+fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: Vec<u8>) {
     let start = Instant::now();
     use firecracker_spawn::{Disk, Vm};
 
@@ -164,7 +168,7 @@ fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: &[u8]) {
         mem_size_mib: 64,
         kernel,
         //kernel_cmdline: "ro panic=-1 reboot=t init=/strace -- -F /main execve.bpf.o".to_string(),
-        kernel_cmdline: "ro panic=-1 reboot=t init=/main -- execve.bpf.o".to_string(),
+        kernel_cmdline: "quiet ro panic=-1 reboot=t init=/main".to_string(),
         rootfs: Some(Disk {
             path: PathBuf::from("../rootfs.ext4"),
             read_only: true,
@@ -177,7 +181,6 @@ fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: &[u8]) {
     };
 
     out_tx.send(GuestMessage::Booting).unwrap();
-    let program = program.to_vec();
     let handle = thread::spawn(move || {
         let listener = UnixListener::bind(vsock_listener).unwrap();
         for stream in listener.incoming() {
