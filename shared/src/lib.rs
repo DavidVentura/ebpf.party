@@ -20,6 +20,9 @@ pub enum ExecutionMessage {
 #[serde(tag = "type", content = "data")]
 #[serde(rename_all = "camelCase")]
 pub enum GuestMessage {
+    // TODO move out of GM
+    CompileError(String),
+    Compiling,
     Booting,
     Booted,
     ExecutionResult(ExecutionMessage),
