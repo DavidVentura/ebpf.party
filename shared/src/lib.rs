@@ -20,6 +20,7 @@ pub enum ExecutionMessage {
 #[serde(tag = "type", content = "data")]
 #[serde(rename_all = "camelCase")]
 pub enum GuestMessage {
+    Booting,
     Booted,
     ExecutionResult(ExecutionMessage),
 }

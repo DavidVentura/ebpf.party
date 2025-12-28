@@ -145,6 +145,7 @@ fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: &[u8]) {
         vsock: Some(vsock_path.to_string()), // TODO
     };
 
+    out_tx.send(GuestMessage::Booting).unwrap();
     let program = program.to_vec();
     let handle = thread::spawn(move || {
         let listener = UnixListener::bind(vsock_listener).unwrap();
