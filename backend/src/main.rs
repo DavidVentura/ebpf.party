@@ -1,4 +1,3 @@
-use serde::Serialize;
 use shared::GuestMessage;
 use std::fs;
 use std::io;

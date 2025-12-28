@@ -1,24 +1,24 @@
 use serde::Serialize;
-use std::fs;
 use std::io::Write;
 use std::process::{Command, Stdio};
 use std::time::Instant;
 
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct CompilerError {
+pub struct ProcessError {
     stdout: String,
     stderr: String,
 }
 
-pub fn compile(source: &[u8]) -> Result<Vec<u8>, CompilerError> {
-    // TODO this is absolutely not unique
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub enum InputProcessingError {
+    CompilerError(ProcessError),
+    StripError(ProcessError),
+}
+
+pub fn compile(source: &[u8]) -> Result<Vec<u8>, InputProcessingError> {
     let s = Instant::now();
-    let temp_path = format!("/tmp/bpf_compile_{}.o", now);
 
     let mut clang = Command::new("clang")
         .args([
@@ -35,7 +35,7 @@ pub fn compile(source: &[u8]) -> Result<Vec<u8>, CompilerError> {
             "-c",
             "-",
             "-o",
-            &temp_path,
+            "-",
         ])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -47,33 +47,42 @@ pub fn compile(source: &[u8]) -> Result<Vec<u8>, CompilerError> {
     let output = clang.wait_with_output().unwrap();
 
     if !output.status.success() {
-        let _ = fs::remove_file(&temp_path);
-        return Err(CompilerError {
+        return Err(InputProcessingError::CompilerError(ProcessError {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
+        }));
     }
 
     println!("Compile itself took {:?}", s.elapsed());
-    let strip_output = Command::new("llvm-strip")
-        .args(["-g", &temp_path])
-        .output()
+
+    let compiled_bytes = output.stdout;
+
+    let mut strip = Command::new("llvm-strip")
+        .args(["-g", "-", "-o", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
         .unwrap();
+
+    strip
+        .stdin
+        .as_mut()
+        .unwrap()
+        .write_all(&compiled_bytes)
+        .unwrap();
+    let strip_output = strip.wait_with_output().unwrap();
 
     if !strip_output.status.success() {
         eprintln!(
             "llvm-strip failed: {}",
             String::from_utf8_lossy(&strip_output.stderr)
         );
-        let _ = fs::remove_file(&temp_path);
-        return Err(CompilerError {
-            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
-        });
+        return Err(InputProcessingError::StripError(ProcessError {
+            stdout: String::from_utf8_lossy(&strip_output.stdout).to_string(),
+            stderr: String::from_utf8_lossy(&strip_output.stderr).to_string(),
+        }));
     }
 
-    let compiled = fs::read(&temp_path).unwrap_or_default();
-    let _ = fs::remove_file(&temp_path);
-
-    Ok(compiled)
+    Ok(strip_output.stdout)
 }
