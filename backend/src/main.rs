@@ -49,6 +49,16 @@ fn run_code_handler(
 ) {
     let start = Instant::now();
 
+    let has_expect_continue = headers
+        .iter()
+        .any(|h| h.name.eq_ignore_ascii_case("Expect")
+            && h.value == b"100-continue");
+
+    if has_expect_continue {
+        stream.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").unwrap();
+        stream.flush().unwrap();
+    }
+
     let content_length = headers
         .iter()
         .find(|h| h.name.eq_ignore_ascii_case("Content-Length"))
@@ -60,17 +70,38 @@ fn run_code_handler(
     let already_read = initial_buf.len() - body_offset;
     program.extend_from_slice(&initial_buf[body_offset..]);
 
+    const MAX_PROGRAM_SIZE: usize = 16 * 1024;
     let mut remaining = content_length.saturating_sub(already_read);
-    let mut buf = [0u8; 4096];
-    while remaining > 0 {
+    let mut buf = [0u8; 16 * 4096];
+    while remaining > 0 && program.len() <= MAX_PROGRAM_SIZE {
         let to_read = remaining.min(buf.len());
+        println!("reading {to_read}");
         let bytes_read = stream.read(&mut buf[..to_read]).unwrap();
+        println!("read {bytes_read}");
         if bytes_read == 0 {
             break;
         }
         program.extend_from_slice(&buf[..bytes_read]);
         remaining -= bytes_read;
     }
+    if program.len() > MAX_PROGRAM_SIZE {
+        stream
+            .write_all(b"HTTP/1.1 413 Content Too Large\r\n")
+            .unwrap();
+        stream.write_all(b"\r\n").unwrap();
+        stream
+            .write_all(
+                format!(
+                    "Program size {} exceeds maximum of {} bytes",
+                    program.len(),
+                    MAX_PROGRAM_SIZE
+                )
+                .as_bytes(),
+            )
+            .unwrap();
+        return;
+    }
+
     // TODO, maybe do a tinycc pass, as quick check??
     // clang = ~50ms to fail, tinycc should be .. 2?
     // clang = 90~100ms to succeed
