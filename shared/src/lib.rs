@@ -3,13 +3,6 @@ use std::time::Duration;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
-/*
-#[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone)]
-pub struct BpfEvent {
-    pub data: Vec<u8>,
-}
-*/
-
 #[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "data")]
 #[serde(rename_all = "camelCase")]

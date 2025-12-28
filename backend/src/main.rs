@@ -1,8 +1,10 @@
+use serde::Serialize;
 use shared::GuestMessage;
 use std::fs;
 use std::io;
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use std::net::TcpStream;
 use std::os::unix::net::UnixListener;
 use std::path::PathBuf;
 use std::sync::mpsc::channel;
@@ -10,16 +12,17 @@ use std::thread;
 use std::time::Duration;
 use std::time::Instant;
 
+mod compile;
+
 fn main() {
     let listener = TcpListener::bind("0.0.0.0:8081").unwrap();
     println!("Server running on http://0.0.0.0:8081");
 
     for stream in listener.incoming() {
-        let mut stream = stream.unwrap();
+        let stream = stream.unwrap();
 
         thread::spawn(move || {
             let start = Instant::now();
-
             // Parse HTTP request headers
             let mut buf = [0u8; 4096];
             let n = {
@@ -28,50 +31,91 @@ fn main() {
             };
             let mut headers = [httparse::EMPTY_HEADER; 64];
             let mut req = httparse::Request::new(&mut headers);
-            req.parse(&buf[..n]).unwrap();
+            let status = req.parse(&buf[..n]).unwrap();
             let path = req.path.unwrap_or("/");
             println!("path is '{path}'");
-            let parts = path.rsplit_once("/").unwrap();
-            let fname = parts.1.replace("/", "");
-            println!("fname is '{fname}'");
-            if let Ok(v) = fs::exists(&fname)
-                && !v
-            {
-                stream.write_all(b"HTTP/1.1 400 Bad Request\r\n").unwrap();
-                stream.write_all(b"Content-Length: 0\r\n").unwrap();
-                stream.write_all(b"\r\n").unwrap();
-                stream.flush().unwrap();
-                drop(stream);
-                return;
+            if path.starts_with("/run_code/") {
+                run_code_handler(stream, &buf[..n], status.unwrap(), &req.headers);
             }
-            let program = fs::read(fname).unwrap();
-            println!("parts {parts:?}");
-
-            stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
-            stream.write_all(b"Content-Type: text/event-stream\r\n").unwrap();
-            stream.write_all(b"Cache-Control: no-cache\r\n").unwrap();
-            stream.write_all(b"\r\n").unwrap();
-            stream.flush().unwrap();
-
-            let (tx, rx) = channel();
-            let jh = thread::spawn(move || {
-                vm(tx, &program);
-            });
-
-            for msg in rx {
-                let json = serde_json::to_string(&msg).unwrap();
-                stream.write_all(format!("data: {}\n\n", json).as_bytes()).unwrap();
-                stream.flush().unwrap();
-            }
-            stream.flush().unwrap();
 
             eprintln!("Request completed in {:?}", start.elapsed());
-            // this `jh.join` requires running through `Drop`
-            // which takes like 30ms
-            jh.join().unwrap();
-            eprintln!("Resources freed in {:?}", start.elapsed());
         });
     }
+}
+fn run_code_handler(
+    mut stream: TcpStream,
+    initial_buf: &[u8],
+    body_offset: usize,
+    headers: &[httparse::Header],
+) {
+    let start = Instant::now();
+
+    let content_length = headers
+        .iter()
+        .find(|h| h.name.eq_ignore_ascii_case("Content-Length"))
+        .and_then(|h| std::str::from_utf8(h.value).ok())
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(0);
+
+    let mut program = Vec::new();
+    let already_read = initial_buf.len() - body_offset;
+    program.extend_from_slice(&initial_buf[body_offset..]);
+
+    let mut remaining = content_length.saturating_sub(already_read);
+    let mut buf = [0u8; 4096];
+    while remaining > 0 {
+        let to_read = remaining.min(buf.len());
+        let bytes_read = stream.read(&mut buf[..to_read]).unwrap();
+        if bytes_read == 0 {
+            break;
+        }
+        program.extend_from_slice(&buf[..bytes_read]);
+        remaining -= bytes_read;
+    }
+    // TODO, maybe do a tinycc pass, as quick check??
+    // clang = ~50ms to fail, tinycc should be .. 2?
+    // clang = 90~100ms to succeed
+    // -- about 15ms to strip
+    let s = Instant::now();
+    let c = compile::compile(&program);
+    println!("Compile of {} bytes took {:?}", program.len(), s.elapsed());
+    let compiled = match c {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            stream.write_all(b"HTTP/1.1 400 Bad Request\r\n").unwrap();
+            stream.write_all(b"\r\n").unwrap();
+            stream
+                .write_all(serde_json::to_string(&e).unwrap().as_bytes())
+                .unwrap();
+            return;
+        }
+    };
+
+    stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
+    stream
+        .write_all(b"Content-Type: text/event-stream\r\n")
+        .unwrap();
+    stream.write_all(b"Cache-Control: no-cache\r\n").unwrap();
+    stream.write_all(b"\r\n").unwrap();
+    stream.flush().unwrap();
+
+    let (tx, rx) = channel();
+    let jh = thread::spawn(move || {
+        vm(tx, &compiled);
+    });
+
+    for msg in rx {
+        let json = serde_json::to_string(&msg).unwrap();
+        stream
+            .write_all(format!("data: {}\n\n", json).as_bytes())
+            .unwrap();
+        stream.flush().unwrap();
+    }
+    stream.flush().unwrap();
+    eprintln!("Run-code completed in {:?}", start.elapsed());
+    // this `jh.join` requires running through `Drop`
+    // which takes like 30ms
+    jh.join().unwrap();
 }
 
 fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: &[u8]) {
