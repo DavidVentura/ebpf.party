@@ -2,32 +2,36 @@ import CodeMirror from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { keymap } from "@codemirror/view";
+import { Prec } from "@codemirror/state";
 
 interface CodeEditorProps {
   code: string;
   onChange: (code: string) => void;
-  onRun?: () => void;
-  canRun?: boolean;
+  onRun: () => void;
+  canRun: boolean;
 }
 
-export default function CodeEditor({ code, onChange, onRun, canRun }: CodeEditorProps) {
-  const extensions = [cpp()];
-
-  if (onRun) {
-    extensions.push(
+export default function CodeEditor({
+  code,
+  onChange,
+  onRun,
+  canRun,
+}: CodeEditorProps) {
+  const extensions = [
+    cpp(),
+    Prec.highest(
       keymap.of([
         {
           key: "Ctrl-Enter",
           run: () => {
-            if (canRun) {
-              onRun();
-            }
+            console.log("ctrl-enter");
+            if (canRun) onRun();
             return true;
           },
         },
       ])
-    );
-  }
+    ),
+  ];
 
   return (
     <CodeMirror

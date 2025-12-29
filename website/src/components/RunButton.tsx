@@ -6,14 +6,18 @@ interface RunButtonProps {
   onRun: () => void;
 }
 
-export default function RunButton({ disabled, isRunning, onRun }: RunButtonProps) {
+export default function RunButton({
+  disabled,
+  isRunning,
+  onRun,
+}: RunButtonProps) {
   return (
     <button
       className={styles.runButton}
       onClick={onRun}
       disabled={disabled || isRunning}
     >
-      {isRunning ? "Running..." : "Run"}
+      {isRunning ? "..." : "Run"}
     </button>
   );
 }
