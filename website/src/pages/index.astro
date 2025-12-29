@@ -1,0 +1,42 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const exercises = await Astro.glob('./exercises/*.mdx');
+---
+
+<Layout>
+	<div class="home">
+		<h1>Hi</h1>
+		<ul>
+			{exercises.map((exercise) => (
+				<li>
+					<a href={exercise.url}>{exercise.frontmatter.title}</a>
+				</li>
+			))}
+		</ul>
+	</div>
+</Layout>
+
+<style>
+	.home {
+		padding: 2rem;
+	}
+
+	ul {
+		list-style: none;
+		padding: 0;
+	}
+
+	li {
+		margin: 0.5rem 0;
+	}
+
+	a {
+		color: #0066cc;
+		text-decoration: none;
+	}
+
+	a:hover {
+		text-decoration: underline;
+	}
+</style>
