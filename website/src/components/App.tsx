@@ -67,10 +67,6 @@ export default function App({ starterCode, exerciseId }: AppProps) {
             {}
           );
           setTypeInfo(typeInfoObj);
-
-          if (parsed.length > 0 && !selectedStructName) {
-            setSelectedStructName(parsed[0].name);
-          }
         }
 
         let newOutputClass: "warning" | "error" | "" = "";
@@ -130,6 +126,9 @@ export default function App({ starterCode, exerciseId }: AppProps) {
     setIsRunning(true);
     setEvents([]);
 
+    // Re-generate type bindings on run
+    workerRef.current?.checkSyntax(code, true);
+
     const abort = runCode(
       code,
       exerciseId,
@@ -149,7 +148,15 @@ export default function App({ starterCode, exerciseId }: AppProps) {
   return (
     <div className={styles.app}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div style={{ display: "flex", alignItems: "center", padding: "0.5rem", background: "#1e1e1e", borderBottom: "1px solid #444" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "0.5rem",
+            background: "#1e1e1e",
+            borderBottom: "1px solid #444",
+          }}
+        >
           <RunButton
             disabled={outputClass === "error"}
             isRunning={isRunning}
