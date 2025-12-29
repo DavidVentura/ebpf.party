@@ -10,6 +10,7 @@ pub enum ExecutionMessage {
     LoadFail(String),
     VerifierFail(String),
     NoPerfMapsFound,
+    NoProgramsFound,
     FoundProgram { name: String, section: String },
     FoundMap { name: String },
     Event(Vec<u8>),
