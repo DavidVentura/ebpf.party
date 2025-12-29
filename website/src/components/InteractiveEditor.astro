@@ -3,6 +3,13 @@ import App from "./App.tsx";
 import NoScript from "../content/NoScript.mdx";
 
 const { starterCode, exerciseId } = Astro.props;
+
+if (!exerciseId) {
+  throw new Error("Missing exerciseId in frontmatter");
+}
+if (!starterCode) {
+  throw new Error("Missing starterCode");
+}
 ---
 
 <div class="interactive-editor">

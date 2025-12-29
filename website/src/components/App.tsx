@@ -12,7 +12,7 @@ import type { SSEEvent } from "../types/sse-events";
 import styles from "./App.module.css";
 
 interface AppProps {
-  starterCode?: string;
+  starterCode: string;
   exerciseId: string;
 }
 
