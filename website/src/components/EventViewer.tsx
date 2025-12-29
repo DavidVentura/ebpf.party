@@ -7,18 +7,46 @@ interface EventViewerProps {
 }
 
 export default function EventViewer({ events, isRunning }: EventViewerProps) {
+  const isError = (event: SSEEvent): boolean => {
+    if (event.type === "compileError") return true;
+    if (event.type === "executionResult") {
+      if (event.data.type === "noPerfMapsFound") return true;
+      if (event.data.type === "noProgramsFound") return true;
+    }
+    return false;
+  };
+
+  const formatEvent = (event: SSEEvent): string => {
+    if (event.type === "compileError") {
+      return event.data;
+    }
+    if (event.type === "executionResult") {
+      if (event.data.type === "noPerfMapsFound") {
+        return "Error: No perf maps found in program";
+      }
+      if (event.data.type === "noProgramsFound") {
+        return "Error: No eBPF programs found in code. Missing a SEC() decorator?";
+      }
+      return `${event.data.type}: ${JSON.stringify(event.data.data)}`;
+    }
+    return event.type;
+  };
+
   return (
     <div className={styles.eventViewer}>
-      <h3>Execution Events</h3>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <h3>Execution Events</h3>
+        {isRunning && <span className={styles.loading}>Loading...</span>}
+      </div>
       <div className={styles.events}>
         {events.map((event, i) => (
-          <p key={i} className={styles.event}>
-            {event.type === "executionResult"
-              ? `${event.data.type}: ${JSON.stringify(event.data.data)}`
-              : event.type}
+          <p
+            key={i}
+            className={isError(event) ? styles.errorEvent : styles.event}
+          >
+            {formatEvent(event)}
           </p>
         ))}
-        {isRunning && <p className={styles.loading}>Loading...</p>}
       </div>
     </div>
   );
