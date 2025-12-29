@@ -49,6 +49,15 @@ fn run_code_handler(
 ) {
     let start = Instant::now();
 
+    let origin = headers
+        .iter()
+        .find(|h| h.name.eq_ignore_ascii_case("Origin"))
+        .and_then(|h| std::str::from_utf8(h.value).ok());
+
+    let cors_origin = origin
+        .filter(|o| o.starts_with("http://localhost:") || o.starts_with("http://127.0.0.1:"))
+        .unwrap_or("http://localhost:3000");
+
     let has_expect_continue = headers
         .iter()
         .any(|h| h.name.eq_ignore_ascii_case("Expect") && h.value == b"100-continue");
@@ -87,6 +96,9 @@ fn run_code_handler(
         stream
             .write_all(b"HTTP/1.1 413 Content Too Large\r\n")
             .unwrap();
+        stream
+            .write_all(format!("Access-Control-Allow-Origin: {}\r\n", cors_origin).as_bytes())
+            .unwrap();
         stream.write_all(b"\r\n").unwrap();
         stream
             .write_all(
@@ -113,6 +125,9 @@ fn run_code_handler(
         .write_all(b"Content-Type: text/event-stream\r\n")
         .unwrap();
     stream.write_all(b"Cache-Control: no-cache\r\n").unwrap();
+    stream
+        .write_all(format!("Access-Control-Allow-Origin: {}\r\n", cors_origin).as_bytes())
+        .unwrap();
     stream.write_all(b"\r\n").unwrap();
     stream.flush().unwrap();
 
