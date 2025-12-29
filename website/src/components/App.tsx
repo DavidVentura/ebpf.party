@@ -119,7 +119,9 @@ export default function App({ starterCode, exerciseId }: AppProps) {
   };
 
   const handleSelectStruct = (name: string) => {
-    setSelectedStructName(name);
+    if (typeInfo[name]) {
+      setSelectedStructName(name);
+    }
   };
 
   const handleRun = () => {
@@ -159,6 +161,7 @@ export default function App({ starterCode, exerciseId }: AppProps) {
           onChange={handleCodeChange}
           onRun={handleRun}
           canRun={canRun}
+          onSelectStruct={handleSelectStruct}
         />
       </div>
       {outputClass && (

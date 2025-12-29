@@ -1,14 +1,16 @@
 import CodeMirror from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { keymap } from "@codemirror/view";
+import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
+import { syntaxTree } from "@codemirror/language";
 
 interface CodeEditorProps {
   code: string;
   onChange: (code: string) => void;
   onRun: () => void;
   canRun: boolean;
+  onSelectStruct: (name: string) => void;
 }
 
 export default function CodeEditor({
@@ -16,22 +18,42 @@ export default function CodeEditor({
   onChange,
   onRun,
   canRun,
+  onSelectStruct,
 }: CodeEditorProps) {
-  const extensions = [
-    cpp(),
-    Prec.highest(
-      keymap.of([
-        {
-          key: "Ctrl-Enter",
-          run: () => {
-            console.log("ctrl-enter");
-            if (canRun) onRun();
+  const ctrlClickHandler = EditorView.domEventHandlers({
+    mousedown: (event, view) => {
+      if (event.ctrlKey || event.metaKey) {
+        const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
+        console.log(pos);
+        if (pos !== null) {
+          const tree = syntaxTree(view.state);
+          const node = tree.resolveInner(pos, 1);
+
+          if (node && node.type.name === "TypeIdentifier") {
+            const text = view.state.doc.sliceString(node.from, node.to);
+            onSelectStruct(text);
+            event.preventDefault();
             return true;
-          },
+          }
+        }
+      }
+      return false;
+    },
+  });
+
+  const ctrlEnterHandler = Prec.highest(
+    keymap.of([
+      {
+        key: "Ctrl-Enter",
+        run: () => {
+          console.log("ctrl-enter");
+          if (canRun) onRun();
+          return true;
         },
-      ])
-    ),
-  ];
+      },
+    ])
+  );
+  const extensions = [cpp(), ctrlEnterHandler, ctrlClickHandler];
 
   return (
     <CodeMirror
