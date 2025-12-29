@@ -1,0 +1,98 @@
+---
+---
+
+<div class="editor">
+	<textarea id="code" placeholder="Loading..."></textarea>
+	<div id="output" class="output">Initializing WASM...</div>
+</div>
+
+<script>
+	import { TccWorkerClient } from '../lib/tcc-worker-client';
+
+	const codeTextarea = document.getElementById('code') as HTMLTextAreaElement;
+	const outputDiv = document.getElementById('output') as HTMLDivElement;
+
+	const workerClient = new TccWorkerClient(
+		() => {
+			codeTextarea.placeholder = 'Write your C code here...';
+			codeTextarea.disabled = false;
+			outputDiv.textContent = 'Ready. Target: x86_64 (LP64)\n';
+		},
+		(text) => {
+			outputDiv.textContent += text + '\n';
+		},
+		(text) => {
+			outputDiv.textContent += text + '\n';
+		},
+		(result, typeInfo, timing) => {
+			outputDiv.textContent += `Took ${timing.time.toFixed(2)}ms. Avg ${timing.avg.toFixed(2)}ms\n`;
+
+			if (typeInfo) {
+				console.log('Type info:', typeInfo);
+			}
+
+			if (result === 0) {
+				outputDiv.textContent += 'Syntax OK.\n';
+				outputDiv.className = 'output success';
+			} else {
+				outputDiv.textContent += `Syntax Error (Result: ${result})\n`;
+				outputDiv.className = 'output error';
+			}
+		},
+		(error) => {
+			outputDiv.textContent += 'Worker Error: ' + error + '\n';
+			outputDiv.className = 'output error';
+		}
+	);
+
+	codeTextarea.oninput = () => {
+		outputDiv.textContent = '';
+		outputDiv.className = 'output';
+		workerClient.checkSyntax(codeTextarea.value, false);
+	};
+</script>
+
+<style>
+	.editor {
+		flex: 1;
+		background: #1e1e1e;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.editor textarea {
+		flex: 1;
+		background: #1e1e1e;
+		color: #d4d4d4;
+		border: none;
+		padding: 1rem;
+		font-family: monospace;
+		resize: none;
+	}
+
+	.editor textarea:focus {
+		outline: none;
+	}
+
+	.output {
+		background: #2d2d2d;
+		color: #d4d4d4;
+		padding: 1rem;
+		font-family: monospace;
+		white-space: pre-wrap;
+		border-top: 1px solid #444;
+		min-height: 100px;
+		max-height: 200px;
+		overflow-y: auto;
+	}
+
+	.output.success {
+		border-left: 4px solid #4caf50;
+		background: #1e2e1e;
+	}
+
+	.output.error {
+		border-left: 4px solid #f44336;
+		background: #2e1e1e;
+	}
+</style>

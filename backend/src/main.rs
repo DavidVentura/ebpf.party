@@ -157,6 +157,7 @@ fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: Vec<u8>) {
     use firecracker_spawn::{Disk, Vm};
 
     let kernel = fs::File::open("../vmlinux").unwrap();
+    // TODO unique vsock
     let vsock_path = "/tmp/test.v.sock";
     let port = 1234;
     let vsock_listener = format!("{}_{}", vsock_path, port);
