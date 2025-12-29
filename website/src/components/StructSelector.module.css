@@ -1,0 +1,28 @@
+.structSelector {
+  padding: 1rem;
+  background: #2d2d2d;
+  border-top: 1px solid #444;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.structSelector label {
+  color: #d4d4d4;
+  font-family: monospace;
+}
+
+.structSelector select {
+  flex: 1;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: 1px solid #444;
+  padding: 0.5rem;
+  font-family: monospace;
+  border-radius: 4px;
+}
+
+.structSelector select:focus {
+  outline: none;
+  border-color: #4caf50;
+}

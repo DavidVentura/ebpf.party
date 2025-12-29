@@ -1,11 +1,11 @@
-.editor {
+.app {
   flex: 1;
   background: #1e1e1e;
   display: flex;
   flex-direction: column;
 }
 
-.editor textarea {
+.app .textarea {
   flex: 1;
   background: #1e1e1e;
   color: #d4d4d4;
@@ -15,7 +15,7 @@
   resize: none;
 }
 
-.editor textarea:focus {
+.app .textarea:focus {
   outline: none;
 }
 
@@ -31,9 +31,9 @@
   overflow-y: auto;
 }
 
-.output.success {
-  border-left: 4px solid #4caf50;
-  background: #1e2e1e;
+.output.warning {
+  border-left: 4px solid #ff9800;
+  background: #2e2a1e;
 }
 
 .output.error {
