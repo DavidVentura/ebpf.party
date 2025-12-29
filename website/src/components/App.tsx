@@ -38,6 +38,8 @@ export default function App({ starterCode, exerciseId }: AppProps) {
   const compilationOutputRef = useRef("");
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortRunRef = useRef<(() => void) | null>(null);
+  const lastCheckedCodeRef = useRef(starterCode);
+  const currentCodeRef = useRef(starterCode);
 
   useEffect(() => {
     const worker = new TccWorkerClient(
@@ -97,21 +99,27 @@ export default function App({ starterCode, exerciseId }: AppProps) {
     };
   }, []);
 
+  const performCheck = (code: string) => {
+    compilationOutputRef.current = "";
+    hasOutputRef.current = false;
+    workerRef.current?.checkSyntax(code, false);
+    lastCheckedCodeRef.current = code;
+  };
+
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
+    currentCodeRef.current = newCode;
 
-    if (debounceTimeoutRef.current) {
-      clearTimeout(debounceTimeoutRef.current);
+    if (!debounceTimeoutRef.current) {
+      performCheck(newCode);
+
+      debounceTimeoutRef.current = setTimeout(() => {
+        if (currentCodeRef.current !== lastCheckedCodeRef.current) {
+          performCheck(currentCodeRef.current);
+        }
+        debounceTimeoutRef.current = null;
+      }, DEBOUNCE_TIME_MS);
     }
-
-    debounceTimeoutRef.current = setTimeout(() => {
-      compilationOutputRef.current = "";
-      hasOutputRef.current = false;
-      // TODO need to be smarter with type generation
-      // maybe figure out how to gen 'task.h' once only
-      // then the rest
-      workerRef.current?.checkSyntax(newCode, false);
-    }, DEBOUNCE_TIME_MS);
   };
 
   const handleSelectStruct = (name: string) => {
