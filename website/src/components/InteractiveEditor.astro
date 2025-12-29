@@ -2,7 +2,7 @@
 import App from "./App.tsx";
 import NoScript from "../content/NoScript.mdx";
 
-const { starterCode } = Astro.props;
+const { starterCode, exerciseId } = Astro.props;
 ---
 
 <div class="interactive-editor">
@@ -11,7 +11,7 @@ const { starterCode } = Astro.props;
       <NoScript />
     </div>
   </noscript>
-  <App client:load starterCode={starterCode} />
+  <App client:load starterCode={starterCode} exerciseId={exerciseId} />
 </div>
 
 <style>

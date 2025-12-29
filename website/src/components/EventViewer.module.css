@@ -1,0 +1,40 @@
+.eventViewer {
+  background: #2d2d2d;
+  border-top: 1px solid #444;
+  padding: 1rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.eventViewer h3 {
+  color: #d4d4d4;
+  font-family: monospace;
+  font-size: 14px;
+  margin: 0 0 1rem 0;
+  font-weight: bold;
+}
+
+.events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.event {
+  color: #d4d4d4;
+  font-family: monospace;
+  font-size: 12px;
+  margin: 0;
+  padding: 0.5rem;
+  background: #1e1e1e;
+  border-left: 2px solid #4caf50;
+  border-radius: 2px;
+}
+
+.loading {
+  color: #ff9800;
+  font-family: monospace;
+  font-size: 12px;
+  margin: 0;
+  font-style: italic;
+}

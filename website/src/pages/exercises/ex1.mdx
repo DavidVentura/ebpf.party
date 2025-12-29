@@ -2,6 +2,7 @@
 layout: ../../layouts/ExerciseLayout.astro
 title: Getting a process name
 codeFile: ex1.c
+exerciseId: exercise-1
 ---
 
 # {frontmatter.title}
@@ -35,15 +36,18 @@ DEBUG_U64("Label", var_u64);
 DEBUG_STR("Label", var_str);
 DEBUG_STRUCT("Label", var_struct);
 ```
+The label is only for the UI.
 </details>
 
-The goal of this challenge is to extract the name of a binary that's being
- executed on the target system.
+## The challenge
+Extract the name of programs being executed on the target system. 
 
-How do we do that though?
+We only care for the program that contains "ctf" in its name.
 
-When a process is first executed (via the [exec]() syscall family), the scheduler
-is notified about the event, to, well, schedule the process.
+## Some context
+
+When a process is first executed (via the [exec syscall family](https://man7.org/linux/man-pages/man2/execve.2.html)),
+the scheduler is notified about the event, to, well, schedule the process.
 
 If we check the exposed scheduler events, we'll find a bunch
 ```bash
@@ -66,14 +70,48 @@ format:
   pid_t old_pid;                        offset:16;  size:4;
 ```
 
-of interest here we do see `filename`!
+Perfect, the event receives `filename`!
 
-The `__data_loc` prefix means it's a dynamically-sized field (strings can be any length), so we'll need to handle it carefully.
+However, notice that it's not a regular pointer, the `__data_loc` prefix means it's dynamically sized.
 
+<details>
+<summary>Excessive details on `__data_loc` definition</summary>
+You can find that the `__data_loc` prefix is prepended in the [__dynamic_array macro](https://github.com/torvalds/linux/blob/v6.18/include/trace/stages/stage4_event_fields.h#L33-L36).
+```c
+#define __dynamic_array(_type, _item, _len) {				\
+	.type = "__data_loc " #_type "[]", .name = #_item,		\
+	.size = 4, .align = 4,						\
+	.is_signed = is_signed_type(_type), .filter_type = FILTER_OTHER },
+```
+which is part of the machinery that generates the tracing format we saw before.
+
+For the actual runtime behavior, see the [sched_process_exec tracepoint definition](https://github.com/torvalds/linux/blob/v6.18/include/trace/events/sched.h#L438) 
+which uses `__string()` to declare the field and `__assign_str()` to populate it.
+
+The `__assign_str` macro copies the string to a buffer and encodes the offset + length into that 4-byte `filename` field.
+</details>
+
+Basically, `filename` actually contains only 4 bytes, which could be better understood as
 
 ```c
-SEC("tp/sched/sched_process_exec")
-int handle_exec(struct trace_event_raw_sched_process_exec* ctx) {
-
+struct __data_loc {
+    u16 length; // upper 16 bits: length of data
+    u16 offset; // lower 16 bits: offset from start of ctx
 }
 ```
+
+so the _actual_ content is at `ctx + offset`.
+
+Remember that in eBPF context, we can't read user data directly, so we need to use a helper:
+
+```c
+// Read the encoded location
+u32 loc = BPF_CORE_READ(ctx, filename);
+u16 offset = loc & 0xFFFF;
+const char *filename = (char *)ctx + offset;
+```
+
+## Your task
+
+Complete the provided program. You get extra points if you only return the filtered program names,
+[bpf_strstr](https://docs.ebpf.io/linux/kfuncs/bpf_strstr/) is your friend.

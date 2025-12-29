@@ -1,19 +1,40 @@
 import CodeMirror from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { oneDark } from "@codemirror/theme-one-dark";
+import { keymap } from "@codemirror/view";
 
 interface CodeEditorProps {
   code: string;
   onChange: (code: string) => void;
+  onRun?: () => void;
+  canRun?: boolean;
 }
 
-export default function CodeEditor({ code, onChange }: CodeEditorProps) {
+export default function CodeEditor({ code, onChange, onRun, canRun }: CodeEditorProps) {
+  const extensions = [cpp()];
+
+  if (onRun) {
+    extensions.push(
+      keymap.of([
+        {
+          key: "Ctrl-Enter",
+          run: () => {
+            if (canRun) {
+              onRun();
+            }
+            return true;
+          },
+        },
+      ])
+    );
+  }
+
   return (
     <CodeMirror
       value={code}
       height="100%"
       theme={oneDark}
-      extensions={[cpp()]}
+      extensions={extensions}
       onChange={onChange}
       placeholder="Write your C code here..."
       basicSetup={{

@@ -5,7 +5,8 @@ import { join } from "node:path";
 
 const { frontmatter } = Astro.props;
 
-let starterCode = frontmatter?.starterCode || "";
+let starterCode = frontmatter.starterCode || "";
+const exerciseId = frontmatter.exerciseId!!;
 
 if (frontmatter?.codeFile) {
   const codeFilePath = join(
@@ -23,14 +24,14 @@ if (frontmatter?.codeFile) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{frontmatter?.title || "Exercise"}</title>
+    <title>{frontmatter.title}</title>
   </head>
   <body>
     <div class="container">
       <div class="content">
         <slot />
       </div>
-      <InteractiveEditor starterCode={starterCode} />
+      <InteractiveEditor starterCode={starterCode} exerciseId={exerciseId} />
     </div>
   </body>
 </html>
