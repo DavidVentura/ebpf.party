@@ -198,7 +198,11 @@ export default function App({ starterCode, exerciseId }: AppProps) {
         </>
       )}
       {events.length > 0 && (
-        <EventViewer events={events} isRunning={isRunning} />
+        <EventViewer
+          events={events}
+          isRunning={isRunning}
+          onClear={() => setEvents([])}
+        />
       )}
     </div>
   );

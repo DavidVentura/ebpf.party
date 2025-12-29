@@ -4,9 +4,10 @@ import styles from "./EventViewer.module.css";
 interface EventViewerProps {
   events: SSEEvent[];
   isRunning: boolean;
+  onClear: () => void;
 }
 
-export default function EventViewer({ events, isRunning }: EventViewerProps) {
+export default function EventViewer({ events, isRunning, onClear }: EventViewerProps) {
   const isError = (event: SSEEvent): boolean => {
     if (event.type === "compileError") return true;
     if (event.type === "executionResult") {
@@ -34,9 +35,14 @@ export default function EventViewer({ events, isRunning }: EventViewerProps) {
 
   return (
     <div className={styles.eventViewer}>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <h3>Execution Events</h3>
-        {isRunning && <span className={styles.loading}>Loading...</span>}
+      <div className={styles.header}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <h3>Execution Events</h3>
+          {isRunning && <span className={styles.loading}>Loading...</span>}
+        </div>
+        <button className={styles.closeButton} onClick={onClear}>
+          ×
+        </button>
       </div>
       <div className={styles.events}>
         {events.map((event, i) => (
