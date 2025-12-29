@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import type { TypeInfo, TypeMember } from "../types/typeinfo";
 import styles from "./StructViewer.module.css";
 

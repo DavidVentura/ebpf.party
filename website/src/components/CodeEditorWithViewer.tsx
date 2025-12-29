@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import clsx from "clsx";
 import { TccWorkerClient } from "../lib/tcc-worker-client";
 import StructViewer from "./StructViewer";
 import type { TypeInfo } from "../types/typeinfo";
@@ -45,8 +46,9 @@ export default function CodeEditorWithViewer({
         );
 
         if (typeInfoJson) {
-          const parsed = JSON.parse(typeInfoJson);
-          console.log("asd", parsed[0]);
+          const parsed = JSON.parse(typeInfoJson).filter(
+            (x) => x.name == "trace_event_raw_sched_process_exec"
+          );
           setTypeInfo(parsed[0]);
         }
 
@@ -90,9 +92,7 @@ export default function CodeEditorWithViewer({
           defaultValue={starterCode}
         />
         <div
-          className={`${styles.output} ${
-            outputClass ? styles[outputClass] : ""
-          }`}
+          className={clsx(styles.output, outputClass && styles[outputClass])}
         >
           {output}
         </div>
