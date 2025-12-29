@@ -147,16 +147,18 @@ export default function App({ starterCode, exerciseId }: AppProps) {
   return (
     <div className={styles.app}>
       <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <div style={{ display: "flex", alignItems: "center", padding: "0.5rem", background: "#1e1e1e", borderBottom: "1px solid #444" }}>
+          <RunButton
+            disabled={outputClass === "error"}
+            isRunning={isRunning}
+            onRun={handleRun}
+          />
+        </div>
         <CodeEditor
           code={code}
           onChange={handleCodeChange}
           onRun={handleRun}
           canRun={canRun}
-        />
-        <RunButton
-          disabled={outputClass === "error"}
-          isRunning={isRunning}
-          onRun={handleRun}
         />
       </div>
       {outputClass && (
