@@ -95,7 +95,9 @@ export default function App({ starterCode = "" }: AppProps) {
 
   return (
     <div className={styles.app}>
-      <CodeEditor code={code} onChange={handleCodeChange} />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <CodeEditor code={code} onChange={handleCodeChange} />
+      </div>
       {outputClass && (
         <CompilerOutput output={output} outputClass={outputClass} />
       )}

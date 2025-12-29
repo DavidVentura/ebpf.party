@@ -5,18 +5,18 @@
   flex-direction: column;
 }
 
-.app .textarea {
+.app :global(.cm-editor) {
   flex: 1;
-  background: #1e1e1e;
-  color: #d4d4d4;
-  border: none;
-  padding: 1rem;
-  font-family: monospace;
-  resize: none;
+  height: 100%;
 }
 
-.app .textarea:focus {
-  outline: none;
+.app :global(.cm-scroller) {
+  font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+  min-height: 100%;
+}
+
+.app :global(.cm-content) {
+  min-height: 100%;
 }
 
 .output {
