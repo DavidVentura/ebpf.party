@@ -1,6 +1,20 @@
 ---
 import InteractiveEditor from "../components/InteractiveEditor.astro";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
 const { frontmatter } = Astro.props;
+
+let starterCode = frontmatter?.starterCode || "";
+
+if (frontmatter?.codeFile) {
+  const codeFilePath = join(
+    process.cwd(),
+    "public/exercises-code",
+    frontmatter.codeFile
+  );
+  starterCode = await readFile(codeFilePath, "utf-8");
+}
 ---
 
 <!doctype html>
@@ -16,7 +30,7 @@ const { frontmatter } = Astro.props;
       <div class="content">
         <slot />
       </div>
-      <InteractiveEditor />
+      <InteractiveEditor starterCode={starterCode} />
     </div>
   </body>
 </html>
@@ -38,5 +52,25 @@ const { frontmatter } = Astro.props;
     flex: 1;
     padding: 2rem;
     overflow-y: auto;
+  }
+
+  .content :global(p),
+  .content :global(pre:has(code)) {
+    margin: 8px 0px;
+  }
+  .content :global(pre) {
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+  }
+  .content :global(:not(pre) > code) {
+    background-color: rgb(220 220 220);
+    border-radius: 4px;
+    padding: 4px;
+  }
+
+  .content :global(details[open]::details-content) {
+    padding: 0.5rem;
+    border: 1px dotted black;
   }
 </style>

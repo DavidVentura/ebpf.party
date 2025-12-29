@@ -1,9 +1,79 @@
 ---
 layout: ../../layouts/ExerciseLayout.astro
-title: Exercise 1
+title: Getting a process name
+codeFile: ex1.c
 ---
 
-# Exercise 1
+# {frontmatter.title}
 
-ex1
-qkwlejkl
+Welcome to the first challenge!
+
+<details>
+<summary>Here's a short refresher of the eBPF concepts seen [in the tutorial]().</summary>
+
+eBPF allows us to attach arbitrary programs to specific points in the Kernel.
+
+To see what's available:
+
+```bash
+sudo ls /sys/kernel/debug/tracing/events/
+block dev sock syscalls tcp ...
+```
+
+Each tracepoint takes a single argument, with a dedicated struct type.
+
+The tracepoint is invoked _before the start_ of the kernel function.
+</details>
+
+<details>
+<summary>And a short refresher of the [platform capabilities]().</summary>
+
+There are some `DEBUG_` macros that will show values directly in this UI.
+```c
+DEBUG_U32("A label", var);
+DEBUG_U64("Label", var_u64);
+DEBUG_STR("Label", var_str);
+DEBUG_STRUCT("Label", var_struct);
+```
+</details>
+
+The goal of this challenge is to extract the name of a binary that's being
+ executed on the target system.
+
+How do we do that though?
+
+When a process is first executed (via the [exec]() syscall family), the scheduler
+is notified about the event, to, well, schedule the process.
+
+If we check the exposed scheduler events, we'll find a bunch
+```bash
+$ ls /sys/kernel/debug/tracing/events/sched
+sched_migrate_task sched_process_exec sched_process_fork ...
+```
+
+here `sched_process_exec` looks very promising, but to be sure, we need to see
+what information is available to this tracepoint.
+
+```bash
+$ cat /sys/kernel/debug/tracing/events/sched/sched_process_exec/format
+format:
+  unsigned short common_type;           offset:0;   size:2;
+  unsigned char common_flags;           offset:2;   size:1;
+  unsigned char common_preempt_count;   offset:3;   size:1;
+  int common_pid;                       offset:4;   size:4;
+  __data_loc char[] filename;           offset:8;   size:4;
+  pid_t pid;                            offset:12;  size:4;
+  pid_t old_pid;                        offset:16;  size:4;
+```
+
+of interest here we do see `filename`!
+
+The `__data_loc` prefix means it's a dynamically-sized field (strings can be any length), so we'll need to handle it carefully.
+
+
+```c
+SEC("tp/sched/sched_process_exec")
+int handle_exec(struct trace_event_raw_sched_process_exec* ctx) {
+
+}
+```

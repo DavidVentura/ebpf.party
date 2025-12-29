@@ -1,6 +1,8 @@
 ---
 import CodeEditor from "./CodeEditor.astro";
 import NoScript from "../content/NoScript.mdx";
+
+const { starterCode } = Astro.props;
 ---
 
 <div class="interactive-editor">
@@ -9,7 +11,7 @@ import NoScript from "../content/NoScript.mdx";
       <NoScript />
     </div>
   </noscript>
-  <CodeEditor />
+  <CodeEditor starterCode={starterCode} />
 </div>
 
 <style>

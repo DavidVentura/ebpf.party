@@ -1,0 +1,13 @@
+#include "task.h"
+#include "sched.h"
+#include <bpf/bpf_helpers.h>
+
+#undef SEC
+#define SEC(name) __attribute__((section(name), used))
+
+SEC("tp/sched/sched_process_exec")
+int handle_exec(struct trace_event_raw_sched_process_exec* ctx)
+{
+    DEBUG_STR("Example", "Hi");
+    return 0;
+}

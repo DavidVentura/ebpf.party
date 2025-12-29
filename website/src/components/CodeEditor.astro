@@ -1,9 +1,9 @@
 ---
-
+const { starterCode = "" } = Astro.props;
 ---
 
 <div class="editor">
-  <textarea id="code" placeholder="Loading..."></textarea>
+  <textarea id="code" autocomplete="off">{starterCode}</textarea>
   <div id="output" class="output">Initializing WASM...</div>
 </div>
 
@@ -18,6 +18,10 @@
       codeTextarea.placeholder = "Write your C code here...";
       codeTextarea.disabled = false;
       outputDiv.textContent = "Ready. Target: x86_64 (LP64)\n";
+
+      if (codeTextarea.value.trim()) {
+        workerClient.checkSyntax(codeTextarea.value, true);
+      }
     },
     (text) => {
       outputDiv.textContent += text + "\n";
@@ -29,7 +33,12 @@
       outputDiv.textContent += `Took ${timing.time.toFixed(2)}ms. Avg ${timing.avg.toFixed(2)}ms\n`;
 
       if (typeInfo) {
-        console.log("Type info:", typeInfo);
+        console.log(
+          "Type info:",
+          JSON.parse(typeInfo).filter(
+            (x) => x.name == "trace_event_raw_sched_process_exec"
+          )
+        );
       }
 
       if (result === 0) {
