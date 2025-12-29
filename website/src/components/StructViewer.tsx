@@ -41,10 +41,20 @@ function Struct({ struct }: { struct: TypeInfo }) {
   );
 }
 
-export default function StructViewer({ typeInfo }: { typeInfo: TypeInfo }) {
+interface StructViewerProps {
+  typeInfo: TypeInfo;
+  onClose: () => void;
+}
+
+export default function StructViewer({ typeInfo, onClose }: StructViewerProps) {
   return (
     <div className={styles.structViewer}>
-      <h3>Type Information</h3>
+      <div className={styles.header}>
+        <h3>Type Information</h3>
+        <button className={styles.closeButton} onClick={onClose}>
+          ×
+        </button>
+      </div>
       <div>
         <Struct struct={typeInfo} />
       </div>

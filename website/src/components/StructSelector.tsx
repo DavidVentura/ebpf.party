@@ -3,7 +3,7 @@ import styles from "./StructSelector.module.css";
 
 interface StructSelectorProps {
   structs: { [name: string]: TypeInfo };
-  selectedName: string | null;
+  selectedName: string;
   onSelect: (name: string) => void;
 }
 
@@ -19,10 +19,9 @@ export default function StructSelector({
       <label htmlFor="struct-select">Select struct to view:</label>
       <select
         id="struct-select"
-        value={selectedName || ""}
+        value={selectedName}
         onChange={(e) => onSelect(e.target.value)}
       >
-        <option value="">-- Select a struct --</option>
         {structNames.map((name) => (
           <option key={name} value={name}>
             {name}

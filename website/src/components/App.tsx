@@ -174,20 +174,23 @@ export default function App({ starterCode, exerciseId }: AppProps) {
       {outputClass && (
         <CompilerOutput output={output} outputClass={outputClass} />
       )}
-      {events.length > 0 && (
-        <EventViewer events={events} isRunning={isRunning} />
-      )}
-      {Object.keys(typeInfo).length > 0 && (
+      {Object.keys(typeInfo).length > 0 && selectedStructName && (
         <>
-          <StructSelector
+          {/* <StructSelector
             structs={typeInfo}
             selectedName={selectedStructName}
             onSelect={handleSelectStruct}
-          />
+          /> */}
           {selectedStructName && (
-            <StructViewer typeInfo={typeInfo[selectedStructName]} />
+            <StructViewer
+              typeInfo={typeInfo[selectedStructName]}
+              onClose={() => setSelectedStructName(null)}
+            />
           )}
         </>
+      )}
+      {events.length > 0 && (
+        <EventViewer events={events} isRunning={isRunning} />
       )}
     </div>
   );
