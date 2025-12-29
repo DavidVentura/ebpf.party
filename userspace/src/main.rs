@@ -1,5 +1,6 @@
 use libbpf_rs::{MapCore, MapType, ObjectBuilder, PerfBuffer, PerfBufferBuilder, PrintLevel};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
+use libc::link;
 use shared::{ExecutionMessage, GuestMessage};
 use std::ffi::CString;
 use std::io::Write;
@@ -56,6 +57,7 @@ fn real_main() {
                 ExecutionMessage::LoadFail(_)
                     | ExecutionMessage::VerifierFail(_)
                     | ExecutionMessage::NoPerfMapsFound
+                    | ExecutionMessage::NoProgramsFound
                     | ExecutionMessage::Finished()
             );
 
@@ -224,6 +226,10 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
         let link = p.attach().unwrap(); // TODO
         links.push(link);
     }
+    if links.len() == 0 {
+        tx.send(ExecutionMessage::NoProgramsFound).unwrap();
+        return;
+    }
 
     let mut pb: Option<PerfBuffer> = None;
 
@@ -251,23 +257,23 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
         }
     }
 
-    match pb {
-        Some(pb) => {
-            let start = Instant::now();
-            while start.elapsed() < timeout {
-                let time_left = timeout.saturating_sub(start.elapsed());
-                if let Err(e) = pb.poll(time_left) {
-                    // Error polling perf buffer: Interrupted system call (os error 4)
-                    if e.kind() == libbpf_rs::ErrorKind::Interrupted {
-                        continue;
-                    }
-                    eprintln!("Error polling perf buffer: {}", e);
-                    break;
-                }
+    let pb = if let Some(pb) = pb {
+        pb
+    } else {
+        tx.send(ExecutionMessage::NoPerfMapsFound).unwrap();
+        return;
+    };
+
+    let start = Instant::now();
+    while start.elapsed() < timeout {
+        let time_left = timeout.saturating_sub(start.elapsed());
+        if let Err(e) = pb.poll(time_left) {
+            // Error polling perf buffer: Interrupted system call (os error 4)
+            if e.kind() == libbpf_rs::ErrorKind::Interrupted {
+                continue;
             }
-        }
-        None => {
-            tx.send(ExecutionMessage::NoPerfMapsFound).unwrap();
+            eprintln!("Error polling perf buffer: {}", e);
+            break;
         }
     }
     tx.send(ExecutionMessage::Finished()).unwrap();
