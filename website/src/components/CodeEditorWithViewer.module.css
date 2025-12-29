@@ -1,0 +1,42 @@
+.editor {
+  flex: 1;
+  background: #1e1e1e;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor textarea {
+  flex: 1;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: none;
+  padding: 1rem;
+  font-family: monospace;
+  resize: none;
+}
+
+.editor textarea:focus {
+  outline: none;
+}
+
+.output {
+  background: #2d2d2d;
+  color: #d4d4d4;
+  padding: 1rem;
+  font-family: monospace;
+  white-space: pre-wrap;
+  border-top: 1px solid #444;
+  min-height: 100px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.output.success {
+  border-left: 4px solid #4caf50;
+  background: #1e2e1e;
+}
+
+.output.error {
+  border-left: 4px solid #f44336;
+  background: #2e1e1e;
+}

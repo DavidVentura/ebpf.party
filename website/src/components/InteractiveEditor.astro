@@ -1,5 +1,5 @@
 ---
-import CodeEditor from "./CodeEditor.astro";
+import CodeEditorWithViewer from "./CodeEditorWithViewer.tsx";
 import NoScript from "../content/NoScript.mdx";
 
 const { starterCode } = Astro.props;
@@ -11,7 +11,7 @@ const { starterCode } = Astro.props;
       <NoScript />
     </div>
   </noscript>
-  <CodeEditor starterCode={starterCode} />
+  <CodeEditorWithViewer client:load starterCode={starterCode} />
 </div>
 
 <style>

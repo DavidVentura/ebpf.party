@@ -1,0 +1,64 @@
+.structViewer {
+  padding: 1rem;
+  background: #f9f9f9;
+  border-top: 1px solid #ddd;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.structViewer h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.struct {
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+}
+
+.structHeader {
+  padding: 0.5rem;
+  background: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.structMeta {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.structMembers {
+  padding: 0.5rem;
+}
+
+.member {
+  padding: 0.25rem 0;
+  font-family: monospace;
+  font-size: 0.9rem;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem;
+}
+
+.memberType {
+  color: #0066cc;
+}
+
+.memberName {
+  color: #333;
+}
+
+.memberMeta {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.noData {
+  color: #666;
+  font-style: italic;
+}
