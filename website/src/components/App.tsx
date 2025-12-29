@@ -12,6 +12,7 @@ interface AppProps {
 }
 
 export default function App({ starterCode = "" }: AppProps) {
+  const DEBOUNCE_TIME_MS = 200;
   const [code, setCode] = useState(starterCode);
   const [output, setOutput] = useState("Initializing WASM...");
   const [outputClass, setOutputClass] = useState<"warning" | "error" | "">("");
@@ -22,6 +23,7 @@ export default function App({ starterCode = "" }: AppProps) {
   const workerRef = useRef<TccWorkerClient | null>(null);
   const hasOutputRef = useRef(false);
   const compilationOutputRef = useRef("");
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const worker = new TccWorkerClient(
@@ -42,6 +44,8 @@ export default function App({ starterCode = "" }: AppProps) {
         hasOutputRef.current = true;
       },
       (result, typeInfoJson, timing) => {
+        console.log(`Compiling took ${timing.time}ms`);
+
         if (typeInfoJson) {
           const parsed: TypeInfo[] = JSON.parse(typeInfoJson);
           const typeInfoObj = parsed.reduce(
@@ -84,9 +88,19 @@ export default function App({ starterCode = "" }: AppProps) {
 
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
-    compilationOutputRef.current = "";
-    hasOutputRef.current = false;
-    workerRef.current?.checkSyntax(newCode, true);
+
+    if (debounceTimeoutRef.current) {
+      clearTimeout(debounceTimeoutRef.current);
+    }
+
+    debounceTimeoutRef.current = setTimeout(() => {
+      compilationOutputRef.current = "";
+      hasOutputRef.current = false;
+      // TODO need to be smarter with type generation
+      // maybe figure out how to gen 'task.h' once only
+      // then the rest
+      workerRef.current?.checkSyntax(newCode, false);
+    }, DEBOUNCE_TIME_MS);
   };
 
   const handleSelectStruct = (name: string) => {

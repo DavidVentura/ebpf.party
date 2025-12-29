@@ -56,7 +56,7 @@ export class TccWorkerClient {
     };
   }
 
-  public checkSyntax(code: string, withTypeInfo = false) {
+  public checkSyntax(code: string, withTypeInfo: boolean) {
     this.startTime = performance.now();
     this.worker.postMessage({
       type: "typecheck",
