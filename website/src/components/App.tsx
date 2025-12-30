@@ -173,7 +173,7 @@ export default function App({ starterCode, exerciseId }: AppProps) {
         onLayoutChange={handleLayoutChange}
         style={{ height: "100%" }}
       >
-        <Panel id="editor-panel" defaultSize="66%" minSize="33%" maxSize="66%">
+        <Panel id="editor-panel" defaultSize="80%" minSize="33%" maxSize="80%">
           <div className={styles.editorPanel}>
             <div className={styles.runButtonHeader}>
               <RunButton
@@ -214,7 +214,7 @@ export default function App({ starterCode, exerciseId }: AppProps) {
 
         <Separator className={styles.resizeHandle} />
 
-        <Panel id="events-panel" defaultSize="34%" minSize="20%">
+        <Panel id="events-panel" defaultSize="20%" minSize="20%">
           {events.length > 0 ? (
             <EventViewer
               events={events}
