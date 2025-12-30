@@ -50,21 +50,19 @@
 }
 
 .field {
-  display: flex;
+  display: grid;
+  grid-template-columns: 12ch auto 1fr;
+  gap: 0.75rem;
   align-items: center;
-  gap: 0.5rem;
   font-family: monospace;
   font-size: 12px;
 }
 
 .fieldName {
   color: #9cdcfe;
-  min-width: fit-content;
-}
-
-.fieldValue {
-  color: #ce9178;
-  word-break: break-all;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .toggleButton {
@@ -75,12 +73,23 @@
   font-size: 11px;
   cursor: pointer;
   padding: 0 0.25rem;
-  margin-left: 0.5rem;
   transition: color 0.2s;
+  white-space: nowrap;
+  justify-self: start;
 }
 
 .toggleButton:hover {
   color: #999;
+}
+
+.togglePlaceholder {
+  width: 30px;
+  display: inline-block;
+}
+
+.fieldValue {
+  color: #ce9178;
+  word-break: break-all;
 }
 
 .activeMode {

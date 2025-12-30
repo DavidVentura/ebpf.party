@@ -29,7 +29,8 @@ function ParsedFieldComponent({
   if (field.value.kind === "scalar") {
     return (
       <div className={styles.field} style={indentStyle}>
-        <span className={styles.fieldName}>{field.name}:</span>
+        <span className={styles.fieldName}>{field.name}</span>
+        <span className={styles.togglePlaceholder}></span>
         <span className={styles.fieldValue}>{field.value.value.toString()}</span>
       </div>
     );
@@ -44,8 +45,7 @@ function ParsedFieldComponent({
 
     return (
       <div className={styles.field} style={indentStyle}>
-        <span className={styles.fieldName}>{field.name}:</span>
-        <span className={styles.fieldValue}>{displayValue}</span>
+        <span className={styles.fieldName}>{field.name}</span>
         <button className={styles.toggleButton} onClick={() => onToggle(path)}>
           [
           <span className={mode === "string" ? styles.activeMode : ""}>
@@ -54,6 +54,7 @@ function ParsedFieldComponent({
           |
           <span className={mode === "hex" ? styles.activeMode : ""}>0x</span>]
         </button>
+        <span className={styles.fieldValue}>{displayValue}</span>
       </div>
     );
   }
@@ -62,7 +63,9 @@ function ParsedFieldComponent({
     return (
       <div>
         <div className={styles.field} style={indentStyle}>
-          <span className={styles.fieldName}>{field.name}:</span>
+          <span className={styles.fieldName}>{field.name}</span>
+          <span className={styles.togglePlaceholder}></span>
+          <span className={styles.fieldValue}></span>
         </div>
         {field.value.fields.map((subField, i) => (
           <ParsedFieldComponent
@@ -82,11 +85,14 @@ function ParsedFieldComponent({
     return (
       <div>
         <div className={styles.field} style={indentStyle}>
-          <span className={styles.fieldName}>{field.name}:</span>
+          <span className={styles.fieldName}>{field.name}</span>
+          <span className={styles.togglePlaceholder}></span>
+          <span className={styles.fieldValue}></span>
         </div>
         {field.value.elements.map((element, i) => (
           <div key={i} className={styles.field} style={{ marginLeft: `${(depth + 1) * 1.5}rem` }}>
-            <span className={styles.fieldName}>[{i}]:</span>
+            <span className={styles.fieldName}>[{i}]</span>
+            <span className={styles.togglePlaceholder}></span>
             <span className={styles.fieldValue}>
               {element.kind === "scalar" ? element.value.toString() : JSON.stringify(element)}
             </span>
