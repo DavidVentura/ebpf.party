@@ -35,7 +35,7 @@ Extract the **PID** and the **filename** of the program being executed, directly
 Getting the PID is straightforward in this case, we can just read it:
 ```c
 int pid = ctx->pid;
-DEBUG_U32("PID", pid);
+DEBUG_NUM("PID", pid);
 ```
 
 Reading the filename, however, is a little bit more involved. If you look at the type declaration,
