@@ -1,4 +1,5 @@
 listen_address = "0.0.0.0:8081"
+max_concurrent_vms = 4
 clang_path = "./clang"
 includes_path = "./includes"
 rootfs_path = "../rootfs.ext4"

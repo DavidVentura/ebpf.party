@@ -17,7 +17,7 @@ fn main() {
             .expect("Failed to load config.toml")
     );
 
-    let vm_pool = Arc::new(vm_pool::VmPool::new(4, config.clone()));
+    let vm_pool = Arc::new(vm_pool::VmPool::new(config.max_concurrent_vms, config.clone()));
     let listener = TcpListener::bind(&config.listen_address).unwrap();
     println!("Server running on {}", config.listen_address);
 
