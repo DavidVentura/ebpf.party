@@ -1,0 +1,82 @@
+---
+layout: ../../../layouts/ExerciseLayout.astro
+title: Platform overview
+codeFile: 0_editor_intro.c
+exerciseId: exercise-0
+---
+
+# {frontmatter.title}
+
+Welcome to the eBPF party!
+
+This meta-exercise doesn't have a point really. It's just here to tell you about the
+capabilities of this platform.
+
+This platform consists of two main parts: the front end (what you interact with) and the back end (what runs your code).
+
+
+## The frontend
+
+Whenever you type into the code box, your code gets locally compiled, errors will be highlighted.
+
+Try typing a bunch into the code box and see how it reacts.
+
+There's a 'Run' button, that sends you code to the server to be executed.
+
+### Hotkeys
+
+- Ctrl-Enter will run the code.
+- Ctrl-Click on type definitions (`my_struct`, `trace_event_raw_sched_process_exec`) will show a little popup
+
+### Utilities
+
+You can use `DEBUG_STR`, `DEBUG_NUM` and `DEBUG_STRUCT` to send data to the front end for easy visualization.
+
+All of these take a label (a string constant) as a first argument and a `char*`, number, or `struct` respectively.
+
+
+## The backend
+
+When you _do_ send a request to the backend (after clicking 'Run'), the code will be compiled into a `bpf` object file,
+then a new VM will be created, and your object file will be loaded.
+
+The VM you get has:
+
+- 0.5vCPU
+- 64MB RAM
+- 8MB, read only, rootfs
+- No network
+- A 500ms self-destruct timer
+
+It is quite limited, but this is plenty for the exercises we run.
+
+When you send code to the backend, many things can go wrong.
+
+### Backend compiler error
+
+The backend uses `clang` to compile your code, and it may not be happy with what you send in some circumstances. It will 
+display an error in the UI. If you want to see what that looks like, add some errors gated by `#ifndef __TINYC__`.
+
+### Backend loading errors
+
+It is expected that your BPF file will have at least 1 program. If you don't have any, an error will be displayed.
+
+### Backend verifier error
+
+Sometimes, the verifier will not be able to prove that your code is safe to run, in which case, it will fail to load.
+Right now, we just display the raw error on the event console.
+
+You can see what that looks like by running, in a tracepoint:
+
+```c
+char process_name[16];
+bpf_get_current_comm(&process_name, 100);
+```
+
+The plan is to eventually improve the verifier debugging experience.
+
+### Suffering from success error
+
+If you submit code to the backend, but the backend is overwhelmed, the request will be aborted after a few seconds.
+
+This prevents a queue of work from slamming my server. You can just try again.
