@@ -56,10 +56,10 @@ self.onmessage = (e: MessageEvent) => {
         );
 
         let typeInfo: string | null = null;
+        let debTypeInfo: string | null = null;
         if (withTypeInfo && result === 0) {
           const bufPtr = Module.ccall("get_type_info_buffer", "number", [], []);
           const bufLen = Module.ccall("get_type_info_length", "number", [], []);
-
 
           if (bufPtr && bufLen > 0) {
             typeInfo = Module.UTF8ToString(bufPtr, bufLen);
@@ -68,10 +68,8 @@ self.onmessage = (e: MessageEvent) => {
           const debBufPtr = Module.ccall("get_debug_calls_buffer", "number", [], []);
           const debBufLen = Module.ccall("get_debug_calls_length", "number", [], []);
 
-          let debTypeInfo: string | null = null;
           if (debBufPtr && debBufLen > 0) {
             debTypeInfo = Module.UTF8ToString(debBufPtr, debBufLen);
-	    console.log(debTypeInfo);
           }
         }
 
@@ -79,6 +77,7 @@ self.onmessage = (e: MessageEvent) => {
           type: "result",
           result,
           typeInfo,
+          debTypeInfo,
         });
       } else {
         self.postMessage({

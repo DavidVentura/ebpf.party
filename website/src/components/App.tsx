@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { TccWorkerClient } from "../lib/tcc-worker-client";
 import { runCode } from "../lib/api-client";
+import { debTypeRegistry } from "../lib/deb-type-registry";
 import CodeEditor from "./CodeEditor";
 import CompilerOutput from "./CompilerOutput";
 import RunButton from "./RunButton";
@@ -8,6 +9,7 @@ import EventViewer from "./EventViewer";
 import StructSelector from "./StructSelector";
 import StructViewer from "./StructViewer";
 import type { TypeInfo } from "../types/typeinfo";
+import type { DebTypeInfo } from "../types/debtypeinfo";
 import type { SSEEvent } from "../types/sse-events";
 import styles from "./App.module.css";
 
@@ -59,7 +61,7 @@ export default function App({ starterCode, exerciseId }: AppProps) {
         compilationOutputRef.current += text + "\n";
         hasOutputRef.current = true;
       },
-      (result, typeInfoJson, timing) => {
+      (result, typeInfoJson, debTypeInfoJson, timing) => {
         console.log(`Compiling took ${timing.time}ms`);
 
         if (typeInfoJson) {
@@ -69,6 +71,12 @@ export default function App({ starterCode, exerciseId }: AppProps) {
             {}
           );
           setTypeInfo(typeInfoObj);
+        }
+
+        if (debTypeInfoJson) {
+          const parsed: DebTypeInfo[] = JSON.parse(debTypeInfoJson);
+          debTypeRegistry.set(parsed);
+          console.log("DebTypeInfo registered:", parsed);
         }
 
         let newOutputClass: "warning" | "error" | "" = "";

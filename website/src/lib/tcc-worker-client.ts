@@ -14,6 +14,7 @@ export class TccWorkerClient {
     private onResult: (
       result: number,
       typeInfo: string | null,
+      debTypeInfo: string | null,
       timing: { time: number; avg: number }
     ) => void,
     private onError: (error: string) => void
@@ -44,7 +45,7 @@ export class TccWorkerClient {
             time: end - this.startTime,
             avg: this.total / this.count,
           };
-          this.onResult(e.data.result, e.data.typeInfo, timing);
+          this.onResult(e.data.result, e.data.typeInfo, e.data.debTypeInfo, timing);
           break;
         default:
           console.log("Unknown message from worker:", e.data);
