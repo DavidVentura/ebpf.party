@@ -43,7 +43,7 @@ export default function CodeEditor({
   const ctrlEnterHandler = Prec.highest(
     keymap.of([
       {
-        key: "Ctrl-Enter",
+        key: "Mod-Enter",
         run: () => {
           if (canRun) onRun();
           return true;
