@@ -1,30 +1,68 @@
 ---
 import Layout from '../layouts/Layout.astro';
 
-const exercises = await Astro.glob('./exercises/*.mdx');
+const exercises = await Astro.glob('./exercises/**/*.mdx');
+
+// Group exercises by chapter
+const chapters = exercises.reduce((acc, exercise) => {
+	const match = exercise.url?.match(/\/exercises\/(chapter-\d+)\//);
+	const chapterId = match ? match[1] : 'other';
+
+	if (!acc[chapterId]) {
+		acc[chapterId] = [];
+	}
+	acc[chapterId].push(exercise);
+	return acc;
+}, {} as Record<string, typeof exercises>);
+
+// Sort chapters by name
+const sortedChapters = Object.entries(chapters).sort((a, b) => a[0].localeCompare(b[0]));
 ---
 
 <Layout>
 	<div class="home">
-		<h1>Hi</h1>
-		<ul>
-			{exercises.map((exercise) => (
-				<li>
-					<a href={exercise.url}>{exercise.frontmatter.title}</a>
-				</li>
-			))}
-		</ul>
+		<h1>eBPF Exercises</h1>
+		{sortedChapters.map(([chapterId, chapterExercises]) => (
+			<section class="chapter">
+				<h2>{chapterId.replace('chapter-', 'Chapter ').replace('-', ' ')}</h2>
+				<ul>
+					{chapterExercises.map((exercise) => (
+						<li>
+							<a href={exercise.url}>{exercise.frontmatter.title}</a>
+						</li>
+					))}
+				</ul>
+			</section>
+		))}
 	</div>
 </Layout>
 
 <style>
 	.home {
 		padding: 2rem;
+		max-width: 800px;
+		margin: 0 auto;
+	}
+
+	h1 {
+		margin-bottom: 2rem;
+	}
+
+	.chapter {
+		margin-bottom: 2rem;
+	}
+
+	.chapter h2 {
+		color: #4caf50;
+		font-size: 1.25rem;
+		margin-bottom: 0.75rem;
+		text-transform: capitalize;
 	}
 
 	ul {
 		list-style: none;
 		padding: 0;
+		margin-left: 1rem;
 	}
 
 	li {
@@ -34,6 +72,7 @@ const exercises = await Astro.glob('./exercises/*.mdx');
 	a {
 		color: #0066cc;
 		text-decoration: none;
+		font-size: 1rem;
 	}
 
 	a:hover {

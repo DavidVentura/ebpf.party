@@ -62,8 +62,6 @@ export default function App({ starterCode, exerciseId }: AppProps) {
         hasOutputRef.current = true;
       },
       (result, typeInfoJson, debTypeInfoJson, timing) => {
-        console.log(`Compiling took ${timing.time}ms`);
-
         if (typeInfoJson) {
           const parsed: TypeInfo[] = JSON.parse(typeInfoJson);
           const typeInfoObj = parsed.reduce(
@@ -75,8 +73,8 @@ export default function App({ starterCode, exerciseId }: AppProps) {
 
         if (debTypeInfoJson) {
           const parsed: DebTypeInfo[] = JSON.parse(debTypeInfoJson);
+          console.log(parsed);
           debTypeRegistry.set(parsed);
-          console.log("DebTypeInfo registered:", parsed);
         }
 
         let newOutputClass: "warning" | "error" | "" = "";

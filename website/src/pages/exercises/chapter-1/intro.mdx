@@ -1,0 +1,68 @@
+---
+layout: ../../../layouts/ExerciseLayout.astro
+title: Introduction and ambient data
+codeFile: 1_ambient_intro.c
+exerciseId: exercise-1
+---
+
+# {frontmatter.title}
+
+Welcome to the eBPF party!
+
+This is the first in a series of exercises intended to help you build familiarity with eBPF.
+
+In this context, we'll consider eBPF as a mechanism to "hook" our own programs into specific events, inside Linux.
+When the event happens, the kernel will pause, execute our code and then continue processing the event.
+ 
+Some examples of these events are: opening a file, running a command, or sending some data over the internet.
+
+## Program context
+
+When an eBPF program runs, it's executed in **kernel space**, but with access to information about the
+process that triggered the event.
+
+For example, if `bash` triggers an event, your eBPF program can query details about that `bash` 
+process context: its name, process id, etc.
+
+The kernel defines a [large set of helper functions](https://docs.ebpf.io/linux/helper-function/)
+to retrieve this information about the triggering process.
+
+## The challenge
+
+We want to extract the name of every program that executes in the system.
+
+To do this, we need to attach our code to an event that fires whenever a new process is scheduled to run.
+In Linux, this event is called `sched_process_exec`.
+
+In the preloaded snippet, you will see a specific "section" definition just above our function:
+
+```c
+SEC("tp/sched/sched_process_exec")
+```
+This macro tells the eBPF loader to attach the function to that specific tracepoint.
+Now, whenever the scheduler runs a new process, our code runs too!
+
+
+**Try running the preloaded snippet now.** It should log an entry per event.
+
+## Your task
+
+The example code works, but it prints a static string. We want the actual program name.
+
+Since our code runs in the context of the new process, we can ask the kernel: "Who am I?"
+
+We will use [bpf_get_current_comm(&buf, size)](https://docs.ebpf.io/linux/helper-function/bpf_get_current_comm/)
+which writes the current process name into a buffer you provide.
+
+A little refresher, in C, we can declare a character buffer with
+```c
+char buffer[16];
+```
+
+To populate the buffer, call the helper function:
+
+```c
+bpf_get_current_comm(&buffer, sizeof(buffer));
+```
+
+then call `DEBUG_STR` to see the results.

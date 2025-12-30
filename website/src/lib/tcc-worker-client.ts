@@ -45,7 +45,6 @@ export class TccWorkerClient {
             time: end - this.startTime,
             avg: this.total / this.count,
           };
-          console.log(e.data);
           this.onResult(
             e.data.result,
             e.data.typeInfo,

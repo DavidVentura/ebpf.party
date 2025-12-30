@@ -1,6 +1,6 @@
 import type { SSEEvent } from "../types/sse-events";
 
-const API_BASE_URL = "http://localhost:8081";
+const API_BASE_URL = import.meta.env.DEV ? "http://localhost:8081" : "";
 
 export function runCode(
   code: string,

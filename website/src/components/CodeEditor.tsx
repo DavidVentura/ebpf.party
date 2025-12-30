@@ -24,7 +24,6 @@ export default function CodeEditor({
     mousedown: (event, view) => {
       if (event.ctrlKey || event.metaKey) {
         const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
-        console.log(pos);
         if (pos !== null) {
           const tree = syntaxTree(view.state);
           const node = tree.resolveInner(pos, 1);
@@ -46,7 +45,6 @@ export default function CodeEditor({
       {
         key: "Ctrl-Enter",
         run: () => {
-          console.log("ctrl-enter");
           if (canRun) onRun();
           return true;
         },

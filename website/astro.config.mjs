@@ -10,6 +10,9 @@ export default defineConfig({
   vite: {
     worker: {
       format: 'es'
+    },
+    server: {
+      allowedHosts: ['ebpf.party']
     }
   }
 });

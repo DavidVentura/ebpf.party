@@ -136,22 +136,9 @@ export default function ParsedEventViewer({
 
   const typeId = data[0];
   const counter = data[1];
-  const actualData = data.slice(2);
-
-  if (typeId !== 3 && typeId !== 4) {
-    return (
-      <div className={styles.parsedEvent}>
-        <div className={styles.eventHeader}>
-          <span className={styles.eventError}>Parse Error</span>
-        </div>
-        <div className={styles.errorMessage}>
-          Unsupported type_id: {typeId} (expected 3 for string or 4 for struct)
-        </div>
-      </div>
-    );
-  }
 
   const debTypeInfo = debTypeRegistry.findByCounter(counter);
+
   if (!debTypeInfo) {
     return (
       <div className={styles.parsedEvent}>
@@ -168,7 +155,60 @@ export default function ParsedEventViewer({
   const typeName = debTypeInfo.type_name;
   const label = debTypeInfo.label;
 
-  // Handle string type (type_id 3)
+  // Handle scalar type (type_id 2) - has 3-byte header with size
+  if (typeId === 2) {
+    if (data.length < 3) {
+      return (
+        <div className={styles.parsedEvent}>
+          <div className={styles.eventHeader}>
+            <span className={styles.eventError}>Parse Error</span>
+          </div>
+          <div className={styles.errorMessage}>
+            Scalar type requires 3-byte header, got {data.length} bytes
+          </div>
+        </div>
+      );
+    }
+
+    const size = data[2];
+    const actualData = data.slice(3);
+    let value: number | bigint;
+    const view = new DataView(new Uint8Array(actualData).buffer);
+    const isSigned = debTypeInfo.is_signed || false;
+
+    // Read based on size byte
+    if (size === 1) {
+      value = isSigned ? view.getInt8(0) : view.getUint8(0);
+    } else if (size === 2) {
+      value = isSigned ? view.getInt16(0, true) : view.getUint16(0, true);
+    } else if (size === 4) {
+      value = isSigned ? view.getInt32(0, true) : view.getUint32(0, true);
+    } else if (size === 8) {
+      value = isSigned ? view.getBigInt64(0, true) : view.getBigUint64(0, true);
+    } else {
+      value = 0;
+    }
+
+    return (
+      <div className={styles.parsedEvent}>
+        <div className={styles.eventHeader}>
+          <span className={styles.eventType}>{label}</span>
+          <span className={styles.eventSize}>({size} bytes)</span>
+        </div>
+        <div className={styles.fields}>
+          <div className={styles.field}>
+            <span className={styles.fieldName}>value</span>
+            <span className={styles.togglePlaceholder}></span>
+            <span className={styles.fieldValue}>{value.toString()}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle string type (type_id 3) - 2-byte header
+  const actualData = data.slice(2);
+
   if (typeId === 3) {
     const mode = charArrayModes["_string"] || "string";
     const decoder = new TextDecoder("utf-8", { fatal: false });

@@ -55,6 +55,18 @@ if (frontmatter?.codeFile) {
     overflow-y: auto;
   }
 
+  @media (max-width: 1280px) {
+    .container {
+      flex-direction: column;
+      height: auto;
+    }
+
+    .content {
+      flex: none;
+      overflow-y: visible;
+    }
+  }
+
   .content :global(p),
   .content :global(pre:has(code)) {
     margin: 8px 0px;

@@ -4,4 +4,5 @@ export interface DebTypeInfo {
   counter: number;
   type_name: string;
   is_union: boolean;
+  is_signed?: boolean;
 }
