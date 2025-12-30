@@ -13,6 +13,7 @@ export default function EventViewer({ events, isRunning, onClear }: EventViewerP
     if (event.type === "executionResult") {
       if (event.data.type === "noPerfMapsFound") return true;
       if (event.data.type === "noProgramsFound") return true;
+      if (event.data.type === "verifierFail") return true;
     }
     return false;
   };
@@ -27,6 +28,9 @@ export default function EventViewer({ events, isRunning, onClear }: EventViewerP
       }
       if (event.data.type === "noProgramsFound") {
         return "Error: No eBPF programs found in code. Missing a SEC() decorator?";
+      }
+      if (event.data.type === "verifierFail") {
+        return event.data.data;
       }
       return `${event.data.type}: ${JSON.stringify(event.data.data)}`;
     }

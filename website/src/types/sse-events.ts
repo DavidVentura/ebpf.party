@@ -10,5 +10,6 @@ export type ExecutionResult =
   | { type: "foundMap"; data: { name: string } }
   | { type: "noPerfMapsFound" }
   | { type: "noProgramsFound" }
+  | { type: "verifierFail"; data: string }
   | { type: "event"; data: number[] }
   | { type: "finished"; data: [] };
