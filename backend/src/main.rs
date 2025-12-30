@@ -1,24 +1,24 @@
 use shared::GuestMessage;
-use std::fs;
-use std::io;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::net::TcpStream;
-use std::os::unix::net::UnixListener;
-use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::mpsc::channel;
 use std::thread;
-use std::time::Duration;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 mod compile;
+mod vm_pool;
 
 fn main() {
+    let vm_pool = Arc::new(vm_pool::VmPool::new(4));
     let listener = TcpListener::bind("0.0.0.0:8081").unwrap();
+    // TODO compile pch
     println!("Server running on http://0.0.0.0:8081");
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
+        let pool = vm_pool.clone();
 
         thread::spawn(move || {
             let start = Instant::now();
@@ -34,7 +34,7 @@ fn main() {
             let path = req.path.unwrap_or("/");
             println!("path is '{path}'");
             if path.starts_with("/run_code/") {
-                run_code_handler(stream, &buf[..n], status.unwrap(), &req.headers);
+                run_code_handler(stream, &buf[..n], status.unwrap(), &req.headers, pool);
             }
 
             eprintln!("Request completed in {:?}", start.elapsed());
@@ -46,6 +46,7 @@ fn run_code_handler(
     initial_buf: &[u8],
     body_offset: usize,
     headers: &[httparse::Header],
+    vm_pool: Arc<vm_pool::VmPool>,
 ) {
     let start = Instant::now();
 
@@ -155,85 +156,24 @@ fn run_code_handler(
     };
 
     if let Some(compiled) = compiled {
-        vm(tx, compiled);
-        // running `vm` requires running through a KVM `Drop`
-        // which takes like 30ms -- the request insta-flushed the msgs
-        // so it only delays closing the connection, and skews
-        // the VM measurement time
+        match vm_pool.acquire(Duration::from_millis(2_000)) {
+            Ok(permit) => {
+                permit.run(tx, compiled);
+                // running `vm` requires running through a KVM `Drop`
+                // which takes like 30ms -- the request insta-flushed the msgs
+                // so it only delays closing the connection, and skews
+                // the VM measurement time
+            }
+            Err(_) => {
+                let _ = tx.send(GuestMessage::NoCapacityLeft(
+                    "My poor server can't handle this many requests. Please try again in a little bit.".to_string(),
+                ));
+                drop(tx);
+            }
+        }
     } else {
         drop(tx);
     }
     jh.join().unwrap();
     eprintln!("Run-code completed in {:?}", start.elapsed());
-}
-
-fn vm(out_tx: std::sync::mpsc::Sender<GuestMessage>, program: Vec<u8>) {
-    let start = Instant::now();
-    use firecracker_spawn::{Disk, Vm};
-
-    let kernel = fs::File::open("../vmlinux").unwrap();
-    // TODO unique vsock
-    let vsock_path = "/tmp/test.v.sock";
-    let port = 1234;
-    let vsock_listener = format!("{}_{}", vsock_path, port);
-    let _ = fs::remove_file(vsock_path);
-    let _ = fs::remove_file(&vsock_listener);
-
-    let v = Vm {
-        vcpu_count: 1,
-        mem_size_mib: 64,
-        kernel,
-        //kernel_cmdline: "ro panic=-1 reboot=t init=/strace -- -F /main execve.bpf.o".to_string(),
-        kernel_cmdline: "quiet ro panic=-1 reboot=t init=/main".to_string(),
-        rootfs: Some(Disk {
-            path: PathBuf::from("../rootfs.ext4"),
-            read_only: true,
-        }),
-        initrd: None,
-        extra_disks: vec![],
-        net_config: None,
-        use_hugepages: true,                 // TODO
-        vsock: Some(vsock_path.to_string()), // TODO
-    };
-
-    out_tx.send(GuestMessage::Booting).unwrap();
-    let handle = thread::spawn(move || {
-        let listener = UnixListener::bind(vsock_listener).unwrap();
-        for stream in listener.incoming() {
-            eprintln!("Host Connected, at {:?}", start.elapsed());
-            match stream {
-                Ok(mut stream) => {
-                    let host_msg = shared::HostMessage::ExecuteProgram {
-                        timeout: Duration::from_millis(500),
-                        program,
-                    };
-                    let config = bincode::config::standard();
-                    bincode::encode_into_std_write(&host_msg, &mut stream, config).unwrap();
-
-                    while let Ok(msg) = bincode::decode_from_std_read::<shared::GuestMessage, _, _>(
-                        &mut stream,
-                        config,
-                    ) {
-                        let _ = out_tx.send(msg.clone());
-
-                        match msg {
-                            shared::GuestMessage::ExecutionResult(exec_msg) => {
-                                if matches!(exec_msg, shared::ExecutionMessage::Finished()) {
-                                    break;
-                                }
-                            }
-                            _ => (),
-                        }
-                    }
-                    println!("host disconnected");
-                    break;
-                }
-                Err(_) => panic!("uh"),
-            }
-        }
-    });
-    v.make(Box::new(io::stdout())).unwrap();
-    io::stdout().flush().unwrap();
-    io::stderr().flush().unwrap();
-    handle.join().unwrap();
 }

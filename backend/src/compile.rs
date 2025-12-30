@@ -14,9 +14,11 @@ pub fn compile(source: &[u8]) -> Result<Vec<u8>, String> {
             "bpf",
             "-D__TARGET_ARCH_x86",
             "-include-pch",
-            "task.h.pch", // pch+gmodules means
+            "includes/task.h.pch",
+            // pch+gmodules means
             // symbols are not part of this
             "-I/usr/include/bpf",
+            "-Iincludes",
             "-x",
             "c",
             "-c",
