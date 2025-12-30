@@ -210,6 +210,7 @@ export default function App({ starterCode, exerciseId }: AppProps) {
           events={events}
           isRunning={isRunning}
           onClear={() => setEvents([])}
+          typeRegistry={typeInfo}
         />
       )}
     </div>

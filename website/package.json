@@ -7,7 +7,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "build_tcc": "make -C ../tcc syntax_check.wasm && cp ../tcc/syntax_check.wasm ../tcc/syntax_check.data public/tcc/ && cp ../tcc/syntax_check.mjs src/wasm/"
+    "build_tcc": "make -C ../tcc syntax_check.wasm && cp ../tcc/syntax_check.wasm ../tcc/syntax_check.data public/tcc/ && cp ../tcc/syntax_check.mjs src/wasm/",
+    "test": "vitest"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",
@@ -24,5 +25,8 @@
     "clsx": "^2.1.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.16"
   }
 }

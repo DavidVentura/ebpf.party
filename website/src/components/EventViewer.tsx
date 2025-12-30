@@ -1,13 +1,16 @@
 import type { SSEEvent } from "../types/sse-events";
+import type { TypeInfo } from "../types/typeinfo";
+import ParsedEventViewer from "./ParsedEventViewer";
 import styles from "./EventViewer.module.css";
 
 interface EventViewerProps {
   events: SSEEvent[];
   isRunning: boolean;
   onClear: () => void;
+  typeRegistry: { [name: string]: TypeInfo };
 }
 
-export default function EventViewer({ events, isRunning, onClear }: EventViewerProps) {
+export default function EventViewer({ events, isRunning, onClear, typeRegistry }: EventViewerProps) {
   const isError = (event: SSEEvent): boolean => {
     if (event.type === "compileError") return true;
     if (event.type === "executionResult") {
@@ -49,14 +52,27 @@ export default function EventViewer({ events, isRunning, onClear }: EventViewerP
         </button>
       </div>
       <div className={styles.events}>
-        {events.map((event, i) => (
-          <p
-            key={i}
-            className={isError(event) ? styles.errorEvent : styles.event}
-          >
-            {formatEvent(event)}
-          </p>
-        ))}
+        {events.map((event, i) => {
+          if (event.type === "executionResult" && event.data.type === "event") {
+            return (
+              <div key={i} className={styles.event}>
+                <ParsedEventViewer
+                  data={event.data.data}
+                  typeRegistry={typeRegistry}
+                />
+              </div>
+            );
+          }
+
+          return (
+            <p
+              key={i}
+              className={isError(event) ? styles.errorEvent : styles.event}
+            >
+              {formatEvent(event)}
+            </p>
+          );
+        })}
       </div>
     </div>
   );
