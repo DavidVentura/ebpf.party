@@ -125,4 +125,107 @@ describe("struct-parser", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("is not a struct");
   });
+
+  it("should parse nested structs by looking up type in registry", () => {
+    // Define a nested struct type
+    const innerTypeInfo: TypeInfo = {
+      kind: "struct",
+      name: "inner",
+      size: 8,
+      align: 4,
+      members: [
+        {
+          kind: "scalar",
+          name: "x",
+          type: "__u32",
+          offset: 0,
+          size: 4,
+          align: 4,
+          unsigned: true,
+        },
+        {
+          kind: "scalar",
+          name: "y",
+          type: "__u32",
+          offset: 4,
+          size: 4,
+          align: 4,
+          unsigned: true,
+        },
+      ],
+    };
+
+    // Define outer struct with nested struct member
+    const outerTypeInfo: TypeInfo = {
+      kind: "struct",
+      name: "outer",
+      size: 12,
+      align: 4,
+      members: [
+        {
+          kind: "struct",
+          name: "nested",
+          type: "inner",
+          offset: 0,
+          size: 8,
+          align: 4,
+        },
+        {
+          kind: "scalar",
+          name: "z",
+          type: "__u32",
+          offset: 8,
+          size: 4,
+          align: 4,
+          unsigned: true,
+        },
+      ],
+    };
+
+    const typeRegistry = {
+      inner: innerTypeInfo,
+      outer: outerTypeInfo,
+    };
+
+    // Data: nested.x=10, nested.y=20, z=30
+    const data = [
+      10, 0, 0, 0, // x: 10
+      20, 0, 0, 0, // y: 20
+      30, 0, 0, 0, // z: 30
+    ];
+
+    const result = parseStruct(data, outerTypeInfo, typeRegistry);
+
+    expect(result.success).toBe(true);
+    expect(result.parsed).toBeDefined();
+    expect(result.parsed!.length).toBe(2);
+
+    // Check nested struct field
+    const nestedField = result.parsed![0];
+    expect(nestedField.name).toBe("nested");
+    expect(nestedField.value.kind).toBe("struct");
+    if (nestedField.value.kind === "struct") {
+      expect(nestedField.value.fields.length).toBe(2);
+
+      const xField = nestedField.value.fields[0];
+      expect(xField.name).toBe("x");
+      if (xField.value.kind === "scalar") {
+        expect(xField.value.value).toBe(10);
+      }
+
+      const yField = nestedField.value.fields[1];
+      expect(yField.name).toBe("y");
+      if (yField.value.kind === "scalar") {
+        expect(yField.value.value).toBe(20);
+      }
+    }
+
+    // Check scalar field
+    const zField = result.parsed![1];
+    expect(zField.name).toBe("z");
+    expect(zField.value.kind).toBe("scalar");
+    if (zField.value.kind === "scalar") {
+      expect(zField.value.value).toBe(30);
+    }
+  });
 });
