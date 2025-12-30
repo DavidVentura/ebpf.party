@@ -14,7 +14,7 @@ export default function EventViewer({ events, isRunning, onClear, typeRegistry }
   const isError = (event: SSEEvent): boolean => {
     if (event.type === "compileError") return true;
     if (event.type === "executionResult") {
-      if (event.data.type === "noPerfMapsFound") return true;
+      if (event.data.type === "debugMapNotFound") return true;
       if (event.data.type === "noProgramsFound") return true;
       if (event.data.type === "verifierFail") return true;
     }
@@ -26,7 +26,7 @@ export default function EventViewer({ events, isRunning, onClear, typeRegistry }
       return event.data;
     }
     if (event.type === "executionResult") {
-      if (event.data.type === "noPerfMapsFound") {
+      if (event.data.type === "debugMapNotFound") {
         return "Error: No perf maps found in program";
       }
       if (event.data.type === "noProgramsFound") {
@@ -55,12 +55,11 @@ export default function EventViewer({ events, isRunning, onClear, typeRegistry }
         {events.map((event, i) => {
           if (event.type === "executionResult" && event.data.type === "event") {
             return (
-              <div key={i} className={styles.event}>
-                <ParsedEventViewer
-                  data={event.data.data}
-                  typeRegistry={typeRegistry}
-                />
-              </div>
+              <ParsedEventViewer
+                key={i}
+                data={event.data.data}
+                typeRegistry={typeRegistry}
+              />
             );
           }
 

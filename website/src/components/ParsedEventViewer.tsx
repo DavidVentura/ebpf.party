@@ -61,7 +61,7 @@ function ParsedFieldComponent({
 
   if (field.value.kind === "struct") {
     return (
-      <div>
+      <>
         <div className={styles.field}>
           <span className={styles.fieldName} style={indentStyle}>{field.name}</span>
           <span className={styles.togglePlaceholder}></span>
@@ -77,14 +77,14 @@ function ParsedFieldComponent({
             depth={depth + 1}
           />
         ))}
-      </div>
+      </>
     );
   }
 
   if (field.value.kind === "array") {
     const nestedIndentStyle = { paddingLeft: `${(depth + 1) * 1.5}rem` };
     return (
-      <div>
+      <>
         <div className={styles.field}>
           <span className={styles.fieldName} style={indentStyle}>{field.name}</span>
           <span className={styles.togglePlaceholder}></span>
@@ -99,7 +99,7 @@ function ParsedFieldComponent({
             </span>
           </div>
         ))}
-      </div>
+      </>
     );
   }
 

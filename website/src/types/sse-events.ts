@@ -8,7 +8,7 @@ export type SSEEvent =
 export type ExecutionResult =
   | { type: "foundProgram"; data: { name: string; section: string } }
   | { type: "foundMap"; data: { name: string } }
-  | { type: "noPerfMapsFound" }
+  | { type: "debugMapNotFound" }
   | { type: "noProgramsFound" }
   | { type: "verifierFail"; data: string }
   | { type: "event"; data: number[] }

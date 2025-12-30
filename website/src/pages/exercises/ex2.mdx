@@ -8,3 +8,21 @@ codeFile: ex1.c
 # Exercise 2
 
 ex2
+
+
+If this code was running on a regular environment, then we could read the parent's PID like this: 
+
+```c
+int ppid = task->real_parent->tgid;
+```
+
+```verifier
+9: (85) call bpf_get_current_task#35          ; R0=scalar()
+;  @ <stdin>:65
+10: (79) r1 = *(u64 *)(r0 +2504)
+R0 invalid mem access 'scalar'
+processed 11 insns (limit 1000000) max_states_per_insn 0 total_states 1 peak_states 1 mark_read 0
+-- END PROG LOAD LOG --
+libbpf: prog 'handle_exec': failed to load: -EACCES
+libbpf: failed to load object '7f3a6cc81050-25a8'
+```
