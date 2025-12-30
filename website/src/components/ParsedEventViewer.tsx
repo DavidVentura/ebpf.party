@@ -24,12 +24,12 @@ function ParsedFieldComponent({
   onToggle,
   depth,
 }: ParsedFieldProps) {
-  const indentStyle = { marginLeft: `${depth * 1.5}rem` };
+  const indentStyle = { paddingLeft: `${depth * 1.5}rem` };
 
   if (field.value.kind === "scalar") {
     return (
-      <div className={styles.field} style={indentStyle}>
-        <span className={styles.fieldName}>{field.name}</span>
+      <div className={styles.field}>
+        <span className={styles.fieldName} style={indentStyle}>{field.name}</span>
         <span className={styles.togglePlaceholder}></span>
         <span className={styles.fieldValue}>{field.value.value.toString()}</span>
       </div>
@@ -44,8 +44,8 @@ function ParsedFieldComponent({
         : field.value.rawBytes.map((b) => b.toString(16).padStart(2, "0")).join(" ");
 
     return (
-      <div className={styles.field} style={indentStyle}>
-        <span className={styles.fieldName}>{field.name}</span>
+      <div className={styles.field}>
+        <span className={styles.fieldName} style={indentStyle}>{field.name}</span>
         <button className={styles.toggleButton} onClick={() => onToggle(path)}>
           [
           <span className={mode === "string" ? styles.activeMode : ""}>
@@ -62,8 +62,8 @@ function ParsedFieldComponent({
   if (field.value.kind === "struct") {
     return (
       <div>
-        <div className={styles.field} style={indentStyle}>
-          <span className={styles.fieldName}>{field.name}</span>
+        <div className={styles.field}>
+          <span className={styles.fieldName} style={indentStyle}>{field.name}</span>
           <span className={styles.togglePlaceholder}></span>
           <span className={styles.fieldValue}></span>
         </div>
@@ -82,16 +82,17 @@ function ParsedFieldComponent({
   }
 
   if (field.value.kind === "array") {
+    const nestedIndentStyle = { paddingLeft: `${(depth + 1) * 1.5}rem` };
     return (
       <div>
-        <div className={styles.field} style={indentStyle}>
-          <span className={styles.fieldName}>{field.name}</span>
+        <div className={styles.field}>
+          <span className={styles.fieldName} style={indentStyle}>{field.name}</span>
           <span className={styles.togglePlaceholder}></span>
           <span className={styles.fieldValue}></span>
         </div>
         {field.value.elements.map((element, i) => (
-          <div key={i} className={styles.field} style={{ marginLeft: `${(depth + 1) * 1.5}rem` }}>
-            <span className={styles.fieldName}>[{i}]</span>
+          <div key={i} className={styles.field}>
+            <span className={styles.fieldName} style={nestedIndentStyle}>[{i}]</span>
             <span className={styles.togglePlaceholder}></span>
             <span className={styles.fieldValue}>
               {element.kind === "scalar" ? element.value.toString() : JSON.stringify(element)}
@@ -137,14 +138,14 @@ export default function ParsedEventViewer({
   const counter = data[1];
   const actualData = data.slice(2);
 
-  if (typeId !== 4) {
+  if (typeId !== 3 && typeId !== 4) {
     return (
       <div className={styles.parsedEvent}>
         <div className={styles.eventHeader}>
           <span className={styles.eventError}>Parse Error</span>
         </div>
         <div className={styles.errorMessage}>
-          Unsupported type_id: {typeId} (expected 4 for struct)
+          Unsupported type_id: {typeId} (expected 3 for string or 4 for struct)
         </div>
       </div>
     );
@@ -165,6 +166,43 @@ export default function ParsedEventViewer({
   }
 
   const typeName = debTypeInfo.type_name;
+  const label = debTypeInfo.label;
+
+  // Handle string type (type_id 3)
+  if (typeId === 3) {
+    const mode = charArrayModes["_string"] || "string";
+    const decoder = new TextDecoder("utf-8", { fatal: false });
+    const stringValue = decoder.decode(new Uint8Array(actualData));
+    const displayValue =
+      mode === "string"
+        ? `"${stringValue}"`
+        : actualData.map((b) => b.toString(16).padStart(2, "0")).join(" ");
+
+    return (
+      <div className={styles.parsedEvent}>
+        <div className={styles.eventHeader}>
+          <span className={styles.eventType}>{label}</span>
+          <span className={styles.eventSize}>({actualData.length} bytes)</span>
+        </div>
+        <div className={styles.fields}>
+          <div className={styles.field}>
+            <span className={styles.fieldName}>value</span>
+            <button className={styles.toggleButton} onClick={() => toggleCharArrayMode("_string")}>
+              [
+              <span className={mode === "string" ? styles.activeMode : ""}>
+                a-z
+              </span>
+              |
+              <span className={mode === "hex" ? styles.activeMode : ""}>0x</span>]
+            </button>
+            <span className={styles.fieldValue}>{displayValue}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Handle struct type (type_id 4)
   const typeInfo = typeRegistry[typeName];
 
   if (!typeInfo) {
@@ -186,7 +224,7 @@ export default function ParsedEventViewer({
     return (
       <div className={styles.parsedEvent}>
         <div className={styles.eventHeader}>
-          <span className={styles.eventType}>{typeName}</span>
+          <span className={styles.eventType}>{label}</span>
           <span className={styles.eventError}>Parse Error</span>
         </div>
         <div className={styles.errorMessage}>{parseResult.error}</div>
@@ -197,7 +235,7 @@ export default function ParsedEventViewer({
   return (
     <div className={styles.parsedEvent}>
       <div className={styles.eventHeader}>
-        <span className={styles.eventType}>{typeName}</span>
+        <span className={styles.eventType}>{label}</span>
         <span className={styles.eventSize}>({actualData.length} bytes)</span>
       </div>
       <div className={styles.fields}>

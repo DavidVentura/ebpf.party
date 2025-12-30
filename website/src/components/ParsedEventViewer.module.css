@@ -44,18 +44,16 @@
 }
 
 .fields {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.field {
   display: grid;
-  grid-template-columns: 12ch auto 1fr;
-  gap: 0.75rem;
+  grid-template-columns: max-content auto 1fr;
+  gap: 0.75rem 0.75rem;
   align-items: center;
   font-family: monospace;
   font-size: 12px;
+}
+
+.field {
+  display: contents;
 }
 
 .fieldName {

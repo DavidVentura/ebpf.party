@@ -45,7 +45,13 @@ export class TccWorkerClient {
             time: end - this.startTime,
             avg: this.total / this.count,
           };
-          this.onResult(e.data.result, e.data.typeInfo, e.data.debTypeInfo, timing);
+          console.log(e.data);
+          this.onResult(
+            e.data.result,
+            e.data.typeInfo,
+            e.data.debTypeInfo,
+            timing
+          );
           break;
         default:
           console.log("Unknown message from worker:", e.data);

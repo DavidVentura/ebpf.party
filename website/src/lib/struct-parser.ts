@@ -142,9 +142,14 @@ function parseNestedStruct(
   member: StructTypeMember,
   typeRegistry: { [name: string]: TypeInfo }
 ): ParsedValue {
+  const nestedType = typeRegistry[member.type];
+  if (!nestedType || nestedType.kind !== "struct") {
+    return { kind: "struct", fields: [] };
+  }
+
   const fields = parseMembers(
     view,
-    member.members,
+    nestedType.members,
     typeRegistry,
     member.offset
   );
