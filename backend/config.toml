@@ -1,0 +1,5 @@
+listen_address = "0.0.0.0:8081"
+clang_path = "./clang"
+includes_path = "./includes"
+rootfs_path = "../rootfs.ext4"
+vmlinux_path = "../vmlinux"

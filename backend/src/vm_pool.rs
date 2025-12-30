@@ -1,3 +1,4 @@
+use crate::config::Config;
 use firecracker_spawn::{Disk, Vm};
 use shared::GuestMessage;
 use std::fmt;
@@ -5,7 +6,6 @@ use std::fs;
 use std::io;
 use std::io::Write;
 use std::os::unix::net::UnixListener;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
@@ -24,12 +24,14 @@ impl std::error::Error for TimeoutError {}
 
 pub struct VmPool {
     semaphore: Arc<Semaphore>,
+    config: Arc<Config>,
 }
 
 impl VmPool {
-    pub fn new(max_concurrent: usize) -> Self {
+    pub fn new(max_concurrent: usize, config: Arc<Config>) -> Self {
         Self {
             semaphore: Arc::new(Semaphore::new(max_concurrent)),
+            config,
         }
     }
 
@@ -37,6 +39,7 @@ impl VmPool {
         self.semaphore.acquire(timeout)?;
         Ok(VmPermit {
             semaphore: self.semaphore.clone(),
+            config: self.config.clone(),
             vsock_path: None,
             vsock_listener: None,
         })
@@ -45,6 +48,7 @@ impl VmPool {
 
 pub struct VmPermit {
     semaphore: Arc<Semaphore>,
+    config: Arc<Config>,
     vsock_path: Option<String>,
     vsock_listener: Option<String>,
 }
@@ -62,7 +66,7 @@ impl VmPermit {
         self.vsock_path = Some(vsock_path.clone());
         self.vsock_listener = Some(vsock_listener.clone());
 
-        let kernel = fs::File::open("../vmlinux").unwrap();
+        let kernel = fs::File::open(&self.config.vmlinux_path).unwrap();
         let _ = fs::remove_file(&vsock_path);
         let _ = fs::remove_file(&vsock_listener);
 
@@ -72,7 +76,7 @@ impl VmPermit {
             kernel,
             kernel_cmdline: "quiet ro panic=-1 reboot=t init=/main".to_string(),
             rootfs: Some(Disk {
-                path: PathBuf::from("../rootfs.ext4"),
+                path: self.config.rootfs_path.clone(),
                 read_only: true,
             }),
             initrd: None,

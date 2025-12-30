@@ -8,17 +8,23 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 mod compile;
+mod config;
 mod vm_pool;
 
 fn main() {
-    let vm_pool = Arc::new(vm_pool::VmPool::new(4));
-    let listener = TcpListener::bind("0.0.0.0:8081").unwrap();
-    // TODO compile pch
-    println!("Server running on http://0.0.0.0:8081");
+    let config = Arc::new(
+        config::Config::load("config.toml")
+            .expect("Failed to load config.toml")
+    );
+
+    let vm_pool = Arc::new(vm_pool::VmPool::new(4, config.clone()));
+    let listener = TcpListener::bind(&config.listen_address).unwrap();
+    println!("Server running on {}", config.listen_address);
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
         let pool = vm_pool.clone();
+        let cfg = config.clone();
 
         thread::spawn(move || {
             let start = Instant::now();
@@ -34,7 +40,7 @@ fn main() {
             let path = req.path.unwrap_or("/");
             println!("path is '{path}'");
             if path.starts_with("/run_code/") {
-                run_code_handler(stream, &buf[..n], status.unwrap(), &req.headers, pool);
+                run_code_handler(stream, &buf[..n], status.unwrap(), &req.headers, pool, cfg);
             }
 
             eprintln!("Request completed in {:?}", start.elapsed());
@@ -47,6 +53,7 @@ fn run_code_handler(
     body_offset: usize,
     headers: &[httparse::Header],
     vm_pool: Arc<vm_pool::VmPool>,
+    config: Arc<config::Config>,
 ) {
     let start = Instant::now();
 
@@ -84,9 +91,7 @@ fn run_code_handler(
     let mut buf = [0u8; 16 * 4096];
     while remaining > 0 && program.len() <= MAX_PROGRAM_SIZE {
         let to_read = remaining.min(buf.len());
-        println!("reading {to_read}");
         let bytes_read = stream.read(&mut buf[..to_read]).unwrap();
-        println!("read {bytes_read}");
         if bytes_read == 0 {
             break;
         }
@@ -145,7 +150,7 @@ fn run_code_handler(
 
     let s = Instant::now();
     tx.send(GuestMessage::Compiling).unwrap();
-    let c = compile::compile(&program);
+    let c = compile::compile(&program, &config);
     println!("Compile of {} bytes took {:?}", program.len(), s.elapsed());
     let compiled = match c {
         Ok(bytes) => Some(bytes),
