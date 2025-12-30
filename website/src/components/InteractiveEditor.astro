@@ -18,7 +18,7 @@ if (!starterCode) {
       <NoScript />
     </div>
   </noscript>
-  <App client:load starterCode={starterCode} exerciseId={exerciseId} />
+  <App client:only="react" starterCode={starterCode} exerciseId={exerciseId} />
 </div>
 
 <style>

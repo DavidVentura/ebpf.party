@@ -8,6 +8,7 @@ import RunButton from "./RunButton";
 import EventViewer from "./EventViewer";
 import StructSelector from "./StructSelector";
 import StructViewer from "./StructViewer";
+import { Panel, Group, Separator } from "react-resizable-panels";
 import type { TypeInfo } from "../types/typeinfo";
 import type { DebTypeInfo } from "../types/debtypeinfo";
 import type { SSEEvent } from "../types/sse-events";
@@ -159,58 +160,75 @@ export default function App({ starterCode, exerciseId }: AppProps) {
 
   const canRun = outputClass !== "error" && !isRunning;
 
+  const storageKey = `ebpf-party-layout-${exerciseId}`;
+  const handleLayoutChange = (layout: { [key: string]: number }) => {
+    localStorage.setItem(storageKey, JSON.stringify(layout));
+  };
+
   return (
     <div className={styles.app}>
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            padding: "0.5rem",
-            background: "#1e1e1e",
-            borderBottom: "1px solid #444",
-          }}
-        >
-          <RunButton
-            disabled={outputClass === "error"}
-            isRunning={isRunning}
-            onRun={handleRun}
-          />
-        </div>
-        <CodeEditor
-          code={code}
-          onChange={handleCodeChange}
-          onRun={handleRun}
-          canRun={canRun}
-          onSelectStruct={handleSelectStruct}
-        />
-      </div>
-      {outputClass && (
-        <CompilerOutput output={output} outputClass={outputClass} />
-      )}
-      {Object.keys(typeInfo).length > 0 && selectedStructName && (
-        <>
-          {/* <StructSelector
-            structs={typeInfo}
-            selectedName={selectedStructName}
-            onSelect={handleSelectStruct}
-          /> */}
-          {selectedStructName && (
-            <StructViewer
-              typeInfo={typeInfo[selectedStructName]}
-              onClose={() => setSelectedStructName(null)}
+      <Group
+        orientation="vertical"
+        id={storageKey}
+        onLayoutChange={handleLayoutChange}
+        style={{ height: "100%" }}
+      >
+        <Panel id="editor-panel" defaultSize="66%" minSize="33%" maxSize="66%">
+          <div className={styles.editorPanel}>
+            <div className={styles.runButtonHeader}>
+              <RunButton
+                disabled={outputClass === "error"}
+                isRunning={isRunning}
+                onRun={handleRun}
+              />
+            </div>
+            <div className={styles.editorWrapper}>
+              <CodeEditor
+                code={code}
+                onChange={handleCodeChange}
+                onRun={handleRun}
+                canRun={canRun}
+                onSelectStruct={handleSelectStruct}
+              />
+            </div>
+            {outputClass && (
+              <CompilerOutput output={output} outputClass={outputClass} />
+            )}
+            {Object.keys(typeInfo).length > 0 && selectedStructName && (
+              <>
+                {/* <StructSelector
+                  structs={typeInfo}
+                  selectedName={selectedStructName}
+                  onSelect={handleSelectStruct}
+                /> */}
+                {selectedStructName && (
+                  <StructViewer
+                    typeInfo={typeInfo[selectedStructName]}
+                    onClose={() => setSelectedStructName(null)}
+                  />
+                )}
+              </>
+            )}
+          </div>
+        </Panel>
+
+        <Separator className={styles.resizeHandle} />
+
+        <Panel id="events-panel" defaultSize="34%" minSize="20%">
+          {events.length > 0 ? (
+            <EventViewer
+              events={events}
+              isRunning={isRunning}
+              onClear={() => setEvents([])}
+              typeRegistry={typeInfo}
             />
+          ) : (
+            <div className={styles.emptyEventsPane}>
+              Run your code to see execution events here
+            </div>
           )}
-        </>
-      )}
-      {events.length > 0 && (
-        <EventViewer
-          events={events}
-          isRunning={isRunning}
-          onClear={() => setEvents([])}
-          typeRegistry={typeInfo}
-        />
-      )}
+        </Panel>
+      </Group>
     </div>
   );
 }

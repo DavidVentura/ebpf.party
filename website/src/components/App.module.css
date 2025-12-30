@@ -1,22 +1,20 @@
 .app {
   flex: 1;
   background: #1e1e1e;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
 }
 
 .app :global(.cm-editor) {
-  flex: 1;
   height: 100%;
 }
 
 .app :global(.cm-scroller) {
   font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
-  min-height: 100%;
+  overflow-y: auto !important;
 }
 
 .app :global(.cm-content) {
-  min-height: 100%;
+  min-height: auto;
 }
 
 .output {
@@ -27,7 +25,7 @@
   white-space: pre-wrap;
   border-top: 1px solid #444;
   min-height: 100px;
-  max-height: 200px;
+  max-height: 150px;
   overflow-y: auto;
 }
 
@@ -39,4 +37,85 @@
 .output.error {
   border-left: 4px solid #f44336;
   background: #2e1e1e;
+}
+
+.editorPanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.runButtonHeader {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  background: #1e1e1e;
+  border-bottom: 1px solid #444;
+  flex-shrink: 0;
+}
+
+.editorWrapper {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+  overflow: auto;
+}
+
+.editorWrapper :global(.cm-editor) {
+  height: 100%;
+  overflow: hidden;
+}
+
+.editorWrapper :global(.cm-scroller) {
+  overflow-y: auto;
+  max-height: 100%;
+}
+
+.resizeHandle {
+  height: 8px;
+  background: #333;
+  cursor: row-resize;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.resizeHandle:hover,
+.resizeHandle[data-resize-handle-state="drag"] {
+  background: #555;
+}
+
+.resizeHandle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 3px;
+  background: #666;
+  border-radius: 2px;
+}
+
+.emptyEventsPane {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  font-family: monospace;
+  font-size: 14px;
+  font-style: italic;
+  background: #2d2d2d;
+}
+
+@media (max-width: 1280px) {
+  .resizeHandle {
+    height: 12px;
+  }
+
+  .resizeHandle::before {
+    width: 60px;
+    height: 4px;
+  }
 }

@@ -24,7 +24,8 @@
     "astro": "^5.16.6",
     "clsx": "^2.1.1",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "react-resizable-panels": "^4.1.0"
   },
   "devDependencies": {
     "vitest": "^4.0.16"

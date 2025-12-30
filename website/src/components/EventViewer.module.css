@@ -1,9 +1,10 @@
 .eventViewer {
   background: #2d2d2d;
-  border-top: 1px solid #444;
   padding: 1rem;
-  max-height: 500px;
-  overflow-y: auto;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .header {
@@ -46,6 +47,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .event {
