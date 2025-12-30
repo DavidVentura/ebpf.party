@@ -29,7 +29,12 @@ if (frontmatter?.codeFile) {
   <body>
     <div class="container">
       <div class="content">
-        <slot />
+        <div class="topbar">
+          <a href="/" class="home-button">← Home</a>
+        </div>
+        <div class="content-scroll">
+          <slot />
+        </div>
       </div>
       <InteractiveEditor starterCode={starterCode} exerciseId={exerciseId} />
     </div>
@@ -51,8 +56,30 @@ if (frontmatter?.codeFile) {
 
   .content {
     flex: 1;
-    padding: 2rem;
     overflow-y: auto;
+  }
+
+  .topbar {
+    background: #f5f5f5;
+    padding: 1rem;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .home-button {
+    text-decoration: none;
+    color: #555;
+    font-weight: 500;
+    font-size: 14px;
+    display: inline-block;
+    transition: color 0.2s;
+  }
+
+  .home-button:hover {
+    color: #000;
+  }
+
+  .content-scroll {
+    padding: 0 2rem 2rem 2rem;
   }
 
   @media (max-width: 1280px) {
@@ -65,24 +92,28 @@ if (frontmatter?.codeFile) {
       flex: none;
       overflow-y: visible;
     }
+
+    .content-scroll {
+      overflow-y: visible;
+    }
   }
 
-  .content :global(p),
-  .content :global(pre:has(code)) {
+  .content-scroll :global(p),
+  .content-scroll :global(pre:has(code)) {
     margin: 8px 0px;
   }
-  .content :global(pre) {
+  .content-scroll :global(pre) {
     padding: 10px;
     border-radius: 4px;
     overflow-x: auto;
   }
-  .content :global(:not(pre) > code) {
+  .content-scroll :global(:not(pre) > code) {
     background-color: rgb(220 220 220);
     border-radius: 4px;
     padding: 4px;
   }
 
-  .content :global(details[open]::details-content) {
+  .content-scroll :global(details[open]::details-content) {
     padding: 0.5rem;
     border: 1px dotted black;
   }

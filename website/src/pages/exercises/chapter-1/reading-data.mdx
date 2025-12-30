@@ -80,13 +80,15 @@ When we call `DEBUG_STR` with a non-local address, the Kernel helpers that are u
 
 You can try it though! It will not crash the kernel, instead, it will return something like: ` �����`.
 
-To solve this, we need to copy that data to "local memory" (stack) using a helper.
+To solve this, we need to copy that data to "local memory" (stack) using the [bpf_probe_read_kernel_str](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel_str/) helper.
 
 ```c
 char fname[16];
 bpf_probe_read_kernel_str(fname, sizeof(fname), (void *)ctx + off);
 ```
+## Your task
 
+Read the filename from the 
 
 {/* 
 

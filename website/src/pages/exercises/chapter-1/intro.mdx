@@ -49,7 +49,7 @@ Now, whenever the scheduler runs a new process, our code runs too!
 
 The example code works, but it prints a static string. We want the actual program name.
 
-Since our code runs in the context of the new process, we can ask the kernel: "Who am I?"
+Since our code has access to information about the new process, we can ask the kernel: "Who am I?"
 
 We will use [bpf_get_current_comm(&buf, size)](https://docs.ebpf.io/linux/helper-function/bpf_get_current_comm/)
 which writes the current process name into a buffer you provide.
