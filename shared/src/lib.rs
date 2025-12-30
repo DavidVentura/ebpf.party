@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 pub enum ExecutionMessage {
     LoadFail(String),
     VerifierFail(String),
-    NoPerfMapsFound,
+    DebugMapNotFound,
     NoProgramsFound,
     FoundProgram { name: String, section: String },
     FoundMap { name: String },
@@ -24,6 +24,7 @@ pub enum GuestMessage {
     // TODO move out of GM
     CompileError(String),
     Compiling,
+    NoCapacityLeft(String),
     Booting,
     Booted,
     ExecutionResult(ExecutionMessage),

@@ -19,7 +19,7 @@ struct {
     __uint(key_size, 0);
     __uint(value_size, 0);
     __uint(max_entries, 16384);
-} debug_events SEC(".maps");
+} _ep_debug_events SEC(".maps");
 
 
 
@@ -36,7 +36,7 @@ struct {
 
 static __always_inline void __ep_debug_val(const char *label, __u8 counter, void *ptr, size_t size, __u8 type) {
     if (size > 256) return;
-    char* buf = bpf_ringbuf_reserve(&debug_events, size+2, 0);
+    char* buf = bpf_ringbuf_reserve(&_ep_debug_events, size+2, 0);
     if (!buf) {
 	bpf_printk("bpf_ringbuf_reserve failed\n");
 	return;

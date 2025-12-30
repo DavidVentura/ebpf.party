@@ -1,4 +1,7 @@
-use libbpf_rs::{MapCore, MapType, ObjectBuilder, PerfBuffer, PerfBufferBuilder, PrintLevel};
+use libbpf_rs::{
+    MapCore, MapType, ObjectBuilder, PerfBuffer, PerfBufferBuilder, PrintLevel, RingBuffer,
+    RingBufferBuilder,
+};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
 use libc::link;
 use shared::{ExecutionMessage, GuestMessage};
@@ -56,7 +59,7 @@ fn real_main() {
                 v,
                 ExecutionMessage::LoadFail(_)
                     | ExecutionMessage::VerifierFail(_)
-                    | ExecutionMessage::NoPerfMapsFound
+                    | ExecutionMessage::DebugMapNotFound
                     | ExecutionMessage::NoProgramsFound
                     | ExecutionMessage::Finished()
             );
@@ -231,9 +234,22 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
         return;
     }
 
-    let mut pb: Option<PerfBuffer> = None;
+    let mut pb: Option<RingBuffer> = None;
 
     for m in obj.maps_mut() {
+        if m.map_type() == MapType::RingBuf && m.name().to_string_lossy() == "_ep_debug_events" {
+            let txer = tx.clone();
+            let r_closure = move |data: &[u8]| {
+                txer.send(ExecutionMessage::Event(data.into())).unwrap();
+                0
+            };
+
+            let mut rpb = RingBufferBuilder::new();
+            rpb.add(&m, r_closure).unwrap();
+            pb = Some(rpb.build().unwrap());
+            break;
+        }
+        /*
         if m.map_type() == MapType::PerfEventArray {
             tx.send(ExecutionMessage::FoundMap {
                 name: m.name().to_string_lossy().to_string(),
@@ -244,7 +260,7 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
             let closure = move |_: i32, data: &[u8]| {
                 txer.send(ExecutionMessage::Event(data.into())).unwrap();
             };
-            // TODO: check if this is our DEBUG MAP
+
             pb = Some(
                 PerfBufferBuilder::new(&m)
                     .sample_cb(closure)
@@ -255,12 +271,13 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
             );
             break;
         }
+        */
     }
 
     let pb = if let Some(pb) = pb {
         pb
     } else {
-        tx.send(ExecutionMessage::NoPerfMapsFound).unwrap();
+        tx.send(ExecutionMessage::DebugMapNotFound).unwrap();
         return;
     };
 
