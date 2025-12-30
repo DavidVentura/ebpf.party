@@ -1,4 +1,5 @@
 use shared::GuestMessage;
+use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::net::TcpStream;
@@ -11,11 +12,38 @@ mod compile;
 mod config;
 mod vm_pool;
 
+fn check_hugepages(required_vms: usize, vm_mem_mb: usize) -> Result<(), String> {
+    const HUGEPAGE_SIZE_MB: usize = 2;
+    let required_hugepages = (required_vms * vm_mem_mb + HUGEPAGE_SIZE_MB - 1) / HUGEPAGE_SIZE_MB;
+
+    let nr_hugepages = fs::read_to_string("/proc/sys/vm/nr_hugepages")
+        .map_err(|e| format!("Failed to read /proc/sys/vm/nr_hugepages: {}", e))?
+        .trim()
+        .parse::<usize>()
+        .map_err(|e| format!("Failed to parse nr_hugepages: {}", e))?;
+
+    if nr_hugepages < required_hugepages {
+        return Err(format!(
+            "Insufficient hugepages: need {} ({}MB each VM * {} VMs / {}MB hugepage), have {} configured",
+            required_hugepages, vm_mem_mb, required_vms, HUGEPAGE_SIZE_MB, nr_hugepages
+        ));
+    }
+
+    println!(
+        "Hugepages OK: {} configured, {} required for {} VMs",
+        nr_hugepages, required_hugepages, required_vms
+    );
+    Ok(())
+}
+
 fn main() {
     let config = Arc::new(
         config::Config::load("config.toml")
             .expect("Failed to load config.toml")
     );
+
+    check_hugepages(config.max_concurrent_vms, 64)
+        .expect("Hugepages check failed");
 
     let vm_pool = Arc::new(vm_pool::VmPool::new(config.max_concurrent_vms, config.clone()));
     let listener = TcpListener::bind(&config.listen_address).unwrap();
