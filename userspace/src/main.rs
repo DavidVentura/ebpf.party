@@ -69,16 +69,11 @@ fn real_main() {
         }
     });
 
+    // TODO: parametrize
     let jh2 = std::thread::spawn(|| {
-        let mut cmds = ["/true", "/ls", "/git", "/bash", "/secret_command"];
-        while !SHOULD_STOP.load(Ordering::Relaxed) {
-            let mut cmd = Command::new(cmds[0]).spawn().expect("missing bin");
-            cmds.rotate_left(1);
-            cmd.wait().unwrap();
-            std::thread::sleep(Duration::from_millis(50));
-        }
+        exercise1();
     });
-    //println!("Waiting for ExecuteProgram message from host");
+
     match bincode::decode_from_std_read::<shared::HostMessage, _, _>(&mut s_rcv, config) {
         Ok(shared::HostMessage::ExecuteProgram { timeout, program }) => {
             run_ebpf_program(&program, timeout, tx);
@@ -92,39 +87,14 @@ fn real_main() {
     jh2.join().unwrap();
 }
 
-fn list_traces() {
-    eprintln!("\n=== Listing /sys/kernel/tracing ===");
-    if let Ok(entries) = std::fs::read_dir("/sys/kernel/tracing") {
-        for entry in entries.flatten() {
-            eprintln!("  {}", entry.file_name().to_string_lossy());
-        }
+fn exercise1() {
+    let mut cmds = ["/true", "/ls", "/git", "/bash", "/secret_command"];
+    while !SHOULD_STOP.load(Ordering::Relaxed) {
+        let mut cmd = Command::new(cmds[0]).spawn().expect("missing bin");
+        cmds.rotate_left(1);
+        cmd.wait().unwrap();
+        std::thread::sleep(Duration::from_millis(50));
     }
-
-    eprintln!("\n=== Listing /sys/kernel/tracing/events ===");
-    if let Ok(entries) = std::fs::read_dir("/sys/kernel/tracing/events") {
-        for entry in entries.flatten() {
-            eprintln!("  {}", entry.file_name().to_string_lossy());
-        }
-    }
-
-    eprintln!("\n=== Listing /sys/kernel/tracing/events/syscalls ===");
-    if let Ok(entries) = std::fs::read_dir("/sys/kernel/tracing/events/syscalls") {
-        for entry in entries.flatten() {
-            eprintln!("  {}", entry.file_name().to_string_lossy());
-        }
-    } else {
-        eprintln!("  (directory does not exist or cannot be read)");
-    }
-
-    eprintln!("\n=== Listing /sys/kernel/tracing/events/syscalls/sys_enter_execve ===");
-    if let Ok(entries) = std::fs::read_dir("/sys/kernel/tracing/events/syscalls/sys_enter_execve") {
-        for entry in entries.flatten() {
-            eprintln!("  {}", entry.file_name().to_string_lossy());
-        }
-    } else {
-        eprintln!("  (directory does not exist or cannot be read)");
-    }
-    eprintln!();
 }
 
 fn setup_host_env() {
@@ -175,10 +145,6 @@ fn setup_host_env() {
                 std::io::Error::last_os_error()
             );
         }
-    }
-
-    if false {
-        list_traces();
     }
 }
 
