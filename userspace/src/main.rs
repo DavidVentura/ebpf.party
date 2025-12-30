@@ -1,9 +1,5 @@
-use libbpf_rs::{
-    MapCore, MapType, ObjectBuilder, PerfBuffer, PerfBufferBuilder, PrintLevel, RingBuffer,
-    RingBufferBuilder,
-};
+use libbpf_rs::{MapCore, MapType, ObjectBuilder, PrintLevel, RingBuffer, RingBufferBuilder};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
-use libc::link;
 use shared::{ExecutionMessage, GuestMessage};
 use std::ffi::CString;
 use std::io::Write;
@@ -24,10 +20,6 @@ fn capturing_printer(lvl: PrintLevel, s: String) {
     if let Ok(mut log) = VERIFIER_LOG.lock() {
         log.push_str(&s);
     }
-}
-
-fn handle_lost_events(cpu: i32, lost_cnt: u64) {
-    eprintln!("Lost {} events on CPU #{}!", lost_cnt, cpu);
 }
 
 fn main() {
@@ -78,8 +70,10 @@ fn real_main() {
     });
 
     let jh2 = std::thread::spawn(|| {
+        let mut cmds = ["/true", "/ls", "/git", "/bash", "/secret_command"];
         while !SHOULD_STOP.load(Ordering::Relaxed) {
-            let mut cmd = Command::new("/true").spawn().expect("where true");
+            let mut cmd = Command::new(cmds[0]).spawn().expect("missing bin");
+            cmds.rotate_left(1);
             cmd.wait().unwrap();
             std::thread::sleep(Duration::from_millis(50));
         }
@@ -249,29 +243,6 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
             pb = Some(rpb.build().unwrap());
             break;
         }
-        /*
-        if m.map_type() == MapType::PerfEventArray {
-            tx.send(ExecutionMessage::FoundMap {
-                name: m.name().to_string_lossy().to_string(),
-            })
-            .unwrap();
-
-            let txer = tx.clone();
-            let closure = move |_: i32, data: &[u8]| {
-                txer.send(ExecutionMessage::Event(data.into())).unwrap();
-            };
-
-            pb = Some(
-                PerfBufferBuilder::new(&m)
-                    .sample_cb(closure)
-                    .lost_cb(handle_lost_events)
-                    .pages(8)
-                    .build()
-                    .unwrap(),
-            );
-            break;
-        }
-        */
     }
 
     let pb = if let Some(pb) = pb {
