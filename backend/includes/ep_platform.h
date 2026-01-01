@@ -34,7 +34,8 @@ struct {
 
 #define DEBUG_NUM(label_str, num_val) do { \
     _Static_assert(__builtin_classify_type(num_val) != 5, "need a number by value"); \
-    __debug_num(label_str, __COUNTER__, &num_val, sizeof(num_val)); \
+    __typeof__(num_val) _tmp = (num_val); \
+    __debug_num(label_str, __COUNTER__, &_tmp, sizeof(num_val)); \
 } while (0)
 
 static __always_inline void __ep_debug_val(const char *label, __u8 counter, void *ptr, size_t size, __u8 type) {
