@@ -10,6 +10,7 @@ use std::time::{Duration, Instant};
 
 mod compile;
 mod config;
+mod dwarf;
 mod vm_pool;
 
 fn check_hugepages(required_vms: usize, vm_mem_mb: usize) -> Result<(), String> {
@@ -37,15 +38,14 @@ fn check_hugepages(required_vms: usize, vm_mem_mb: usize) -> Result<(), String> 
 }
 
 fn main() {
-    let config = Arc::new(
-        config::Config::load("config.toml")
-            .expect("Failed to load config.toml")
-    );
+    let config = Arc::new(config::Config::load("config.toml").expect("Failed to load config.toml"));
 
-    check_hugepages(config.max_concurrent_vms, 64)
-        .expect("Hugepages check failed");
+    check_hugepages(config.max_concurrent_vms, 64).expect("Hugepages check failed");
 
-    let vm_pool = Arc::new(vm_pool::VmPool::new(config.max_concurrent_vms, config.clone()));
+    let vm_pool = Arc::new(vm_pool::VmPool::new(
+        config.max_concurrent_vms,
+        config.clone(),
+    ));
     let listener = TcpListener::bind(&config.listen_address).unwrap();
     println!("Server running on {}", config.listen_address);
 
@@ -189,6 +189,11 @@ fn run_code_handler(
     };
 
     if let Some(compiled) = compiled {
+        let s = Instant::now();
+        let parsed = dwarf::parse_dwarf_debug_info(compiled.as_slice());
+        let _ = fs::write("blah.o", compiled.as_slice());
+        let e = s.elapsed();
+        println!("{:?} - {:#?}", e, parsed);
         match vm_pool.acquire(Duration::from_millis(2_000)) {
             Ok(permit) => {
                 permit.run(tx, compiled);
