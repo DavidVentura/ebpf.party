@@ -1,0 +1,68 @@
+---
+layout: ../../../layouts/ExerciseLayout.astro
+title: Tracing a system call
+codeFile: 3_execve_syscall.c
+exerciseId: ex-1-3
+---
+
+
+# {frontmatter.title}
+
+In the previous exercises, we hooked into the scheduler (`sched_process_exec`). This happens *after* the kernel has already done the hard work of loading the binary.
+
+But what if we want to see the request *before* the kernel processes it? Or what if we want to see the command line arguments?
+
+For this, we need to look at the `execve` system call.
+
+When a program (like `bash`) wants to run another program (like `ls`), it issues the `execve` system call.
+
+System calls do not work like the tracepoints we were using, for every system call there's an `entry` and `exit` event that we can hook onto.
+Because there are _hundreds_ of system calls (`open`, `write`, `execve`...), each with its own set of arguments, the kernel uses a generic structure for tracepoints.
+
+## Entering a system call
+
+On entry events, we receive a context with type `struct trace_event_raw_sys_enter`:
+
+```c
+struct trace_event_raw_sys_enter {
+    struct trace_entry ent;
+    long int id;               /* The Syscall Number */
+    long unsigned int args[6]; /* The Arguments */
+    char __data[0];
+};
+```
+
+We don't get convenient fields like `name` or `pid` -- all we are getting is the syscall number (`id`) and an array of integers, `args[6]`, which are the arguments to the system call.
+
+Why 6? Because that's the maximum number of arguments that syscalls are allowed to take.
+
+To interpret these arguments, we need to know their types and positions. The [manual page](https://man7.org/linux/man-pages/man2/execve.2.html) shows the signature:
+
+```c
+int execve(const char *filename, char *const argv[], char *const envp[]);
+```
+
+Since `filename` is the first argument, it's located at `ctx->args[0]`.
+
+### On address spaces
+
+This pointer references memory in the calling process's address space (e.g., `bash`). This is **user space** memory.
+
+In Exercise 2, we traced `sched_process_exec`, which fires *after* the kernel has loaded the binary. By that point, data like the command name lives in kernel structures. Here, we're tracing *before* that work happens.
+
+The kernel enforces strict separation between user and kernel memory for security. This means we cannot use the kernel-space helpers we've used before (like `bpf_probe_read_kernel_str`) to read this data. Instead, we must use [bpf_probe_read_user_str(dst, size, src)](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_user_str/).
+
+## Your task
+
+1.  Retrieve the filename pointer from the generic context (`ctx->args[0]`).
+2.  Cast it from `unsigned long` to `const char *`.
+3.  Read the string from **User Space** into a local buffer.
+4.  Print it using `DEBUG_STR`.
+
+```c
+/* 1. Get the pointer (cast the number to a pointer) */
+const char *ptr = (const char *)ctx->args[0];
+
+/* 2. Read user memory */
+bpf_probe_read_user_str(...);
+```

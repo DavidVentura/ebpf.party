@@ -1,9 +1,11 @@
 ---
 layout: ../../../layouts/ExerciseLayout.astro
 title: Reading event data
-codeFile: 1_2_event_data.c
+codeFile: 2_event_data.c
 exerciseId: ex-1-2
 ---
+import stack from "./__data_loc_stack.svg";
+import { Image } from 'astro:assets';
 
 # {frontmatter.title}
 
@@ -49,24 +51,13 @@ Basically, the filename field contains a 32-bit integer that packs two pieces of
   - Lower 16 bits: The Offset (How far away the string is from the start of the structure).
   - Upper 16 bits: The Length (How long the string is).
 
-In memory, it'd look something like this:
-```
-[  Ctx Struct (Fixed Size)       ]        [  Dynamic Data Area  ]
-+--------------------------------+        +---------------------+
-| pid (4b) | ... | length|offset | ...... | "bash\0"            |
-+--------------------------------+        +---------------------+
-^                                            ^
-|                                            |
-+-------------------- offset ----------- ----+
-```
-
 To get the actual string, we have to do a little work:
 
   1. Read the `__data_loc_filename` field
   2. Mask the lower 16 bits (`val & 0xFFFF`) to get the offset
   3. Add that offset to the `ctx` pointer
 
-However, we can't really read the data directly like this:
+However, we can't really read the data directly from the calculated address:
 
 ```c
 char* fname = (void *)ctx + off;
@@ -76,9 +67,9 @@ Why not?
 
 eBPF programs run in a sandbox, and calculated addresses like this one (`ctx + off`) point to Kernel memory (not the program's stack).
 
-When we call `DEBUG_STR` with a non-local address, the Kernel helpers that are used will just return uninitialized memory.
+When we call `DEBUG_STR` with a non-local address, the Kernel helpers that are used will refuse to read from that memory range, leaving the "DEBUG" memory uninitialized.
 
-You can try it though! It will not crash the kernel, instead, it will return something like: ` �����`.
+You can try it though! It will not crash the kernel, instead, it will return something like: `�����`.
 
 To solve this, we need to copy that data to "local memory" (stack) using the [bpf_probe_read_kernel_str](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel_str/) helper.
 
@@ -88,7 +79,9 @@ bpf_probe_read_kernel_str(fname, sizeof(fname), (void *)ctx + off);
 ```
 ## Your task
 
-Read the filename from the 
+Read the active tasks' name, without using `bpf_get_current_comm`.
+
+Use `DEBUG_STR` to see it on the platform.
 
 {/* 
 

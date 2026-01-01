@@ -2,7 +2,7 @@
 import App from "./App.tsx";
 import NoScript from "../content/NoScript.mdx";
 
-const { starterCode, exerciseId } = Astro.props;
+const { starterCode, exerciseId, chapterId } = Astro.props;
 
 if (!exerciseId) {
   throw new Error("Missing exerciseId in frontmatter");
@@ -18,7 +18,12 @@ if (!starterCode) {
       <NoScript />
     </div>
   </noscript>
-  <App client:load starterCode={starterCode} exerciseId={exerciseId} />
+  <App
+    client:only="react"
+    starterCode={starterCode}
+    exerciseId={exerciseId}
+    chapterId={chapterId}
+  />
 </div>
 
 <style>

@@ -53,6 +53,27 @@
   background: #1e1e1e;
   border-bottom: 1px solid #444;
   flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.deleteButton {
+  margin-left: auto;
+  background: #d32f2f;
+  border: none;
+  color: white;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.deleteButton:hover {
+  background: #b71c1c;
+}
+
+.deleteButton:active {
+  background: #9a0007;
 }
 
 .editorWrapper {

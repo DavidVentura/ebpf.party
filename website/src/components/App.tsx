@@ -17,9 +17,10 @@ import styles from "./App.module.css";
 interface AppProps {
   starterCode: string;
   exerciseId: string;
+  chapterId?: number;
 }
 
-export default function App({ starterCode, exerciseId }: AppProps) {
+export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   if (!exerciseId) {
     throw new Error("Missing exerciseId");
   }
@@ -27,7 +28,14 @@ export default function App({ starterCode, exerciseId }: AppProps) {
     throw new Error("Missing starterCode");
   }
   const DEBOUNCE_TIME_MS = 200;
-  const [code, setCode] = useState(starterCode);
+  const codeStorageKey = `user-code-${exerciseId}`;
+
+  const getInitialCode = () => {
+    const savedCode = localStorage.getItem(codeStorageKey);
+    return savedCode !== null ? savedCode : starterCode;
+  };
+
+  const [code, setCode] = useState(getInitialCode);
   const [output, setOutput] = useState("Initializing WASM...");
   const [outputClass, setOutputClass] = useState<"warning" | "error" | "">("");
   const [typeInfo, setTypeInfo] = useState<{ [name: string]: TypeInfo }>({});
@@ -41,13 +49,13 @@ export default function App({ starterCode, exerciseId }: AppProps) {
   const compilationOutputRef = useRef("");
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const abortRunRef = useRef<(() => void) | null>(null);
-  const lastCheckedCodeRef = useRef(starterCode);
-  const currentCodeRef = useRef(starterCode);
+  const lastCheckedCodeRef = useRef(getInitialCode());
+  const currentCodeRef = useRef(getInitialCode());
 
   useEffect(() => {
     const worker = new TccWorkerClient(
       () => {
-        setOutput("Ready. Target: x86_64 (LP64)\n");
+        setOutput("");
         setOutputClass("");
 
         if (code.trim()) {
@@ -141,6 +149,8 @@ export default function App({ starterCode, exerciseId }: AppProps) {
     setIsRunning(true);
     setEvents([]);
 
+    localStorage.setItem(codeStorageKey, code);
+
     // Re-generate type bindings on run
     workerRef.current?.checkSyntax(code, true);
 
@@ -156,6 +166,14 @@ export default function App({ starterCode, exerciseId }: AppProps) {
     );
 
     abortRunRef.current = abort;
+  };
+
+  const handleDelete = () => {
+    localStorage.removeItem(codeStorageKey);
+    setCode(starterCode);
+    currentCodeRef.current = starterCode;
+    lastCheckedCodeRef.current = starterCode;
+    performCheck(starterCode);
   };
 
   const canRun = outputClass !== "error" && !isRunning;
@@ -181,6 +199,13 @@ export default function App({ starterCode, exerciseId }: AppProps) {
                 isRunning={isRunning}
                 onRun={handleRun}
               />
+              <button
+                className={styles.deleteButton}
+                onClick={handleDelete}
+                title="Reset to starter code"
+              >
+                🗑️
+              </button>
             </div>
             <div className={styles.editorWrapper}>
               <CodeEditor
