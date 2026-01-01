@@ -3,9 +3,9 @@ export type SSEEvent =
   | { type: "booting" }
   | { type: "booted" }
   | { type: "compileError"; data: string }
-  | { type: "executionResult"; data: ExecutionResult };
+  | { type: "guestMessage"; data: GuestMessage };
 
-export type ExecutionResult =
+export type GuestMessage =
   | { type: "foundProgram"; data: { name: string; section: string } }
   | { type: "foundMap"; data: { name: string } }
   | { type: "debugMapNotFound" }

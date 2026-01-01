@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::types::PlatformMessage;
 use firecracker_spawn::{Disk, Vm};
 use shared::GuestMessage;
 use std::fmt;
@@ -54,7 +55,7 @@ pub struct VmPermit {
 }
 
 impl VmPermit {
-    pub fn run(mut self, out_tx: std::sync::mpsc::Sender<GuestMessage>, program: Vec<u8>) {
+    pub fn run(mut self, out_tx: std::sync::mpsc::Sender<PlatformMessage>, program: Vec<u8>) {
         let start = Instant::now();
 
         static VM_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -86,7 +87,6 @@ impl VmPermit {
             vsock: Some(vsock_path.to_string()),
         };
 
-        out_tx.send(GuestMessage::Booting).unwrap();
         let handle = thread::spawn(move || {
             let listener = UnixListener::bind(vsock_listener).unwrap();
             for stream in listener.incoming() {
@@ -100,19 +100,14 @@ impl VmPermit {
                         let config = bincode::config::standard();
                         bincode::encode_into_std_write(&host_msg, &mut stream, config).unwrap();
 
-                        while let Ok(msg) = bincode::decode_from_std_read::<
-                            shared::GuestMessage,
-                            _,
-                            _,
-                        >(&mut stream, config)
+                        while let Ok(msg) =
+                            bincode::decode_from_std_read::<GuestMessage, _, _>(&mut stream, config)
                         {
-                            let _ = out_tx.send(msg.clone());
+                            let _ = out_tx.send(PlatformMessage::GuestMessage(msg.clone()));
 
                             match msg {
-                                shared::GuestMessage::ExecutionResult(exec_msg) => {
-                                    if matches!(exec_msg, shared::ExecutionMessage::Finished()) {
-                                        break;
-                                    }
+                                GuestMessage::Finished() => {
+                                    break;
                                 }
                                 _ => (),
                             }

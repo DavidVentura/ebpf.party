@@ -6,7 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "data")]
 #[serde(rename_all = "camelCase")]
-pub enum ExecutionMessage {
+pub enum GuestMessage {
+    Booted,
     LoadFail(String),
     VerifierFail(String),
     DebugMapNotFound,
@@ -15,19 +16,6 @@ pub enum ExecutionMessage {
     FoundMap { name: String },
     Event(Vec<u8>),
     Finished(),
-}
-
-#[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type", content = "data")]
-#[serde(rename_all = "camelCase")]
-pub enum GuestMessage {
-    // TODO move out of GM
-    CompileError(String),
-    Compiling,
-    NoCapacityLeft(String),
-    Booting,
-    Booted,
-    ExecutionResult(ExecutionMessage),
 }
 
 #[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone)]

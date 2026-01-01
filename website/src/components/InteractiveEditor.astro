@@ -18,10 +18,13 @@ if (!starterCode) {
       <NoScript />
     </div>
   </noscript>
-  <App client:only="react" starterCode={starterCode} exerciseId={exerciseId} />
+  <App client:load starterCode={starterCode} exerciseId={exerciseId} />
 </div>
 
 <style>
+  .jsOnly {
+    display: none;
+  }
   .interactive-editor {
     flex: 1;
     display: flex;
@@ -30,9 +33,18 @@ if (!starterCode) {
   }
 
   .noscript-content {
-    flex: 1;
+    height: 100%;
     padding: 2rem;
     background: #f5f5f5;
     overflow-y: auto;
   }
 </style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const jsOnlyElements = document.querySelectorAll(".jsOnly");
+    jsOnlyElements.forEach((el) => {
+      el.style.display = "flex";
+    });
+  });
+</script>

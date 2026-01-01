@@ -1,8 +1,8 @@
 ---
 layout: ../../../layouts/ExerciseLayout.astro
 title: Introduction and ambient data
-codeFile: 1_ambient_intro.c
-exerciseId: exercise-1
+codeFile: 1_1_ambient_intro.c
+exerciseId: exercise-1-1
 ---
 
 # {frontmatter.title}
@@ -32,7 +32,7 @@ to retrieve this information about the triggering process.
 We want to extract the name of every program that executes in the system.
 
 To do this, we need to attach our code to an event that fires whenever a new process is scheduled to run.
-In Linux, this event is called `sched_process_exec`.
+This event is called `sched_process_exec`.
 
 In the preloaded snippet, you will see a specific "section" definition just above our function:
 
@@ -48,6 +48,8 @@ Now, whenever the scheduler runs a new process, our code runs too!
 ## Your task
 
 The example code works, but it prints a static string. We want the actual program name.
+
+There are many programs running in the system. The answer is the one with the suspicious name.
 
 Since our code has access to information about the new process, we can ask the kernel: "Who am I?"
 

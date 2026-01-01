@@ -2,31 +2,41 @@
 import Layout from '../layouts/Layout.astro';
 
 const exercises = await Astro.glob('./exercises/**/*.mdx');
+const metadataFiles = await Astro.glob('./exercises/**/metadata.json');
 
-// Group exercises by chapter
-const chapters = exercises.reduce((acc, exercise) => {
+// Group exercises by chapter slug
+const exercisesBySlug = exercises.reduce((acc, exercise) => {
 	const match = exercise.url?.match(/\/exercises\/(chapter-\d+)\//);
-	const chapterId = match ? match[1] : 'other';
+	const slug = match ? match[1] : 'other';
 
-	if (!acc[chapterId]) {
-		acc[chapterId] = [];
+	if (!acc[slug]) {
+		acc[slug] = [];
 	}
-	acc[chapterId].push(exercise);
+	acc[slug].push(exercise);
 	return acc;
 }, {} as Record<string, typeof exercises>);
 
-// Sort chapters by name
-const sortedChapters = Object.entries(chapters).sort((a, b) => a[0].localeCompare(b[0]));
+// Build chapters with metadata
+const chapters = metadataFiles
+	.map(meta => meta.default)
+	.sort((a, b) => a.number - b.number)
+	.map(chapter => ({
+		...chapter,
+		exercises: exercisesBySlug[chapter.slug] || []
+	}));
 ---
 
 <Layout>
 	<div class="home">
 		<h1>eBPF Exercises</h1>
-		{sortedChapters.map(([chapterId, chapterExercises]) => (
+		{chapters.map((chapter) => (
 			<section class="chapter">
-				<h2>{chapterId.replace('chapter-', 'Chapter ').replace('-', ' ')}</h2>
+				<h2>
+					<span class="chapter-number">Chapter {chapter.number}:</span>
+					{' '}{chapter.title}
+				</h2>
 				<ul>
-					{chapterExercises.map((exercise) => (
+					{chapter.exercises.map((exercise) => (
 						<li>
 							<a href={exercise.url}>{exercise.frontmatter.title}</a>
 						</li>
@@ -53,10 +63,14 @@ const sortedChapters = Object.entries(chapters).sort((a, b) => a[0].localeCompar
 	}
 
 	.chapter h2 {
-		color: #4caf50;
+		color: #333;
 		font-size: 1.25rem;
-		margin-bottom: 0.75rem;
-		text-transform: capitalize;
+		margin-bottom: 0.5rem;
+	}
+
+	.chapter-number {
+		color: #4caf50;
+		font-weight: 600;
 	}
 
 	ul {

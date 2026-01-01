@@ -10,10 +10,15 @@ interface EventViewerProps {
   typeRegistry: { [name: string]: TypeInfo };
 }
 
-export default function EventViewer({ events, isRunning, onClear, typeRegistry }: EventViewerProps) {
+export default function EventViewer({
+  events,
+  isRunning,
+  onClear,
+  typeRegistry,
+}: EventViewerProps) {
   const isError = (event: SSEEvent): boolean => {
     if (event.type === "compileError") return true;
-    if (event.type === "executionResult") {
+    if (event.type === "guestMessage") {
       if (event.data.type === "debugMapNotFound") return true;
       if (event.data.type === "noProgramsFound") return true;
       if (event.data.type === "verifierFail") return true;
@@ -25,7 +30,7 @@ export default function EventViewer({ events, isRunning, onClear, typeRegistry }
     if (event.type === "compileError") {
       return event.data;
     }
-    if (event.type === "executionResult") {
+    if (event.type === "guestMessage") {
       if (event.data.type === "debugMapNotFound") {
         return "Error: No perf maps found in program";
       }
@@ -53,7 +58,7 @@ export default function EventViewer({ events, isRunning, onClear, typeRegistry }
       </div>
       <div className={styles.events}>
         {events.map((event, i) => {
-          if (event.type === "executionResult" && event.data.type === "event") {
+          if (event.type === "guestMessage" && event.data.type === "event") {
             return (
               <ParsedEventViewer
                 key={i}

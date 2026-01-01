@@ -1,6 +1,6 @@
 use libbpf_rs::{MapCore, MapType, ObjectBuilder, PrintLevel, RingBuffer, RingBufferBuilder};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
-use shared::{ExecutionMessage, GuestMessage};
+use shared::GuestMessage;
 use std::ffi::CString;
 use std::io::Write;
 use std::process::Command;
@@ -43,25 +43,21 @@ fn real_main() {
     let config = bincode::config::standard();
     bincode::encode_into_std_write(&msg, &mut s_send, config).unwrap();
 
-    let (tx, rx) = std::sync::mpsc::channel::<ExecutionMessage>();
+    let (tx, rx) = std::sync::mpsc::channel::<GuestMessage>();
 
     let jh = std::thread::spawn(move || {
         while let Ok(v) = rx.recv() {
             let is_terminal = matches!(
                 v,
-                ExecutionMessage::LoadFail(_)
-                    | ExecutionMessage::VerifierFail(_)
-                    | ExecutionMessage::DebugMapNotFound
-                    | ExecutionMessage::NoProgramsFound
-                    | ExecutionMessage::Finished()
+                GuestMessage::LoadFail(_)
+                    | GuestMessage::VerifierFail(_)
+                    | GuestMessage::DebugMapNotFound
+                    | GuestMessage::NoProgramsFound
+                    | GuestMessage::Finished()
             );
 
-            let _ = bincode::encode_into_std_write(
-                GuestMessage::ExecutionResult(v),
-                &mut s_send,
-                config,
-            )
-            .expect("can't send over vsock");
+            let _ = bincode::encode_into_std_write(v, &mut s_send, config)
+                .expect("can't send over vsock");
 
             if is_terminal {
                 SHOULD_STOP.store(true, Ordering::Relaxed);
@@ -148,7 +144,7 @@ fn setup_host_env() {
     }
 }
 
-fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessage>) {
+fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<GuestMessage>) {
     unsafe {
         libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
     }
@@ -163,7 +159,7 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
         Ok(o) => o,
         Err(_) => {
             let captured_log = VERIFIER_LOG.lock().unwrap().clone();
-            tx.send(ExecutionMessage::LoadFail(captured_log)).unwrap();
+            tx.send(GuestMessage::LoadFail(captured_log)).unwrap();
             return;
         }
     };
@@ -172,8 +168,7 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
         Ok(o) => o,
         Err(_) => {
             let captured_log = VERIFIER_LOG.lock().unwrap().clone();
-            tx.send(ExecutionMessage::VerifierFail(captured_log))
-                .unwrap();
+            tx.send(GuestMessage::VerifierFail(captured_log)).unwrap();
             return;
         }
     };
@@ -181,7 +176,7 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
     let mut links: Vec<_> = Vec::new();
 
     for p in obj.progs_mut() {
-        tx.send(ExecutionMessage::FoundProgram {
+        tx.send(GuestMessage::FoundProgram {
             name: p.name().to_string_lossy().to_string(),
             section: p.section().to_string_lossy().to_string(),
         })
@@ -190,7 +185,7 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
         links.push(link);
     }
     if links.len() == 0 {
-        tx.send(ExecutionMessage::NoProgramsFound).unwrap();
+        tx.send(GuestMessage::NoProgramsFound).unwrap();
         return;
     }
 
@@ -200,7 +195,7 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
         if m.map_type() == MapType::RingBuf && m.name().to_string_lossy() == "_ep_debug_events" {
             let txer = tx.clone();
             let r_closure = move |data: &[u8]| {
-                txer.send(ExecutionMessage::Event(data.into())).unwrap();
+                txer.send(GuestMessage::Event(data.into())).unwrap();
                 0
             };
 
@@ -214,7 +209,7 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
     let pb = if let Some(pb) = pb {
         pb
     } else {
-        tx.send(ExecutionMessage::DebugMapNotFound).unwrap();
+        tx.send(GuestMessage::DebugMapNotFound).unwrap();
         return;
     };
 
@@ -230,5 +225,5 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<ExecutionMessa
             break;
         }
     }
-    tx.send(ExecutionMessage::Finished()).unwrap();
+    tx.send(GuestMessage::Finished()).unwrap();
 }

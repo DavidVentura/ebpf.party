@@ -8,9 +8,12 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::types::PlatformMessage;
+
 mod compile;
 mod config;
 mod dwarf;
+mod types;
 mod vm_pool;
 
 fn check_hugepages(required_vms: usize, vm_mem_mb: usize) -> Result<(), String> {
@@ -177,25 +180,24 @@ fn run_code_handler(
     });
 
     let s = Instant::now();
-    tx.send(GuestMessage::Compiling).unwrap();
+    tx.send(PlatformMessage::Compiling).unwrap();
     let c = compile::compile(&program, &config);
     println!("Compile of {} bytes took {:?}", program.len(), s.elapsed());
     let compiled = match c {
         Ok(bytes) => Some(bytes),
         Err(e) => {
-            let _ = tx.send(GuestMessage::CompileError(e));
+            let _ = tx.send(PlatformMessage::CompileError(e));
             None
         }
     };
 
     if let Some(compiled) = compiled {
-        let s = Instant::now();
-        let parsed = dwarf::parse_dwarf_debug_info(compiled.as_slice());
-        let _ = fs::write("blah.o", compiled.as_slice());
-        let e = s.elapsed();
-        println!("{:?} - {:#?}", e, parsed);
         match vm_pool.acquire(Duration::from_millis(2_000)) {
             Ok(permit) => {
+                if let Ok(stack) = dwarf::parse_dwarf_debug_info(compiled.as_slice()) {
+                    let _ = tx.send(PlatformMessage::Stack(stack));
+                }
+                let _ = tx.send(PlatformMessage::Booting).unwrap();
                 permit.run(tx, compiled);
                 // running `vm` requires running through a KVM `Drop`
                 // which takes like 30ms -- the request insta-flushed the msgs
@@ -203,7 +205,7 @@ fn run_code_handler(
                 // the VM measurement time
             }
             Err(_) => {
-                let _ = tx.send(GuestMessage::NoCapacityLeft(
+                let _ = tx.send(PlatformMessage::NoCapacityLeft(
                     "My poor server can't handle this many requests. Please try again in a little bit.".to_string(),
                 ));
                 drop(tx);
