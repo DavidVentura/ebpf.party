@@ -13,7 +13,9 @@ interface ParsedFieldProps {
   field: ParsedField;
   path: string;
   charArrayModes: { [path: string]: "string" | "hex" };
-  onToggle: (path: string) => void;
+  numberModes: { [path: string]: "decimal" | "hex" };
+  onToggleString: (path: string) => void;
+  onToggleNumber: (path: string) => void;
   depth: number;
 }
 
@@ -21,32 +23,79 @@ function ParsedFieldComponent({
   field,
   path,
   charArrayModes,
-  onToggle,
+  numberModes,
+  onToggleString,
+  onToggleNumber,
   depth,
 }: ParsedFieldProps) {
   const indentStyle = { paddingLeft: `${depth * 1.5}rem` };
 
   if (field.value.kind === "scalar") {
+    const mode = numberModes[path] || "decimal";
+    let displayValue: string;
+
+    if (mode === "decimal") {
+      displayValue = field.value.value.toString();
+    } else {
+      const numVal = typeof field.value.value === "bigint"
+        ? field.value.value
+        : field.value.value;
+
+      if (typeof numVal === "bigint") {
+        const unsigned = numVal < 0n ? BigInt.asUintN(64, numVal) : numVal;
+        displayValue = "0x" + unsigned.toString(16);
+      } else if (numVal < 0) {
+        const absVal = Math.abs(numVal);
+        let unsigned: number;
+        if (absVal <= 128) {
+          unsigned = numVal & 0xFF;
+        } else if (absVal <= 32768) {
+          unsigned = numVal & 0xFFFF;
+        } else {
+          unsigned = numVal >>> 0;
+        }
+        displayValue = "0x" + unsigned.toString(16);
+      } else {
+        displayValue = "0x" + numVal.toString(16);
+      }
+    }
+
     return (
       <div className={styles.field}>
         <span className={styles.fieldName} style={indentStyle}>{field.name}</span>
-        <span className={styles.togglePlaceholder}></span>
-        <span className={styles.fieldValue}>{field.value.value.toString()}</span>
+        <button className={styles.toggleButton} onClick={() => onToggleNumber(path)}>
+          [
+          <span className={mode === "decimal" ? styles.activeMode : ""}>
+            0-9
+          </span>
+          |
+          <span className={mode === "hex" ? styles.activeMode : ""}>0x</span>]
+        </button>
+        <span className={styles.fieldValue}>{displayValue}</span>
       </div>
     );
   }
 
   if (field.value.kind === "string") {
     const mode = charArrayModes[path] || "string";
-    const displayValue =
-      mode === "string"
-        ? `"${field.value.value}"`
-        : field.value.rawBytes.map((b) => b.toString(16).padStart(2, "0")).join(" ");
+    let displayValue: string;
+
+    if (mode === "string") {
+      const nullIndex = field.value.value.indexOf('\0');
+      if (nullIndex !== -1) {
+        const truncated = field.value.value.substring(0, nullIndex);
+        displayValue = `"${truncated}\\0"`;
+      } else {
+        displayValue = `"${field.value.value}"`;
+      }
+    } else {
+      displayValue = field.value.rawBytes.map((b) => b.toString(16).padStart(2, "0")).join(" ");
+    }
 
     return (
       <div className={styles.field}>
         <span className={styles.fieldName} style={indentStyle}>{field.name}</span>
-        <button className={styles.toggleButton} onClick={() => onToggle(path)}>
+        <button className={styles.toggleButton} onClick={() => onToggleString(path)}>
           [
           <span className={mode === "string" ? styles.activeMode : ""}>
             a-z
@@ -73,7 +122,9 @@ function ParsedFieldComponent({
             field={subField}
             path={`${path}.${subField.name}`}
             charArrayModes={charArrayModes}
-            onToggle={onToggle}
+            numberModes={numberModes}
+            onToggleString={onToggleString}
+            onToggleNumber={onToggleNumber}
             depth={depth + 1}
           />
         ))}
@@ -114,10 +165,21 @@ export default function ParsedEventViewer({
     [path: string]: "string" | "hex";
   }>({});
 
+  const [numberModes, setNumberModes] = useState<{
+    [path: string]: "decimal" | "hex";
+  }>({});
+
   const toggleCharArrayMode = (path: string) => {
     setCharArrayModes((prev) => ({
       ...prev,
       [path]: prev[path] === "hex" ? "string" : "hex",
+    }));
+  };
+
+  const toggleNumberMode = (path: string) => {
+    setNumberModes((prev) => ({
+      ...prev,
+      [path]: prev[path] === "hex" ? "decimal" : "hex",
     }));
   };
 
@@ -189,6 +251,32 @@ export default function ParsedEventViewer({
       value = 0;
     }
 
+    const mode = numberModes["_scalar"] || "decimal";
+    let displayValue: string;
+
+    if (mode === "decimal") {
+      displayValue = value.toString();
+    } else {
+      if (typeof value === "bigint") {
+        const unsigned = value < 0n ? BigInt.asUintN(size * 8, value) : value;
+        displayValue = "0x" + unsigned.toString(16);
+      } else if (value < 0) {
+        let unsigned: number;
+        if (size === 1) {
+          unsigned = value & 0xFF;
+        } else if (size === 2) {
+          unsigned = value & 0xFFFF;
+        } else if (size === 4) {
+          unsigned = value >>> 0;
+        } else {
+          unsigned = value;
+        }
+        displayValue = "0x" + unsigned.toString(16);
+      } else {
+        displayValue = "0x" + value.toString(16);
+      }
+    }
+
     return (
       <div className={styles.parsedEvent}>
         <div className={styles.eventHeader}>
@@ -198,8 +286,15 @@ export default function ParsedEventViewer({
         <div className={styles.fields}>
           <div className={styles.field}>
             <span className={styles.fieldName}>value</span>
-            <span className={styles.togglePlaceholder}></span>
-            <span className={styles.fieldValue}>{value.toString()}</span>
+            <button className={styles.toggleButton} onClick={() => toggleNumberMode("_scalar")}>
+              [
+              <span className={mode === "decimal" ? styles.activeMode : ""}>
+                0-9
+              </span>
+              |
+              <span className={mode === "hex" ? styles.activeMode : ""}>0x</span>]
+            </button>
+            <span className={styles.fieldValue}>{displayValue}</span>
           </div>
         </div>
       </div>
@@ -213,10 +308,19 @@ export default function ParsedEventViewer({
     const mode = charArrayModes["_string"] || "string";
     const decoder = new TextDecoder("utf-8", { fatal: false });
     const stringValue = decoder.decode(new Uint8Array(actualData));
-    const displayValue =
-      mode === "string"
-        ? `"${stringValue}"`
-        : actualData.map((b) => b.toString(16).padStart(2, "0")).join(" ");
+    let displayValue: string;
+
+    if (mode === "string") {
+      const nullIndex = stringValue.indexOf('\0');
+      if (nullIndex !== -1) {
+        const truncated = stringValue.substring(0, nullIndex);
+        displayValue = `"${truncated}\\0"`;
+      } else {
+        displayValue = `"${stringValue}"`;
+      }
+    } else {
+      displayValue = actualData.map((b) => b.toString(16).padStart(2, "0")).join(" ");
+    }
 
     return (
       <div className={styles.parsedEvent}>
@@ -285,7 +389,9 @@ export default function ParsedEventViewer({
             field={field}
             path={field.name}
             charArrayModes={charArrayModes}
-            onToggle={toggleCharArrayMode}
+            numberModes={numberModes}
+            onToggleString={toggleCharArrayMode}
+            onToggleNumber={toggleNumberMode}
             depth={0}
           />
         ))}
