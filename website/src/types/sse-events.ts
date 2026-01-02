@@ -1,10 +1,20 @@
 export type SSEEvent =
   | { type: "compiling" }
   | { type: "booting" }
-  | { type: "booted" }
   | { type: "compileError"; data: string }
   | { type: "guestMessage"; data: GuestMessage };
 
+export type DwarfFunction = {
+  function_name: string;
+  section_name: string;
+  stack_vars: Array<{
+    name: string;
+    type_info: string;
+    offset: number;
+    size: number;
+    is_parameter: boolean;
+  }>;
+};
 export type GuestMessage =
   | { type: "foundProgram"; data: { name: string; section: string } }
   | { type: "foundMap"; data: { name: string } }
@@ -12,4 +22,6 @@ export type GuestMessage =
   | { type: "noProgramsFound" }
   | { type: "verifierFail"; data: string }
   | { type: "event"; data: number[] }
-  | { type: "finished"; data: [] };
+  | { type: "finished" }
+  | { type: "booted" }
+  | { type: "stack"; data: { functions: DwarfFunction[] } };

@@ -57,26 +57,36 @@ export default function EventViewer({
         </button>
       </div>
       <div className={styles.events}>
-        {events.map((event, i) => {
-          if (event.type === "guestMessage" && event.data.type === "event") {
-            return (
-              <ParsedEventViewer
-                key={i}
-                data={event.data.data}
-                typeRegistry={typeRegistry}
-              />
-            );
-          }
+        {events
+          .filter(
+            (event) => ["compiling", "booting", "stack"].indexOf(event.type) < 0
+          )
+          .filter(
+            (event) =>
+              event.type !== "guestMessage" ||
+              ["booted", "foundProgram", "finished"].indexOf(event.data.type) ==
+                -1
+          )
+          .map((event, i) => {
+            if (event.type === "guestMessage" && event.data.type === "event") {
+              return (
+                <ParsedEventViewer
+                  key={i}
+                  data={event.data.data}
+                  typeRegistry={typeRegistry}
+                />
+              );
+            }
 
-          return (
-            <p
-              key={i}
-              className={isError(event) ? styles.errorEvent : styles.event}
-            >
-              {formatEvent(event)}
-            </p>
-          );
-        })}
+            return (
+              <p
+                key={i}
+                className={isError(event) ? styles.errorEvent : styles.event}
+              >
+                {formatEvent(event)}
+              </p>
+            );
+          })}
       </div>
     </div>
   );
