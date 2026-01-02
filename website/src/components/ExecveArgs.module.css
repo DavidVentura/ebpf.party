@@ -1,0 +1,24 @@
+.container {
+  background: #f3f4f6;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  max-width: 55rem;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.typeLabel {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-family: monospace;
+  margin-bottom: 0.75rem;
+  align-self: flex-start;
+}
+
+.svg {
+  display: block;
+}
