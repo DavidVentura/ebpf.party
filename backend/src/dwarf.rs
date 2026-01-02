@@ -63,7 +63,7 @@ fn build_section_map(elf: &object::File) -> Vec<SectionInfo> {
     elf.sections()
         .filter_map(|section| {
             section.name().ok().and_then(|name| {
-                if name.starts_with("tp/") {
+                if name.starts_with("tp/") || name.starts_with("tracepoint/") {
                     Some(SectionInfo {
                         name: name.to_string(),
                         index: section.index().0,
