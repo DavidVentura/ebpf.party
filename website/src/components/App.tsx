@@ -225,7 +225,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
                   structs={typeInfo}
                   selectedName={selectedStructName}
                   onSelect={handleSelectStruct}
-                /> */}
+                /> TODO delete me*/}
                 {selectedStructName && (
                   <StructViewer
                     typeInfo={typeInfo[selectedStructName]}

@@ -7,7 +7,6 @@ const { frontmatter } = Astro.props;
 
 let starterCode = frontmatter.starterCode || "";
 const exerciseId = frontmatter.exerciseId!!;
-let chapterId: number;
 
 const urlPath = Astro.url.pathname;
 const chapterMatch = urlPath.match(/\/exercises\/(chapter-\d+)\//)!!;
@@ -20,7 +19,8 @@ const metadataPath = join(
   "metadata.json"
 );
 const metadata = JSON.parse(await readFile(metadataPath, "utf-8"));
-chapterId = metadata.number;
+let chapterId: number = metadata.number;
+let chapterTitle = metadata.title;
 
 const codeFilePath = join(
   process.cwd(),
@@ -37,12 +37,18 @@ starterCode = await readFile(codeFilePath, "utf-8");
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{frontmatter.title}</title>
+    <title>{chapterTitle} - {frontmatter.title}</title>
   </head>
   <body>
     <div class="container">
       <!-- Tab controls (hidden on desktop) -->
-      <input type="radio" name="mobile-tabs" id="tab-instructions" class="tab-input" checked />
+      <input
+        type="radio"
+        name="mobile-tabs"
+        id="tab-instructions"
+        class="tab-input"
+        checked
+      />
       <input type="radio" name="mobile-tabs" id="tab-code" class="tab-input" />
 
       <!-- Tab bar (mobile only) -->
@@ -50,17 +56,17 @@ starterCode = await readFile(codeFilePath, "utf-8");
         <label for="tab-instructions" class="tab-label">
           📖 Instructions
         </label>
-        <label for="tab-code" class="tab-label">
-          💻 Code
-        </label>
+        <label for="tab-code" class="tab-label"> 💻 Code </label>
       </div>
 
       <!-- Content panes -->
       <div class="content tab-content">
         <div class="topbar">
-          <a href="/" class="home-button">← Home</a>
+          <a href="/" class="home-button">Home</a>
         </div>
         <div class="content-scroll">
+          <h4>{chapterTitle}</h4>
+          <h1>{frontmatter.title}</h1>
           <slot />
         </div>
       </div>
@@ -82,6 +88,17 @@ starterCode = await readFile(codeFilePath, "utf-8");
     margin: 0;
     width: 100%;
     height: 100%;
+    font-family: sans-serif;
+  }
+
+  h4 ~ h1,
+  h4:has(~ h1) {
+    padding: 0px;
+    margin: 0.2em 0px 0px 0px;
+    line-height: 1em;
+  }
+  h1 {
+    font-size: 30px;
   }
 
   .container {
@@ -114,7 +131,7 @@ starterCode = await readFile(codeFilePath, "utf-8");
   }
 
   .content-scroll {
-    padding: 0 2rem 2rem 2rem;
+    padding: 0.5rem 2rem 2rem 2rem;
   }
 
   /* Tab system - hidden on desktop */
@@ -203,7 +220,10 @@ starterCode = await readFile(codeFilePath, "utf-8");
       overflow-y: visible;
     }
   }
-
+  /* mdx rules */
+  .content-scroll :global(h2) {
+    margin: 0.5em 0px;
+  }
   .content-scroll :global(p),
   .content-scroll :global(pre:has(code)) {
     margin: 8px 0px;
@@ -222,9 +242,5 @@ starterCode = await readFile(codeFilePath, "utf-8");
   .content-scroll :global(details[open]::details-content) {
     padding: 0.5rem;
     border: 1px dotted black;
-  }
-
-  html {
-    font-family: sans-serif;
   }
 </style>
