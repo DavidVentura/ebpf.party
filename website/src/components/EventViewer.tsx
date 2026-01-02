@@ -23,6 +23,7 @@ export default function EventViewer({
       if (event.data.type === "debugMapNotFound") return true;
       if (event.data.type === "noProgramsFound") return true;
       if (event.data.type === "verifierFail") return true;
+      if (event.data.type === "crashed") return true;
     }
     return false;
   };

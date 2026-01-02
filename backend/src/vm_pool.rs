@@ -76,6 +76,7 @@ impl VmPermit {
             mem_size_mib: 64,
             kernel,
             kernel_cmdline: "quiet ro panic=-1 reboot=t init=/main".to_string(),
+            //kernel_cmdline: "quiet ro panic=-1 reboot=t init=/strace -- /main".to_string(),
             rootfs: Some(Disk {
                 path: self.config.rootfs_path.clone(),
                 read_only: true,
@@ -106,7 +107,7 @@ impl VmPermit {
                             let _ = out_tx.send(PlatformMessage::GuestMessage(msg.clone()));
 
                             match msg {
-                                GuestMessage::Finished() => {
+                                GuestMessage::Finished => {
                                     break;
                                 }
                                 _ => (),

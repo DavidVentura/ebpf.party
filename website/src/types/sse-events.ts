@@ -3,7 +3,8 @@ export type SSEEvent =
   | { type: "booting" }
   | { type: "compileError"; data: string }
   | { type: "requestError"; data: string }
-  | { type: "guestMessage"; data: GuestMessage };
+  | { type: "guestMessage"; data: GuestMessage }
+  | { type: "stack"; data: { functions: DwarfFunction[] } };
 
 export type DwarfFunction = {
   function_name: string;
@@ -25,4 +26,4 @@ export type GuestMessage =
   | { type: "event"; data: number[] }
   | { type: "finished" }
   | { type: "booted" }
-  | { type: "stack"; data: { functions: DwarfFunction[] } };
+  | { type: "crashed" };

@@ -1,4 +1,3 @@
-use shared::GuestMessage;
 use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
@@ -168,15 +167,17 @@ fn run_code_handler(
     stream.write_all(b"\r\n").unwrap();
     stream.flush().unwrap();
 
+    // TODO: notify if no events? is it an error?
     let jh = thread::spawn(move || {
         for msg in rx {
             let json = serde_json::to_string(&msg).unwrap();
-            stream
-                .write_all(format!("data: {}\n\n", json).as_bytes())
-                .unwrap();
-            stream.flush().unwrap();
+            if let Err(_) = stream.write_all(format!("data: {}\n\n", json).as_bytes()) {
+                // disconnected is not a big deal
+                break;
+            }
+            let _ = stream.flush();
         }
-        stream.flush().unwrap();
+        let _ = stream.flush();
     });
 
     let s = Instant::now();

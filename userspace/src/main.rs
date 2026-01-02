@@ -2,6 +2,7 @@ use libbpf_rs::{MapCore, MapType, ObjectBuilder, PrintLevel, RingBuffer, RingBuf
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
 use shared::GuestMessage;
 use std::ffi::CString;
+use std::fs;
 use std::io::Write;
 use std::process::Command;
 use std::sync::Mutex;
@@ -34,7 +35,10 @@ fn main() {
 }
 fn real_main() {
     if std::process::id() <= 100 {
-        setup_host_env();
+        if let Err(e) = setup_host_env() {
+            eprintln!("{}", e);
+            return;
+        }
     }
 
     let mut s_send = VsockStream::connect_with_cid_port(VMADDR_CID_HOST, 1234).unwrap();
@@ -47,27 +51,25 @@ fn real_main() {
 
     let jh = std::thread::spawn(move || {
         while let Ok(v) = rx.recv() {
-            let is_terminal = matches!(
-                v,
-                GuestMessage::LoadFail(_)
-                    | GuestMessage::VerifierFail(_)
-                    | GuestMessage::DebugMapNotFound
-                    | GuestMessage::NoProgramsFound
-                    | GuestMessage::Finished()
-            );
-
-            let _ = bincode::encode_into_std_write(v, &mut s_send, config)
+            let _ = bincode::encode_into_std_write(&v, &mut s_send, config)
                 .expect("can't send over vsock");
 
-            if is_terminal {
+            if v.is_terminal() {
                 SHOULD_STOP.store(true, Ordering::Relaxed);
             }
         }
     });
 
     // TODO: parametrize
-    let jh2 = std::thread::spawn(|| {
-        exercise1();
+    let panic_tx = tx.clone();
+    let jh2 = std::thread::spawn(move || {
+        let panics = std::panic::catch_unwind(|| {
+            //exercise1();
+            exercise_argv();
+        });
+        if let Err(_) = panics {
+            let _ = panic_tx.send(GuestMessage::Crashed);
+        }
     });
 
     match bincode::decode_from_std_read::<shared::HostMessage, _, _>(&mut s_rcv, config) {
@@ -83,6 +85,30 @@ fn real_main() {
     jh2.join().unwrap();
 }
 
+fn exercise_argv() {
+    let secret_command = &[
+        "/bin/secret_command",
+        "--user",
+        "admin",
+        "--password",
+        "very safe",
+    ];
+    let ls = &["/bin/ls", "/home/"];
+    let bash = &["/bin/sudo", "/bin/bash"];
+    let mut cmds: [&[&str]; _] = [secret_command, ls, bash];
+    for cmd in cmds {
+        let prog = cmd[0];
+        fs::copy("/true", prog).unwrap();
+    }
+    while !SHOULD_STOP.load(Ordering::Relaxed) {
+        let (prog, args) = cmds[0].split_first().unwrap();
+        let mut cmd = Command::new(prog).args(args).spawn().expect("missing bin");
+        cmds.rotate_left(1);
+        cmd.wait().unwrap();
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
 fn exercise1() {
     let mut cmds = ["/true", "/ls", "/git", "/bash", "/secret_command"];
     while !SHOULD_STOP.load(Ordering::Relaxed) {
@@ -93,55 +119,38 @@ fn exercise1() {
     }
 }
 
-fn setup_host_env() {
-    let target = CString::new("/sys").unwrap();
+fn mount(source: &str, target: &str, fstype: &str, flags: u64) -> Result<(), String> {
+    let source = CString::new(source).unwrap();
+    let target_c = CString::new(target).unwrap();
+    let fstype = CString::new(fstype).unwrap();
 
-    unsafe {
-        libc::mkdir(target.as_ptr(), 0o755);
-    }
-
-    let source = CString::new("sysfs").unwrap();
-    let fstype = CString::new("sysfs").unwrap();
-
-    unsafe {
-        let ret = libc::mount(
+    let ret = unsafe {
+        libc::mount(
             source.as_ptr(),
-            target.as_ptr(),
+            target_c.as_ptr(),
             fstype.as_ptr(),
-            0,
+            flags,
             std::ptr::null(),
-        );
-        if ret != 0 {
-            panic!("Failed to mount /sys: {}", std::io::Error::last_os_error());
-        }
+        )
+    };
+
+    if ret != 0 {
+        return Err(format!(
+            "Failed to mount {} at {}: {}",
+            source.to_str().unwrap(),
+            target,
+            std::io::Error::last_os_error()
+        ));
     }
+    Ok(())
+}
 
-    let sys_kernel = CString::new("/sys/kernel").unwrap();
-    let sys_kernel_tracing = CString::new("/sys/kernel/tracing").unwrap();
-
-    unsafe {
-        libc::mkdir(sys_kernel.as_ptr(), 0o755);
-        libc::mkdir(sys_kernel_tracing.as_ptr(), 0o755);
-    }
-
-    let tracefs_source = CString::new("tracefs").unwrap();
-    let tracefs_type = CString::new("tracefs").unwrap();
-
-    unsafe {
-        let ret = libc::mount(
-            tracefs_source.as_ptr(),
-            sys_kernel_tracing.as_ptr(),
-            tracefs_type.as_ptr(),
-            0,
-            std::ptr::null(),
-        );
-        if ret != 0 {
-            panic!(
-                "Failed to mount tracefs: {}",
-                std::io::Error::last_os_error()
-            );
-        }
-    }
+fn setup_host_env() -> Result<(), String> {
+    mount("sysfs", "/sys", "sysfs", 0)?;
+    fs::create_dir_all("/sys/kernel/tracing/").unwrap();
+    mount("tracefs", "/sys/kernel/tracing", "tracefs", 0)?;
+    mount("ramfs", "/bin", "ramfs", 0)?;
+    Ok(())
 }
 
 fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<GuestMessage>) {
@@ -225,5 +234,5 @@ fn run_ebpf_program(program: &[u8], timeout: Duration, tx: Sender<GuestMessage>)
             break;
         }
     }
-    tx.send(GuestMessage::Finished()).unwrap();
+    tx.send(GuestMessage::Finished).unwrap();
 }

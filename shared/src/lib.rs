@@ -15,9 +15,23 @@ pub enum GuestMessage {
     FoundProgram { name: String, section: String },
     FoundMap { name: String },
     Event(Vec<u8>),
-    Finished(),
+    Crashed,
+    Finished,
 }
 
+impl GuestMessage {
+    pub fn is_terminal(&self) -> bool {
+        matches!(
+            self,
+            GuestMessage::LoadFail(_)
+                | GuestMessage::VerifierFail(_)
+                | GuestMessage::DebugMapNotFound
+                | GuestMessage::NoProgramsFound
+                | GuestMessage::Finished
+                | GuestMessage::Crashed
+        )
+    }
+}
 #[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "data")]
 #[serde(rename_all = "camelCase")]
