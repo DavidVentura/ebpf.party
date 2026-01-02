@@ -82,7 +82,6 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
 
         if (debTypeInfoJson) {
           const parsed: DebTypeInfo[] = JSON.parse(debTypeInfoJson);
-          console.log(parsed);
           debTypeRegistry.set(parsed);
         }
 

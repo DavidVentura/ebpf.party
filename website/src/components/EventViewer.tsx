@@ -18,6 +18,7 @@ export default function EventViewer({
 }: EventViewerProps) {
   const isError = (event: SSEEvent): boolean => {
     if (event.type === "compileError") return true;
+    if (event.type === "requestError") return true;
     if (event.type === "guestMessage") {
       if (event.data.type === "debugMapNotFound") return true;
       if (event.data.type === "noProgramsFound") return true;
@@ -29,6 +30,9 @@ export default function EventViewer({
   const formatEvent = (event: SSEEvent): string => {
     if (event.type === "compileError") {
       return event.data;
+    }
+    if (event.type === "requestError") {
+      return `Request Error: ${event.data}`;
     }
     if (event.type === "guestMessage") {
       if (event.data.type === "debugMapNotFound") {

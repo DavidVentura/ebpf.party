@@ -67,6 +67,7 @@ export function runCode(
       if (error.name === "AbortError") {
         return;
       }
+      onEvent({ type: "requestError", data: error.message });
       onError(error.message);
     });
 

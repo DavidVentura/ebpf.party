@@ -2,6 +2,7 @@ export type SSEEvent =
   | { type: "compiling" }
   | { type: "booting" }
   | { type: "compileError"; data: string }
+  | { type: "requestError"; data: string }
   | { type: "guestMessage"; data: GuestMessage };
 
 export type DwarfFunction = {
