@@ -41,7 +41,22 @@ starterCode = await readFile(codeFilePath, "utf-8");
   </head>
   <body>
     <div class="container">
-      <div class="content">
+      <!-- Tab controls (hidden on desktop) -->
+      <input type="radio" name="mobile-tabs" id="tab-instructions" class="tab-input" checked />
+      <input type="radio" name="mobile-tabs" id="tab-code" class="tab-input" />
+
+      <!-- Tab bar (mobile only) -->
+      <div class="tab-bar">
+        <label for="tab-instructions" class="tab-label">
+          📖 Instructions
+        </label>
+        <label for="tab-code" class="tab-label">
+          💻 Code
+        </label>
+      </div>
+
+      <!-- Content panes -->
+      <div class="content tab-content">
         <div class="topbar">
           <a href="/" class="home-button">← Home</a>
         </div>
@@ -49,11 +64,14 @@ starterCode = await readFile(codeFilePath, "utf-8");
           <slot />
         </div>
       </div>
-      <InteractiveEditor
-        starterCode={starterCode}
-        exerciseId={exerciseId}
-        chapterId={chapterId}
-      />
+
+      <div class="editor-wrapper tab-content">
+        <InteractiveEditor
+          starterCode={starterCode}
+          exerciseId={exerciseId}
+          chapterId={chapterId}
+        />
+      </div>
     </div>
   </body>
 </html>
@@ -99,10 +117,81 @@ starterCode = await readFile(codeFilePath, "utf-8");
     padding: 0 2rem 2rem 2rem;
   }
 
+  /* Tab system - hidden on desktop */
+  .tab-input {
+    display: none;
+  }
+
+  .tab-bar {
+    display: none;
+  }
+
+  .editor-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Mobile-only tab system */
   @media (max-width: 1280px) {
     .container {
+      height: 100vh;
+      display: flex;
       flex-direction: column;
-      height: auto;
+    }
+
+    /* Show tab bar */
+    .tab-bar {
+      display: flex;
+      background: #f5f5f5;
+      border-bottom: 2px solid #ddd;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .tab-label {
+      flex: 1;
+      text-align: center;
+      padding: 1rem;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .tab-label:hover {
+      background: #fafafa;
+      color: #333;
+    }
+
+    /* Active tab styling */
+    #tab-instructions:checked ~ .tab-bar label[for="tab-instructions"],
+    #tab-code:checked ~ .tab-bar label[for="tab-code"] {
+      color: #4caf50;
+      border-bottom-color: #4caf50;
+      background: white;
+    }
+
+    /* Hide all tab content by default */
+    .tab-content {
+      display: none;
+    }
+
+    /* Show active tab content */
+    #tab-instructions:checked ~ .content.tab-content {
+      display: block;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    #tab-code:checked ~ .editor-wrapper.tab-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
     }
 
     .content {
