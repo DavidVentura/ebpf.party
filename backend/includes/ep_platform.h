@@ -29,7 +29,7 @@ struct {
 
 #define DEBUG_STR(label_str, str_val) do { \
     _Static_assert(sizeof(str_val) < 257, "String is too big"); \
-    __debug_str(label_str, __COUNTER__, &str_val, sizeof(str_val), 0); \
+    __debug_str(label_str, __COUNTER__, &str_val, sizeof(str_val), sizeof(str_val), 0); \
 } while (0)
 
 #define DEBUG_NUM(label_str, num_val) do { \
