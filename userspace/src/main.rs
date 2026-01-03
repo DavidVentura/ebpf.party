@@ -46,21 +46,21 @@ fn real_main() {
         }
     });
 
-    // TODO: parametrize
-    let panic_tx = tx.clone();
-    let jh2 = std::thread::spawn(move || {
-        let panics = std::panic::catch_unwind(|| {
-            //exercise1();
-            exercises::exercise_argv();
-        });
-        if let Err(_) = panics {
-            let _ = panic_tx.send(GuestMessage::Crashed);
-        }
-    });
-
     match bincode::decode_from_std_read::<shared::HostMessage, _, _>(&mut s_rcv, config) {
         Ok(shared::HostMessage::ExecuteProgram { timeout, program }) => {
+            // TODO: parametrize
+            let panic_tx = tx.clone();
+            let jh2 = std::thread::spawn(move || {
+                let panics = std::panic::catch_unwind(|| {
+                    //exercise1();
+                    exercises::exercise_argv();
+                });
+                if let Err(_) = panics {
+                    let _ = panic_tx.send(GuestMessage::Crashed);
+                }
+            });
             ebpf::run_program(&program, timeout, tx);
+            jh2.join().unwrap();
         }
         Err(e) => {
             eprintln!("Failed to deserialize HostMessage: {}", e);
@@ -68,5 +68,4 @@ fn real_main() {
         }
     }
     jh.join().unwrap();
-    jh2.join().unwrap();
 }
