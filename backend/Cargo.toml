@@ -16,6 +16,7 @@ bincode = "2.0.1"
 httparse = "1.9"
 gimli = { version = "0.32", default-features = false, features = ["endian-reader", "read", "read-all"] }
 object = { version = "0.36", default-features = false, features = ["elf", "read_core"] }
+rand = "0.8"
 
 #[patch.crates-io]
 #kvm-bindings = { git = "https://github.com/firecracker-microvm/kvm-bindings", tag = "v0.7.0-2", features = ["fam-wrappers"] }
