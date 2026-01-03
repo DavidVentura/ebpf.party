@@ -1,0 +1,3 @@
+[submodule "tcc"]
+	path = tcc
+	url = git@github.com:DavidVentura/tcc.git
