@@ -1,9 +1,10 @@
+/* Auto-generated header file */
+/* Extracted struct definitions and dependencies */
 
-enum {
-	BPF_F_INDEX_MASK = 4294967295ULL,
-	BPF_F_CURRENT_CPU = 4294967295ULL,
-	BPF_F_CTXLEN_MASK = 4503595332403200ULL,
-};
+#ifndef _SCHED_H
+#define _SCHED_H
+
+
 enum numa_vmaskip_reason {
 	NUMAB_SKIP_UNSUITABLE = 0,
 	NUMAB_SKIP_SHARED_RO = 1,
@@ -166,3 +167,4 @@ struct trace_event_raw_sched_stat_template {
 	u64 delay;
 	char __data[0];
 };
+#endif /* _SCHED_H */

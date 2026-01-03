@@ -38,15 +38,15 @@ struct {
     __debug_num(label_str, __COUNTER__, &_tmp, sizeof(num_val), 0); \
 } while (0)
 
-#define SUBMIT_STR(label_str, str_val) do { \
+#define SUBMIT_STR(str_val) do { \
     _Static_assert(sizeof(str_val) < 257, "String is too big"); \
-    __debug_str(label_str, __COUNTER__, &str_val, sizeof(str_val), 1); \
+    __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), 1); \
 } while (0)
 
-#define SUBMIT_NUM(label_str, num_val) do { \
+#define SUBMIT_NUM(num_val) do { \
     _Static_assert(__builtin_classify_type(num_val) != 5, "need a number by value"); \
     __typeof__(num_val) _tmp = (num_val); \
-    __debug_num(label_str, __COUNTER__, &_tmp, sizeof(num_val), 1); \
+    __debug_num("answer", __COUNTER__, &_tmp, sizeof(num_val), 1); \
 } while (0)
 
 #define NUM_ID      0x02
