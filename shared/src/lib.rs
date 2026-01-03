@@ -19,9 +19,17 @@ pub enum GuestMessage {
     Finished,
 }
 
+pub enum ExerciseId {
+    SyscallExecveArgv,
+}
+
+trait Exercise {
+    fn get_answer(&self, user_key: &[u8]) -> Vec<u8>;
+}
+
 impl GuestMessage {
     pub fn is_terminal(&self) -> bool {
-        matches!(
+        return matches!(
             self,
             GuestMessage::LoadFail(_)
                 | GuestMessage::VerifierFail(_)
@@ -29,7 +37,7 @@ impl GuestMessage {
                 | GuestMessage::NoProgramsFound
                 | GuestMessage::Finished
                 | GuestMessage::Crashed
-        )
+        );
     }
 }
 #[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone)]
