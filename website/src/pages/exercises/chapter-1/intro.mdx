@@ -43,26 +43,47 @@ Now, whenever the scheduler runs a new process, our code runs too!
 
 **Try running the preloaded snippet now.** It should log an entry per event.
 
-## Your task
+### Getting the program name
 
-The example code works, but it prints a static string. We want the actual program name.
-
-There are many programs running in the system. The answer is the one with the suspicious name.
+The example code works, but it prints a static string. We want the actual program name for every execution.
 
 Since our code has access to information about the new process, we can ask the kernel: "Who am I?"
 
 We will use [bpf_get_current_comm(&buf, size)](https://docs.ebpf.io/linux/helper-function/bpf_get_current_comm/)
 which writes the current process name into a buffer you provide.
 
-A little refresher, in C, we can declare a character buffer with
+In C, we can declare a character buffer with:
 ```c
 char buffer[16];
 ```
 
-To populate the buffer, call the helper function:
+To populate the buffer with the current process name, call the helper function:
 
 ```c
 bpf_get_current_comm(&buffer, sizeof(buffer));
 ```
 
-then call `DEBUG_STR` to see the results.
+Then call `DEBUG_STR` to see the results:
+
+```c
+DEBUG_STR("Command", buffer);
+```
+
+**Try this now**, you'll see some normal programs like `ls`, and one that stands out.
+
+### Your task
+
+Your task is to **submit the name of the program that stands out**.
+
+To do this, you'll need to filter out the common programs. Use the
+[bpf_strncmp(s1, s1_sz, s2)](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) helper
+to compare strings:
+
+- `s1` is your buffer
+- `s1_sz` is the size of your buffer
+- `s2` must be a string literal (like `"ls"`)
+- Returns **0 if they match**
+
+Filter out `"ls"` and `"sudo"`, then use `SUBMIT_STR(buffer)` to submit the suspicious command name.
+
+**Remember:** You can only call `SUBMIT_STR` once in your program. Multiple submissions will invalidate your answer.

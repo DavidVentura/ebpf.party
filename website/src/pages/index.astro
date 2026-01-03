@@ -1,95 +1,104 @@
 ---
-import Layout from '../layouts/Layout.astro';
+import Layout from "../layouts/Layout.astro";
 
-const exercises = await Astro.glob('./exercises/**/*.mdx');
-const metadataFiles = await Astro.glob('./exercises/**/metadata.json');
+const exercises = await Astro.glob("./exercises/**/*.mdx");
+const metadataFiles = await Astro.glob("./exercises/**/metadata.json");
 
 // Group exercises by chapter slug
-const exercisesBySlug = exercises.reduce((acc, exercise) => {
-	const match = exercise.url?.match(/\/exercises\/(chapter-\d+)\//);
-	const slug = match ? match[1] : 'other';
+const exercisesBySlug = exercises.reduce(
+  (acc, exercise) => {
+    const match = exercise.url?.match(/\/exercises\/(chapter-\d+)\//);
+    const slug = match ? match[1] : "other";
 
-	if (!acc[slug]) {
-		acc[slug] = [];
-	}
-	acc[slug].push(exercise);
-	return acc;
-}, {} as Record<string, typeof exercises>);
+    if (!acc[slug]) {
+      acc[slug] = [];
+    }
+    acc[slug].push(exercise);
+    return acc;
+  },
+  {} as Record<string, typeof exercises>
+);
 
 // Build chapters with metadata
 const chapters = metadataFiles
-	.map(meta => meta.default)
-	.sort((a, b) => a.number - b.number)
-	.map(chapter => ({
-		...chapter,
-		exercises: exercisesBySlug[chapter.slug] || []
-	}));
+  .map((meta) => meta.default)
+  .sort((a, b) => a.number - b.number)
+  .map((chapter) => ({
+    ...chapter,
+    exercises: exercisesBySlug[chapter.slug] || [],
+  }));
 ---
 
 <Layout>
-	<div class="home">
-		<h1>eBPF Exercises</h1>
-		{chapters.map((chapter) => (
-			<section class="chapter">
-				<h2>
-					<span class="chapter-number">Chapter {chapter.number}:</span>
-					{' '}{chapter.title}
-				</h2>
-				<ul>
-					{chapter.exercises.map((exercise) => (
-						<li>
-							<a href={exercise.url}>{exercise.frontmatter.title}</a>
-						</li>
-					))}
-				</ul>
-			</section>
-		))}
-	</div>
+  <div class="home">
+    <h1>eBPF Exercises</h1>
+    {
+      chapters.map((chapter) => (
+        <section class="chapter">
+          <h2>
+            <span class="chapter-number">Chapter {chapter.number}:</span>{" "}
+            {chapter.title}
+          </h2>
+          <ul>
+            {chapter.exercises.map((exercise) => (
+              <li>
+                {exercise.frontmatter.incomplete ? (
+                  <span>{exercise.frontmatter.title} (coming soon)</span>
+                ) : (
+                  <a href={exercise.url}>{exercise.frontmatter.title}</a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))
+    }
+  </div>
 </Layout>
 
 <style>
-	.home {
-		padding: 2rem;
-		max-width: 800px;
-		margin: 0 auto;
-	}
+  .home {
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
 
-	h1 {
-		margin-bottom: 2rem;
-	}
+  h1 {
+    margin-bottom: 2rem;
+  }
 
-	.chapter {
-		margin-bottom: 2rem;
-	}
+  .chapter {
+    margin-bottom: 2rem;
+  }
 
-	.chapter h2 {
-		color: #333;
-		font-size: 1.25rem;
-		margin-bottom: 0.5rem;
-	}
+  .chapter h2 {
+    color: #333;
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
 
-	.chapter-number {
-		color: #4caf50;
-		font-weight: 600;
-	}
+  .chapter-number {
+    color: #4caf50;
+    font-weight: 600;
+  }
 
-	ul {
-		list-style: none;
-		padding: 0;
-		margin-left: 1rem;
-	}
+  ul {
+    list-style: none;
+    padding: 0;
+    margin-left: 1rem;
+  }
 
-	li {
-		margin: 0.5rem 0;
-	}
+  li {
+    margin: 0.5rem 0;
+  }
 
-	a {
-		color: #0066cc;
-		text-decoration: none;
-		font-size: 1rem;
-	}
+  a {
+    color: #0066cc;
+    text-decoration: none;
+    font-size: 1rem;
+  }
 
-	a:hover {
-		text-decoration: underline;
-	}
+  a:hover {
+    text-decoration: underline;
+  }
 </style>

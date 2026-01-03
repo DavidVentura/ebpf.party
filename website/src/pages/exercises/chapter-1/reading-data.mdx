@@ -4,8 +4,6 @@ title: Reading event data
 codeFile: 2_event_data.c
 exerciseId: reading-event-data
 ---
-import stack from "./__data_loc_stack.svg";
-import { Image } from 'astro:assets';
 
 In the previous exercise, we cheated a little bit by using a helper to ask "Who is running?".
 
@@ -37,7 +35,7 @@ int pid = ctx->pid;
 DEBUG_NUM("PID", pid);
 ```
 
-Reading the filename, however, is a little bit more involved. If you look at the type declaration,
+Reading the filename, however, is a little bit more involved. If you look at the type declaration above,
 it is `__data_loc char[]`.
 
 This is not a regular pointer; the `__data_loc` prefix means the field just contains
@@ -58,6 +56,7 @@ However, we can't really read the data directly from the calculated address:
 
 ```c
 char* fname = (void *)ctx + off;
+DEBUG_STR("Filename", fname);
 ```
 
 Why not?
@@ -71,24 +70,17 @@ You can try it though! It will not crash the kernel, instead, it will return som
 To solve this, we need to copy that data to "local memory" (stack) using the [bpf_probe_read_kernel_str](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_kernel_str/) helper.
 
 ```c
-char fname[16];
+char fname[32];
 bpf_probe_read_kernel_str(fname, sizeof(fname), (void *)ctx + off);
 ```
+
+after which, the `fname` buffer will be populated, and we can call `DEBUG_STR` on it.
+
 ## Your task
 
-Read the active tasks' name, without using `bpf_get_current_comm`.
+If you added `DEBUG_STR`/`DEBUG_PID` as explained above, you should see multiple standard programs, but there's one suspicious filename that stands out.
 
-Use `DEBUG_STR` to see it on the platform.
+**Submit the suspicious filename** using `SUBMIT_STR_LEN(buff, len)`.
 
-{/* 
+Remember to filter out unwanted programs using `bpf_strncmp`, like we did in the previous exercise.
 
-```verifier
-9: (85) call bpf_get_current_task#35          ; R0=scalar()
-;  @ <stdin>:65
-10: (79) r1 = *(u64 *)(r0 +2504)
-R0 invalid mem access 'scalar'
-processed 11 insns (limit 1000000) max_states_per_insn 0 total_states 1 peak_states 1 mark_read 0
--- END PROG LOAD LOG --
-libbpf: prog 'handle_exec': failed to load: -EACCES
-libbpf: failed to load object '7f3a6cc81050-25a8'
-``` */}

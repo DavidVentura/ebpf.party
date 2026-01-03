@@ -21,11 +21,12 @@ interface ExecveArgsProps {
 }
 
 export default function ExecveArgs({ args }: ExecveArgsProps) {
-  const argBoxWidth = 100;
+  const hasL3 = args.filter((arg) => !arg.isSimplePointer).length > 0;
+  const argBoxWidth = hasL3 ? 100 : 150;
   const argBoxHeight = 50;
   const argBoxGap = 5;
   const arrowHeight = 50;
-  const valueBoxWidth = 90;
+  const valueBoxWidth = argBoxWidth - 10;
   const valueBoxHeight = 40;
   const valueBoxGap = 5;
   const secondArrowHeight = 25;
@@ -34,7 +35,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
   const padding = 1;
   const subGroupGap = 30;
 
-  const truncateText = (text: string, maxChars: number = 10) => {
+  const truncateText = (text: string, maxChars: number) => {
     if (text.length <= maxChars) return text;
     return text.substring(0, maxChars - 1) + "…";
   };
@@ -56,13 +57,11 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
     (args.length - 1) * subGroupGap +
     padding * 2;
 
+  const L2Height = argBoxHeight + arrowHeight + valueBoxHeight + padding * 2;
   const totalHeight =
-    argBoxHeight +
-    arrowHeight +
-    valueBoxHeight +
-    secondArrowHeight +
-    finalBoxHeight +
-    padding * 2;
+    args.filter((arg) => !arg.isSimplePointer).length > 0
+      ? L2Height + secondArrowHeight + finalBoxHeight
+      : L2Height;
 
   const argsStartX = 2;
 
@@ -183,7 +182,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                     fontFamily="monospace"
                     fill="#374151"
                   >
-                    {truncateText(arg.simpleValue, 11)}
+                    {truncateText(arg.simpleValue, hasL3 ? 11 : 16)}
                   </text>
                 </>
               )}

@@ -4,6 +4,8 @@ title: Tracing a system call
 codeFile: 3_execve_syscall.c
 exerciseId: reading-syscalls
 ---
+import ExecveArgs from '../../../components/ExecveArgs.tsx';
+
 
 In the previous exercises, we hooked into the scheduler (`sched_process_exec`). This event fires *after* the kernel has loaded a binary and populated its internal structures.
 
@@ -39,12 +41,41 @@ int execve(const char *filename, char *const argv[], char *const envp[]);
 
 Since `filename` is the first argument, it's located at `ctx->args[0]`. The `args` array stores it as an `unsigned long`, so we'll need to cast it to `const char *`.
 
+Something like this:
+
+<ExecveArgs
+label="ctx->args"
+args={[
+    {
+    index: 0,
+    name: "args[0]",
+    isSimplePointer: true,
+    simpleValue: "\"secret_app\\0\"",
+    subtitle: "char* filename"
+    },
+    {
+    index: 1,
+    name: "args[1]",
+    subtitle: "char* argv[]",
+    isSimplePointer: true,
+    simpleValue: "argv[]",
+    },
+    {
+    index: 2,
+    name: "args[2]",
+    subtitle: "char* envp[]",
+    isSimplePointer: true,
+    simpleValue: "envp[]",
+    }
+]}
+/>
+
 But there's one more detail to handle.
 
 
 ### On address spaces
 
-This `ctx->args[0]` pointer points to memory owned by the calling process (e.g., `bash`), which is **user space** memory.
+`ctx->args[0]` points to memory owned by the calling process (e.g., `bash`), which is **user space** memory.
 
 The kernel enforces strict separation between user and kernel memory for security. This means we cannot use the kernel-space helpers we've used before (like `bpf_probe_read_kernel_str`) to read this data. Instead, we must use [bpf_probe_read_user_str(dst, size, src)](https://docs.ebpf.io/linux/helper-function/bpf_probe_read_user_str/).
 

@@ -34,9 +34,11 @@ All of these take a label (a string constant) as a first argument and a `char*`,
 
 ### Submitting answers
 
-Use `SUBMIT_STR(answer)` or `SUBMIT_NUM(answer)`.
+Use `SUBMIT_NUM(answer)`, `SUBMIT_STR(answer)` or `SUBMIT_STR_LEN(answer, len)`.
 
 You can only use this once in your program -- submitting multiple answers invalidates all of them.
+
+Use the `LEN` variant when you can't guarantee your buffer will be zero-initialized.
 
 ## The backend
 

@@ -70,7 +70,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
         compilationOutputRef.current += text + "\n";
         hasOutputRef.current = true;
       },
-      (result, typeInfoJson, debTypeInfoJson, timing) => {
+      (result, typeInfoJson, debTypeInfoJson, timing, errors) => {
         if (typeInfoJson) {
           const parsed: TypeInfo[] = JSON.parse(typeInfoJson);
           const typeInfoObj = parsed.reduce(
@@ -85,14 +85,25 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
           debTypeRegistry.set(parsed);
         }
 
+        if (errors.length > 0) {
+          errors.forEach(err => {
+            const errorType = err.isWarning ? "Warning" : "Error";
+            if (err.filename === "<string>") {
+              compilationOutputRef.current += `${errorType} at line ${err.lineNum}: ${err.msg}\n`;
+            } else {
+              compilationOutputRef.current += `${errorType} at ${err.filename || "<unknown>"}:${err.lineNum}: ${err.msg}\n`;
+            }
+          });
+        }
+
+        const hasErrors = errors.some(e => !e.isWarning);
+        const hasWarnings = errors.some(e => e.isWarning);
+
         let newOutputClass: "warning" | "error" | "" = "";
-        if (result === 0) {
-          if (hasOutputRef.current) {
-            newOutputClass = "warning";
-          }
-        } else {
-          compilationOutputRef.current += `Syntax Error (Result: ${result})\n`;
+        if (hasErrors) {
           newOutputClass = "error";
+        } else if (hasWarnings || hasOutputRef.current) {
+          newOutputClass = "warning";
         }
 
         setOutput(compilationOutputRef.current);
