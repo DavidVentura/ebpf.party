@@ -24,6 +24,7 @@ export default function EventViewer({
     if (event.type === "wrongAnswer") return "error";
     if (event.type === "correctAnswer") return "success";
     if (event.type === "multipleAnswers") return "warning";
+    if (event.type === "noAnswer") return "warning";
     if (event.type === "guestMessage") {
       if (event.data.type === "debugMapNotFound") return "error";
       if (event.data.type === "noProgramsFound") return "error";
@@ -48,6 +49,9 @@ export default function EventViewer({
     }
     if (event.type === "multipleAnswers") {
       return "Multiple Answers Detected";
+    }
+    if (event.type === "noAnswer") {
+      return "You didn't submit an answer. Use SUBMIT_STR or SUBMIT_NUM to do it.";
     }
     if (event.type === "guestMessage") {
       if (event.data.type === "debugMapNotFound") {

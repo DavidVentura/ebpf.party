@@ -7,7 +7,8 @@ export type SSEEvent =
   | { type: "stack"; data: { functions: DwarfFunction[] } }
   | { type: "correctAnswer" }
   | { type: "wrongAnswer" }
-  | { type: "multipleAnswers" };
+  | { type: "multipleAnswers" }
+  | { type: "noAnswer" };
 
 export type DwarfFunction = {
   function_name: string;

@@ -55,7 +55,7 @@ pub struct VmPermit {
 }
 
 impl VmPermit {
-    pub fn run(mut self, out_tx: std::sync::mpsc::Sender<PlatformMessage>, program: Vec<u8>) {
+    pub fn run(mut self, out_tx: std::sync::mpsc::Sender<PlatformMessage>, program: Vec<u8>, exercise_id: shared::ExerciseId, user_key: u64) {
         let start = Instant::now();
 
         static VM_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -95,8 +95,10 @@ impl VmPermit {
                 match stream {
                     Ok(mut stream) => {
                         let host_msg = shared::HostMessage::ExecuteProgram {
+                            exercise_id,
                             timeout: Duration::from_millis(500),
                             program,
+                            user_key,
                         };
                         let config = bincode::config::standard();
                         bincode::encode_into_std_write(&host_msg, &mut stream, config).unwrap();

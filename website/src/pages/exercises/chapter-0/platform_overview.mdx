@@ -2,7 +2,7 @@
 layout: ../../../layouts/ExerciseLayout.astro
 title: Platform overview
 codeFile: 1_editor_intro.c
-exerciseId: exercise-0-1
+exerciseId: platform-overview
 ---
 
 Welcome to the eBPF party!
@@ -32,6 +32,11 @@ You can use `DEBUG_STR`, `DEBUG_NUM` and `DEBUG_STRUCT` to send data to the fron
 
 All of these take a label (a string constant) as a first argument and a `char*`, number, or `struct` respectively.
 
+### Submitting answers
+
+Use `SUBMIT_STR(answer)` or `SUBMIT_NUM(answer)`.
+
+You can only use this once in your program -- submitting multiple answers invalidates all of them.
 
 ## The backend
 

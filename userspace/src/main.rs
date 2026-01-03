@@ -1,6 +1,7 @@
-use shared::GuestMessage;
+use shared::{ExerciseId, GuestMessage};
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 use vsock::{VMADDR_CID_HOST, VsockStream};
 
 pub static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
@@ -47,17 +48,24 @@ fn real_main() {
     });
 
     match bincode::decode_from_std_read::<shared::HostMessage, _, _>(&mut s_rcv, config) {
-        Ok(shared::HostMessage::ExecuteProgram { timeout, program }) => {
-            // TODO: parametrize
+        Ok(shared::HostMessage::ExecuteProgram {
+            exercise_id,
+            timeout,
+            program,
+            user_key,
+        }) => {
             let panic_tx = tx.clone();
             let jh2 = std::thread::spawn(move || {
+                // TODO: wait for ebpf::run_program to have started
+                std::thread::sleep(Duration::from_millis(20));
                 let panics = std::panic::catch_unwind(|| {
-                    //exercise1();
-                    exercises::exercise_argv();
+                    run_exercise(exercise_id, user_key);
                 });
                 if let Err(_) = panics {
                     let _ = panic_tx.send(GuestMessage::Crashed);
                 }
+
+                SHOULD_STOP.store(true, Ordering::Relaxed);
             });
             ebpf::run_program(&program, timeout, tx);
             jh2.join().unwrap();
@@ -68,4 +76,18 @@ fn real_main() {
         }
     }
     jh.join().unwrap();
+}
+
+fn run_exercise(exercise_id: ExerciseId, user_key: u64) {
+    match exercise_id {
+        shared::ExerciseId::ReadArgvPassword => exercises::exercise_argv(user_key),
+        shared::ExerciseId::PlatformOverview => exercises::exercise_platform_overview(user_key),
+        shared::ExerciseId::ConceptIntro => exercises::exercise_concept_intro(user_key),
+        shared::ExerciseId::ReadingEventData => exercises::exercise_reading_event_data(user_key),
+        shared::ExerciseId::ReadingSyscalls => exercises::exercise_reading_syscalls(user_key),
+        shared::ExerciseId::ReadEnvPassword => exercises::exercise_env(user_key),
+        shared::ExerciseId::ReadFilePassword => exercises::exercise_file(user_key),
+        shared::ExerciseId::ReadDns => exercises::exercise_dns(user_key),
+        shared::ExerciseId::ReadHttpPassword => exercises::exercise_http(user_key),
+    }
 }

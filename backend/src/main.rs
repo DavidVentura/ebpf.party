@@ -72,7 +72,16 @@ fn main() {
             let path = req.path.unwrap_or("/");
             println!("path is '{path}'");
             if path.starts_with("/run_code/") {
-                run_code_handler(stream, &buf[..n], status.unwrap(), &req.headers, pool, cfg);
+                let exercise_id_str = &path[10..];
+                run_code_handler(
+                    stream,
+                    &buf[..n],
+                    status.unwrap(),
+                    &req.headers,
+                    pool,
+                    cfg,
+                    exercise_id_str,
+                );
             }
 
             eprintln!("Request completed in {:?}", start.elapsed());
@@ -86,6 +95,7 @@ fn run_code_handler(
     headers: &[httparse::Header],
     vm_pool: Arc<vm_pool::VmPool>,
     config: Arc<config::Config>,
+    exercise_id_str: &str,
 ) {
     let start = Instant::now();
 
@@ -97,6 +107,23 @@ fn run_code_handler(
     let cors_origin = origin
         .filter(|o| o.starts_with("http://localhost:") || o.starts_with("http://127.0.0.1:"))
         .unwrap_or("http://localhost:3000");
+
+    let exercise_id = match shared::ExerciseId::from_str(exercise_id_str) {
+        Some(id) => id,
+        None => {
+            stream.write_all(b"HTTP/1.1 400 Bad Request\r\n").unwrap();
+            stream
+                .write_all(format!("Access-Control-Allow-Origin: {}\r\n", cors_origin).as_bytes())
+                .unwrap();
+            stream.write_all(b"\r\n").unwrap();
+            stream
+                .write_all(format!("Invalid exercise ID: {}", exercise_id_str).as_bytes())
+                .unwrap();
+            return;
+        }
+    };
+
+    let user_key: u64 = rand::random();
 
     let has_expect_continue = headers
         .iter()
@@ -169,7 +196,8 @@ fn run_code_handler(
     stream.write_all(b"\r\n").unwrap();
     stream.flush().unwrap();
 
-    let jh = thread::spawn(move || handle_guest_events(stream, rx));
+    let user_key_clone = user_key;
+    let jh = thread::spawn(move || handle_guest_events(stream, rx, exercise_id, user_key_clone));
 
     let s = Instant::now();
     tx.send(PlatformMessage::Compiling).unwrap();
@@ -190,7 +218,7 @@ fn run_code_handler(
                     let _ = tx.send(PlatformMessage::Stack(stack));
                 }
                 let _ = tx.send(PlatformMessage::Booting).unwrap();
-                permit.run(tx, compiled);
+                permit.run(tx, compiled, exercise_id, user_key);
                 // running `vm` requires running through a KVM `Drop`
                 // which takes like 30ms -- the request insta-flushed the msgs
                 // so it only delays closing the connection, and skews
@@ -218,7 +246,12 @@ fn send_msg(stream: &mut TcpStream, msg: &PlatformMessage) -> Result<(), std::io
     Ok(())
 }
 
-fn handle_guest_events(mut stream: TcpStream, rx: Receiver<PlatformMessage>) {
+fn handle_guest_events(
+    mut stream: TcpStream,
+    rx: Receiver<PlatformMessage>,
+    exercise_id: shared::ExerciseId,
+    user_key: u64,
+) {
     let mut answer = None::<UserAnswer>;
     let mut answer_count = 0u8;
     for msg in rx {
@@ -237,7 +270,20 @@ fn handle_guest_events(mut stream: TcpStream, rx: Receiver<PlatformMessage>) {
     let answer_msg = match answer_count {
         0 => PlatformMessage::NoAnswer,
         1 => {
-            if true {
+            let expected_answer = shared::get_answer(exercise_id, user_key);
+            let is_correct = match answer.as_ref().unwrap() {
+                UserAnswer::String(submitted) => {
+                    let trimmed = submitted.iter().rposition(|&b| b != 0)
+                        .map(|pos| &submitted[..=pos])
+                        .unwrap_or(&[]);
+
+                    println!("{submitted:?}, {expected_answer:?}");
+                    trimmed == &expected_answer[..]
+                }
+                UserAnswer::Number(submitted) => &expected_answer[..] == submitted,
+            };
+
+            if is_correct {
                 PlatformMessage::CorrectAnswer
             } else {
                 PlatformMessage::WrongAnswer

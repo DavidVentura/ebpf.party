@@ -177,7 +177,13 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
 
   const canRun = outputClass !== "error" && !isRunning;
 
-  const storageKey = `ebpf-party-layout-${exerciseId}`;
+  const storageKey = `ebpf-party-layout`;
+
+  const getInitialLayout = () => {
+    const saved = localStorage.getItem(storageKey);
+    return saved ? JSON.parse(saved) : undefined;
+  };
+
   const handleLayoutChange = (layout: { [key: string]: number }) => {
     localStorage.setItem(storageKey, JSON.stringify(layout));
   };
@@ -187,6 +193,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
       <Group
         orientation="vertical"
         id={storageKey}
+        defaultLayout={getInitialLayout()}
         onLayoutChange={handleLayoutChange}
         style={{ height: "100%" }}
       >
