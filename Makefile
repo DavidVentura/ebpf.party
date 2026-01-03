@@ -1,4 +1,4 @@
-.PHONY: all
+.PHONY: all website_bindings
 
 all: website_bindings backend/includes/task.h.pch
 	:
