@@ -1,7 +1,23 @@
 use std::fs;
 use std::process::Command;
-use std::sync::atomic::Ordering;
 use std::time::Duration;
+
+pub fn cmds_with_secret_command(command_name: &str) {
+    let ls = &["/bin/ls", "/home/"];
+    let bash = &["/bin/sudo", "/bin/bash"];
+    let secret: &[&str] = &[command_name];
+
+    for prog in ["/bin/ls", "/bin/sudo", &command_name] {
+        fs::copy("/true", prog).unwrap();
+    }
+
+    for cmd in [ls, bash, secret] {
+        let (prog, args) = cmd.split_first().unwrap();
+        let mut cmd = Command::new(prog).args(args).spawn().expect("missing bin");
+        cmd.wait().unwrap();
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
 
 pub fn cmds_with_secret_flag(password_str: &str) {
     let ls = &["/bin/ls", "/home/"];
@@ -19,9 +35,6 @@ pub fn cmds_with_secret_flag(password_str: &str) {
     }
 
     for cmd in [ls, bash, secret] {
-        if crate::SHOULD_STOP.load(Ordering::Relaxed) {
-            break;
-        }
         let (prog, args) = cmd.split_first().unwrap();
         let mut cmd = Command::new(prog).args(args).spawn().expect("missing bin");
         cmd.wait().unwrap();
@@ -39,16 +52,22 @@ pub fn exercise_platform_overview(_user_key: u64) {
     cmd.wait().unwrap();
 }
 
-pub fn exercise_concept_intro(_user_key: u64) {
-    cmds_with_secret_flag("password");
+pub fn exercise_concept_intro(user_key: u64) {
+    let cmd_name = shared::get_answer(shared::ExerciseId::ConceptIntro, user_key);
+    let cmd_name_str = std::str::from_utf8(&cmd_name).unwrap();
+    cmds_with_secret_command(format!("/bin/{cmd_name_str}").as_str());
 }
 
-pub fn exercise_reading_event_data(_user_key: u64) {
-    cmds_with_secret_flag("password");
+pub fn exercise_reading_event_data(user_key: u64) {
+    let cmd_name = shared::get_answer(shared::ExerciseId::ReadingEventData, user_key);
+    let cmd_name_str = std::str::from_utf8(&cmd_name).unwrap();
+    cmds_with_secret_command(cmd_name_str);
 }
 
-pub fn exercise_reading_syscalls(_user_key: u64) {
-    cmds_with_secret_flag("password");
+pub fn exercise_reading_syscalls(user_key: u64) {
+    let cmd_name = shared::get_answer(shared::ExerciseId::ConceptIntro, user_key);
+    let cmd_name_str = std::str::from_utf8(&cmd_name).unwrap();
+    cmds_with_secret_command(format!("/bin/{cmd_name_str}").as_str());
 }
 
 pub fn exercise_env(user_key: u64) {
