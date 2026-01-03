@@ -39,8 +39,13 @@ struct {
 } while (0)
 
 #define SUBMIT_STR(str_val) do { \
-    _Static_assert(sizeof(str_val) < 257, "String is too big"); \
-    __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), 1); \
+    _Static_assert(sizeof(str_val) < 256, "String is too big"); \
+    __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), sizeof(str_val), 1); \
+} while (0)
+
+#define SUBMIT_STR_LEN(str_val, len) do { \
+    _Static_assert(sizeof(str_val) < 256, "String is too big"); \
+    __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), len, 1); \
 } while (0)
 
 #define SUBMIT_NUM(num_val) do { \
@@ -54,39 +59,38 @@ struct {
 #define STRUCT_ID   0x04
 #define ANSWER_FLAG 0x80
 
-static __always_inline void __ep_debug_val(const char *label, __u8 counter, void *ptr, size_t size, __u8 type) {
-    if (size > 256) return;
-    char* buf = bpf_ringbuf_reserve(&_ep_debug_events, size+2, 0);
-    if (!buf) {
-	bpf_printk("bpf_ringbuf_reserve failed\n");
-	return;
-    }
+static __always_inline void __ep_debug_val(const char *label, __u8 counter, void *ptr, size_t size, u8 valid_size, __u8 type) {
+    if (size > 255) return;
+    unsigned char* buf = bpf_ringbuf_reserve(&_ep_debug_events, size+3, 0);
+    if (!buf)
+        return;
 
     buf[0] = type;
     buf[1] = counter;
-    bpf_probe_read_kernel(buf + 2, size, ptr);
+    buf[2] = valid_size;
+    bpf_probe_read_kernel(buf + 3, size, ptr);
     bpf_ringbuf_submit(buf, 0);
 }
 
 static __always_inline void __debug_struct(const char *label, __u8 counter, void *ptr, size_t size, bool is_answer) {
     u8 type = STRUCT_ID;
     if (is_answer)
-	    type |= ANSWER_FLAG;
-    __ep_debug_val(label, counter, ptr, size, type);
+            type |= ANSWER_FLAG;
+    __ep_debug_val(label, counter, ptr, size, size, type);
 }
-static __always_inline void __debug_str(const char *label, __u8 counter, void *ptr, size_t size, bool is_answer) {
+
+static __always_inline void __debug_str(const char *label, __u8 counter, void *ptr, size_t size, u8 valid_size, bool is_answer) {
     u8 type = STR_ID;
     if (is_answer)
-	    type |= ANSWER_FLAG;
-    __ep_debug_val(label, counter, ptr, size, type);
+            type |= ANSWER_FLAG;
+    __ep_debug_val(label, counter, ptr, size, valid_size, type);
 }
+
 static __always_inline void __debug_num(const char *label, __u8 counter, void* num, size_t size, bool is_answer) {
     if (size > 8) size = 8; // no u128 for you sorry
-    char* buf = bpf_ringbuf_reserve(&_ep_debug_events, 8+3, 0);
-    if (!buf) {
-	bpf_printk("bpf_ringbuf_reserve failed\n");
-	return;
-    }
+    unsigned char* buf = bpf_ringbuf_reserve(&_ep_debug_events, 8+3, 0);
+    if (!buf)
+        return;
 
     if (is_answer) {
         buf[0] = NUM_ID | ANSWER_FLAG;

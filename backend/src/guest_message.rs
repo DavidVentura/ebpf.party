@@ -63,11 +63,15 @@ fn parse(data: &[u8]) -> Option<UserMessage> {
             Some(UserMessage::Answer(UserAnswer::Number(num_data)))
         }
         MessageKind::String => {
-            // type, counter, data
-            if data.len() < 2 {
+            // type, counter, size, data
+            if data.len() < 3 {
                 return None;
             }
-            Some(UserMessage::Answer(UserAnswer::String(data[2..].to_vec())))
+            let size = data[2] as usize;
+            let data_end = std::cmp::min(size.saturating_add(3), data.len());
+            Some(UserMessage::Answer(UserAnswer::String(
+                data[3..data_end].to_vec(),
+            )))
         }
     }
 }
