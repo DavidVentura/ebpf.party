@@ -77,6 +77,30 @@
   white-space: pre-wrap;
 }
 
+.successEvent {
+  color: #b5f5b5;
+  font-family: monospace;
+  font-size: 12px;
+  margin: 0;
+  padding: 0.5rem;
+  background: #1e2e1e;
+  border-left: 2px solid #66bb6a;
+  border-radius: 2px;
+  white-space: pre-wrap;
+}
+
+.warningEvent {
+  color: #ffd699;
+  font-family: monospace;
+  font-size: 12px;
+  margin: 0;
+  padding: 0.5rem;
+  background: #2e2a1e;
+  border-left: 2px solid #ff9800;
+  border-radius: 2px;
+  white-space: pre-wrap;
+}
+
 .loading {
   color: #ff9800;
   font-family: monospace;

@@ -16,16 +16,21 @@ export default function EventViewer({
   onClear,
   typeRegistry,
 }: EventViewerProps) {
-  const isError = (event: SSEEvent): boolean => {
-    if (event.type === "compileError") return true;
-    if (event.type === "requestError") return true;
+  const getEventStyle = (
+    event: SSEEvent
+  ): "error" | "success" | "warning" | "normal" => {
+    if (event.type === "compileError") return "error";
+    if (event.type === "requestError") return "error";
+    if (event.type === "wrongAnswer") return "error";
+    if (event.type === "correctAnswer") return "success";
+    if (event.type === "multipleAnswers") return "warning";
     if (event.type === "guestMessage") {
-      if (event.data.type === "debugMapNotFound") return true;
-      if (event.data.type === "noProgramsFound") return true;
-      if (event.data.type === "verifierFail") return true;
-      if (event.data.type === "crashed") return true;
+      if (event.data.type === "debugMapNotFound") return "error";
+      if (event.data.type === "noProgramsFound") return "error";
+      if (event.data.type === "verifierFail") return "error";
+      if (event.data.type === "crashed") return "error";
     }
-    return false;
+    return "normal";
   };
 
   const formatEvent = (event: SSEEvent): string => {
@@ -34,6 +39,15 @@ export default function EventViewer({
     }
     if (event.type === "requestError") {
       return `Request Error: ${event.data}`;
+    }
+    if (event.type === "correctAnswer") {
+      return "Correct Answer!";
+    }
+    if (event.type === "wrongAnswer") {
+      return "Wrong Answer";
+    }
+    if (event.type === "multipleAnswers") {
+      return "Multiple Answers Detected";
     }
     if (event.type === "guestMessage") {
       if (event.data.type === "debugMapNotFound") {
@@ -83,11 +97,18 @@ export default function EventViewer({
               );
             }
 
+            const eventStyle = getEventStyle(event);
+            const className =
+              eventStyle === "error"
+                ? styles.errorEvent
+                : eventStyle === "success"
+                ? styles.successEvent
+                : eventStyle === "warning"
+                ? styles.warningEvent
+                : styles.event;
+
             return (
-              <p
-                key={i}
-                className={isError(event) ? styles.errorEvent : styles.event}
-              >
+              <p key={i} className={className}>
                 {formatEvent(event)}
               </p>
             );

@@ -4,7 +4,10 @@ export type SSEEvent =
   | { type: "compileError"; data: string }
   | { type: "requestError"; data: string }
   | { type: "guestMessage"; data: GuestMessage }
-  | { type: "stack"; data: { functions: DwarfFunction[] } };
+  | { type: "stack"; data: { functions: DwarfFunction[] } }
+  | { type: "correctAnswer" }
+  | { type: "wrongAnswer" }
+  | { type: "multipleAnswers" };
 
 export type DwarfFunction = {
   function_name: string;
