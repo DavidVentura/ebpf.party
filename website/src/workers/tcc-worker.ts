@@ -55,6 +55,32 @@ self.onmessage = (e: MessageEvent) => {
           [code, withTypeInfo ? 1 : 0]
         );
 
+        const errors = [];
+        if (result !== 0) {
+          const errorCount = Module.ccall("get_error_count", "number", [], []);
+          console.log(`Syntax check failed with ${errorCount} error(s):`);
+
+          for (let i = 0; i < errorCount; i++) {
+            const filenamePtr = Module.ccall("get_error_filename", "number", ["number"], [i]);
+            const lineNum = Module.ccall("get_error_line_num", "number", ["number"], [i]);
+            const isWarning = Module.ccall("get_error_is_warning", "number", ["number"], [i]);
+            const msgPtr = Module.ccall("get_error_msg", "number", ["number"], [i]);
+
+            const filename = filenamePtr ? Module.UTF8ToString(filenamePtr) : null;
+            const msg = msgPtr ? Module.UTF8ToString(msgPtr) : "<no message>";
+            const errorType = isWarning ? "Warning" : "Error";
+
+            console.log(`  [${i}] ${errorType} at ${filename || "<unknown>"}:${lineNum} - ${msg}`);
+
+            errors.push({
+              filename,
+              lineNum,
+              isWarning: Boolean(isWarning),
+              msg,
+            });
+          }
+        }
+
         let typeInfo: string | null = null;
         let debTypeInfo: string | null = null;
         if (withTypeInfo && result === 0) {
@@ -78,6 +104,7 @@ self.onmessage = (e: MessageEvent) => {
           result,
           typeInfo,
           debTypeInfo,
+          errors,
         });
       } else {
         self.postMessage({

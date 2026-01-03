@@ -1,4 +1,4 @@
-import type { WorkerRequest, WorkerResponse } from "../types/worker";
+import type { WorkerRequest, WorkerResponse, TccError } from "../types/worker";
 import TccWorker from "../workers/tcc-worker.ts?worker";
 
 export class TccWorkerClient {
@@ -15,7 +15,8 @@ export class TccWorkerClient {
       result: number,
       typeInfo: string | null,
       debTypeInfo: string | null,
-      timing: { time: number; avg: number }
+      timing: { time: number; avg: number },
+      errors: TccError[]
     ) => void,
     private onError: (error: string) => void
   ) {
@@ -49,7 +50,8 @@ export class TccWorkerClient {
             e.data.result,
             e.data.typeInfo,
             e.data.debTypeInfo,
-            timing
+            timing,
+            e.data.errors
           );
           break;
         default:
