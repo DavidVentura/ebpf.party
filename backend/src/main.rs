@@ -3,15 +3,17 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::sync::Arc;
-use std::sync::mpsc::channel;
+use std::sync::mpsc::{Receiver, channel};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use crate::guest_message::UserAnswer;
 use crate::types::PlatformMessage;
 
 mod compile;
 mod config;
 mod dwarf;
+mod guest_message;
 mod types;
 mod vm_pool;
 
@@ -167,18 +169,7 @@ fn run_code_handler(
     stream.write_all(b"\r\n").unwrap();
     stream.flush().unwrap();
 
-    // TODO: notify if no events? is it an error?
-    let jh = thread::spawn(move || {
-        for msg in rx {
-            let json = serde_json::to_string(&msg).unwrap();
-            if let Err(_) = stream.write_all(format!("data: {}\n\n", json).as_bytes()) {
-                // disconnected is not a big deal
-                break;
-            }
-            let _ = stream.flush();
-        }
-        let _ = stream.flush();
-    });
+    let jh = thread::spawn(move || handle_guest_events(stream, rx));
 
     let s = Instant::now();
     tx.send(PlatformMessage::Compiling).unwrap();
@@ -217,4 +208,42 @@ fn run_code_handler(
     }
     jh.join().unwrap();
     eprintln!("Run-code completed in {:?}", start.elapsed());
+}
+
+fn send_msg(stream: &mut TcpStream, msg: &PlatformMessage) -> Result<(), std::io::Error> {
+    let json = serde_json::to_string(msg).unwrap();
+
+    stream.write_all(format!("data: {}\n\n", json).as_bytes())?;
+    let _ = stream.flush();
+    Ok(())
+}
+
+fn handle_guest_events(mut stream: TcpStream, rx: Receiver<PlatformMessage>) {
+    let mut answer = None::<UserAnswer>;
+    let mut answer_count = 0u8;
+    for msg in rx {
+        if let Some(this_answer) = guest_message::extract_answer(&msg) {
+            answer_count = answer_count.saturating_add(1);
+            if answer.is_none() {
+                answer = Some(this_answer);
+            }
+            continue;
+        }
+        // disconnected is not a big deal
+        if let Err(_) = send_msg(&mut stream, &msg) {
+            break;
+        }
+    }
+    let answer_msg = match answer_count {
+        0 => PlatformMessage::NoAnswer,
+        1 => {
+            if true {
+                PlatformMessage::CorrectAnswer
+            } else {
+                PlatformMessage::WrongAnswer
+            }
+        }
+        _ => PlatformMessage::MultipleAnswers,
+    };
+    let _ = send_msg(&mut stream, &answer_msg);
 }

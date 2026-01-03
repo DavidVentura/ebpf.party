@@ -12,4 +12,9 @@ pub enum PlatformMessage {
     Stack(DwarfDebugInfo),
     Booting,
     GuestMessage(GuestMessage),
+
+    MultipleAnswers,
+    NoAnswer,
+    CorrectAnswer,
+    WrongAnswer,
 }
