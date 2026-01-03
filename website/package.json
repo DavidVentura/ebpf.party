@@ -4,10 +4,10 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "pnpm run build_tcc && astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "build_tcc": "make -C ../tcc syntax_check.wasm && cp ../tcc/syntax_check.wasm ../tcc/syntax_check.data public/tcc/ && cp ../tcc/syntax_check.mjs src/wasm/",
+    "build_tcc": "make -C .. website_bindings",
     "test": "vitest"
   },
   "dependencies": {
