@@ -3,4 +3,5 @@ max_concurrent_vms = 4
 clang_path = "./clang"
 includes_path = "./includes"
 rootfs_path = "../rootfs.ext4"
-vmlinux_path = "../vmlinux"
+vmlinux_path = "../vmsmall"
+#vmlinux_path = "../vmlinux"

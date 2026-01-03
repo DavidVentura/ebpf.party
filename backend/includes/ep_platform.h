@@ -23,12 +23,12 @@ struct {
 
 #define DEBUG_STRUCT(label_str, struct_val) do { \
     _Static_assert(__builtin_classify_type(struct_val) != 5, "need a struct by value"); \
-    _Static_assert(sizeof(struct_val) < 257, "Struct is too big"); \
+    _Static_assert(sizeof(struct_val) < 256, "Struct is too big, max size is 255"); \
     __debug_struct(label_str, __COUNTER__, &struct_val, sizeof(struct_val), 0); \
 } while (0)
 
 #define DEBUG_STR(label_str, str_val) do { \
-    _Static_assert(sizeof(str_val) < 257, "String is too big"); \
+    _Static_assert(sizeof(str_val) < 256, "Max string length is 255"); \
     __debug_str(label_str, __COUNTER__, &str_val, sizeof(str_val), sizeof(str_val), 0); \
 } while (0)
 
@@ -39,12 +39,12 @@ struct {
 } while (0)
 
 #define SUBMIT_STR(str_val) do { \
-    _Static_assert(sizeof(str_val) < 256, "String is too big"); \
+    _Static_assert(sizeof(str_val) < 256, "Max string length is 255"); \
     __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), sizeof(str_val), 1); \
 } while (0)
 
 #define SUBMIT_STR_LEN(str_val, len) do { \
-    _Static_assert(sizeof(str_val) < 256, "String is too big"); \
+    _Static_assert(sizeof(str_val) < 256, "Max string length is 255"); \
     __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), len, 1); \
 } while (0)
 
