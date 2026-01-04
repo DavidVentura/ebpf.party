@@ -43,14 +43,15 @@ This is not a regular pointer; the `__data_loc` prefix means the field just cont
 
 Basically, the filename field contains a 32-bit integer that packs two pieces of information:
 
-  - Lower 16 bits: The Offset (How far away the string is from the start of the structure).
-  - Upper 16 bits: The Length (How long the string is).
+  - Lower 16 bits: The Offset (How far away the string is from the start of the structure)
+  - Upper 16 bits: The Length (How long the string is)
 
 To get the actual string, we have to do a little work:
 
   1. Read the `__data_loc_filename` field
-  2. Mask the lower 16 bits (`val & 0xFFFF`) to get the offset
-  3. Add that offset to the `ctx` pointer
+  1. Mask the lower 16 bits (`val & 0xFFFF`) to get the offset
+  1. Right shift the upper bits (`val >> 16`) to get the length 
+  1. Add that offset to the `ctx` pointer
 
 However, we can't really read the data directly from the calculated address:
 
