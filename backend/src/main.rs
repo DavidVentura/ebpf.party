@@ -273,11 +273,12 @@ fn handle_guest_events(
             let expected_answer = shared::get_answer(exercise_id, user_key);
             let is_correct = match answer.as_ref().unwrap() {
                 UserAnswer::String(submitted) => {
-                    let trimmed = submitted.iter().rposition(|&b| b != 0)
+                    let trimmed = submitted
+                        .iter()
+                        .rposition(|&b| b != 0)
                         .map(|pos| &submitted[..=pos])
                         .unwrap_or(&[]);
 
-                    println!("{submitted:?}, {expected_answer:?}");
                     trimmed == &expected_answer[..]
                 }
                 UserAnswer::Number(submitted) => &expected_answer[..] == submitted,

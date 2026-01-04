@@ -55,7 +55,13 @@ pub struct VmPermit {
 }
 
 impl VmPermit {
-    pub fn run(mut self, out_tx: std::sync::mpsc::Sender<PlatformMessage>, program: Vec<u8>, exercise_id: shared::ExerciseId, user_key: u64) {
+    pub fn run(
+        mut self,
+        out_tx: std::sync::mpsc::Sender<PlatformMessage>,
+        program: Vec<u8>,
+        exercise_id: shared::ExerciseId,
+        user_key: u64,
+    ) {
         let start = Instant::now();
 
         static VM_COUNTER: AtomicU64 = AtomicU64::new(0);

@@ -67,15 +67,14 @@ pub fn get_answer(exercise_id: ExerciseId, user_key: u64) -> Vec<u8> {
     use ExerciseId::*;
 
     match exercise_id {
-        ReadArgvPassword => user_key.to_string().into_bytes(),
-
         PlatformOverview => "the answer".to_string().into_bytes(),
         // keep it under 16 chars to fit in COMM
-        ConceptIntro => format!("secret_{}", user_key % 1_000_000).into_bytes(),
+        ConceptIntro => format!("secret_{:0>6}", user_key % 1_000_000).into_bytes(),
         // this one fits entirely in ctx->filename
         ReadingEventData => format!("/bin/secret_{:0>6}", user_key % 1_000_000).into_bytes(),
-
         ReadingSyscalls => format!("/bin/secret_{:0>6}", user_key % 1_000_000).into_bytes(),
+
+        ReadArgvPassword => user_key.to_string().into_bytes(),
         ReadEnvPassword => todo!("Implement answer generation for ex-2-2"),
         ReadFilePassword => todo!("Implement answer generation for ex-2-3"),
         ReadDns => todo!("Implement answer generation for ex-3-1"),

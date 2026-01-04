@@ -65,9 +65,9 @@ pub fn exercise_reading_event_data(user_key: u64) {
 }
 
 pub fn exercise_reading_syscalls(user_key: u64) {
-    let cmd_name = shared::get_answer(shared::ExerciseId::ConceptIntro, user_key);
+    let cmd_name = shared::get_answer(shared::ExerciseId::ReadingSyscalls, user_key);
     let cmd_name_str = std::str::from_utf8(&cmd_name).unwrap();
-    cmds_with_secret_command(format!("/bin/{cmd_name_str}").as_str());
+    cmds_with_secret_command(cmd_name_str);
 }
 
 pub fn exercise_env(user_key: u64) {

@@ -36,7 +36,11 @@ fn test_simple_stack_parsing() {
     // Assert exact expected structure
     assert_eq!(handle_exec.function_name, "handle_exec");
     assert_eq!(handle_exec.section_name, "tp/sched/sched_process_exec");
-    assert_eq!(handle_exec.stack_vars.len(), 1, "Only variables with stack locations should be included");
+    assert_eq!(
+        handle_exec.stack_vars.len(),
+        1,
+        "Only variables with stack locations should be included"
+    );
 
     // Assert process_name variable (only one with stack location)
     assert_eq!(handle_exec.stack_vars[0].name, "process_name");
