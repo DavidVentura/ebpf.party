@@ -1,6 +1,8 @@
 .PHONY: all website_bindings
 
-all: website_bindings backend/includes/task.h.pch
+CFLAGS = -static -fno-ident -fno-asynchronous-unwind-tables -fno-unwind-tables -s -Os -nostdlib -I/home/david/git/linux-6.18.2/tools/include/nolibc -include nolibc.h
+
+all: website_bindings backend/includes/task.h.pch rootfs.ext4
 	:
 website_bindings: website/src/wasm/syntax_check.mjs website/public/tcc/syntax_check.data website/public/tcc/syntax_check.wasm
 	:
@@ -22,3 +24,23 @@ website/public/tcc/syntax_check.data: tcc/syntax_check.wasm
 	cp tcc/syntax_check.data $@
 website/public/tcc/syntax_check.wasm: tcc/syntax_check.wasm
 	cp tcc/syntax_check.wasm $@
+
+rootfs:
+	mkdir -p rootfs
+rootfs/%: bins/%.c rootfs
+	gcc $(CFLAGS) $< -o $@
+
+
+rootfs/main: userspace/src/*.rs
+	cd userspace && LIBBPF_SYS_EXTRA_CFLAGS="-idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include" cargo build --release --target x86_64-unknown-linux-musl
+	strip userspace/target/x86_64-unknown-linux-musl/release/userspace
+	cp userspace/target/x86_64-unknown-linux-musl/release/userspace $@
+
+rootfs/bin:
+	mkdir -p $@
+rootfs/sys:
+	mkdir -p $@
+
+rootfs.ext4: rootfs/exit_with_code rootfs/true rootfs/main rootfs/bin rootfs/sys
+	truncate -s 16M $@
+	mkfs.ext4 -q -F -d rootfs $@
