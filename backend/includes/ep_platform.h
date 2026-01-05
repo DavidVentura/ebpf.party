@@ -27,7 +27,14 @@ struct {
     __debug_struct(label_str, __COUNTER__, &struct_val, sizeof(struct_val), 0); \
 } while (0)
 
+#define DEBUG_STR_PTR(label_str, str_ptr, len) do { \
+    _Static_assert((len) < 256, "Max string length is 255"); \
+    __debug_str(label_str, __COUNTER__, str_ptr, len, len, 0); \
+} while (0)
+
+#define IS_ARRAY(x) (!__builtin_types_compatible_p(typeof(x), typeof(&(x)[0])))
 #define DEBUG_STR(label_str, str_val) do { \
+    _Static_assert(IS_ARRAY(str_val), "Use DEBUG_STR_PTR for pointers"); \
     _Static_assert(sizeof(str_val) < 256, "Max string length is 255"); \
     __debug_str(label_str, __COUNTER__, &str_val, sizeof(str_val), sizeof(str_val), 0); \
 } while (0)
