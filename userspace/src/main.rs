@@ -1,10 +1,11 @@
-use shared::{ExerciseId, GuestMessage, get_answer};
+use shared::GuestMessage;
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use vsock::{VMADDR_CID_HOST, VsockStream};
 
 pub static SHOULD_STOP: AtomicBool = AtomicBool::new(false);
+pub static EBPF_READY: AtomicBool = AtomicBool::new(false);
 
 mod ebpf;
 mod exercises;
@@ -54,46 +55,32 @@ fn real_main() {
             program,
             user_key,
         }) => {
+            let exercise = exercises::get_exercise(exercise_id);
+            let answer = shared::get_answer(exercise_id, user_key);
+
+            exercise.setup(&answer);
+
             let panic_tx = tx.clone();
             let jh2 = std::thread::spawn(move || {
-                // TODO: wait for ebpf::run_program to have started
-                std::thread::sleep(Duration::from_millis(1));
-                let panics = std::panic::catch_unwind(|| {
-                    run_exercise(exercise_id, user_key);
-                });
-                if let Err(_) = panics {
-                    let _ = panic_tx.send(GuestMessage::Crashed);
-                }
-
-                SHOULD_STOP.store(true, Ordering::Relaxed);
+                ebpf::run_program(&program, timeout, tx);
             });
-            ebpf::run_program(&program, timeout, tx);
+
+            while !EBPF_READY.load(Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(1));
+            }
+
+            let panics = std::panic::catch_unwind(|| {
+                exercise.run(&answer);
+            });
+            if let Err(_) = panics {
+                let _ = panic_tx.send(GuestMessage::Crashed);
+            }
+            SHOULD_STOP.store(true, Ordering::Relaxed);
             jh2.join().unwrap();
         }
         Err(e) => {
             eprintln!("Failed to deserialize HostMessage: {}", e);
-            //std::process::exit(1);
         }
     }
     jh.join().unwrap();
-}
-
-fn run_exercise(exercise_id: ExerciseId, user_key: u64) {
-    let _password = get_answer(exercise_id, user_key);
-    match exercise_id {
-        ExerciseId::PlatformOverview => exercises::exercise_platform_overview(user_key),
-        ExerciseId::ConceptIntro => exercises::exercise_concept_intro(user_key),
-
-        ExerciseId::ReadingEventData => exercises::exercise_reading_event_data(user_key),
-        ExerciseId::ReadingSyscalls => exercises::exercise_reading_syscalls(user_key),
-        ExerciseId::ReadArgvPassword => exercises::exercise_argv(user_key),
-
-        ExerciseId::IntroMapsPrograms => exercises::exercise_intro_maps(user_key),
-        ExerciseId::ReadBufferContents => exercises::exercise_buffer_contents(user_key),
-        ExerciseId::ReadFilePassword => exercises::exercise_file(user_key),
-        ExerciseId::TrackSocketAndConnect => exercises::exercise_track_and_connect(user_key),
-
-        ExerciseId::ReadDns => exercises::exercise_dns(user_key),
-        ExerciseId::ReadHttpPassword => exercises::exercise_http(user_key),
-    }
 }

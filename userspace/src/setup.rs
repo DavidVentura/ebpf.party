@@ -32,5 +32,6 @@ pub fn setup_host_env() -> Result<(), String> {
     fs::create_dir_all("/sys/kernel/tracing/").unwrap();
     mount("tracefs", "/sys/kernel/tracing", "tracefs", 0)?;
     mount("ramfs", "/bin", "ramfs", 0)?;
+    mount("ramfs", "/tmp", "ramfs", 0)?;
     Ok(())
 }

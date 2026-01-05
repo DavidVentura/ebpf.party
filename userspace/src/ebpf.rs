@@ -86,7 +86,7 @@ pub fn run_program(program: &[u8], timeout: Duration, tx: Sender<GuestMessage>) 
     };
 
     let start = Instant::now();
-    // TODO signal loaded
+    crate::EBPF_READY.store(true, Ordering::Relaxed);
     while start.elapsed() < timeout && !crate::SHOULD_STOP.load(Ordering::Relaxed) {
         let time_left = timeout.saturating_sub(start.elapsed());
         let min_dur = Duration::from_millis(10);
