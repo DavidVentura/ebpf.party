@@ -26,11 +26,15 @@ There's a 'Run' button, that sends you code to the server to be executed.
 - Ctrl-Enter will run the code.
 - Ctrl-Click on type definitions (`my_struct`, `trace_event_raw_sched_process_exec`) will show a little popup
 
-### Utilities
+### Debugging utilities
 
-You can use `DEBUG_STR`, `DEBUG_NUM` and `DEBUG_STRUCT` to send data to the front end for easy visualization.
+There are multiple `DEBUG_` macros to send data to the front end for easy visualization.
+All of these take a label (a string constant) as a first argument.
 
-All of these take a label (a string constant) as a first argument and a `char*`, number, or `struct` respectively.
+- `DEBUG_STR(label, buf)` requires a fixed-size buf (eg: `char[64]`)
+- `DEBUG_STR_PTR(label, ptr, len)` can take any pointer, but `len` must be a constant
+- `DEBUG_NUM(label, num)` can take any number (eg: `u32`, `ssize_t`)
+- `DEBUG_STRUCT(label, struct)` can take any struct _by value_
 
 ### Submitting answers
 
@@ -38,7 +42,7 @@ Use `SUBMIT_NUM(answer)`, `SUBMIT_STR(answer)` or `SUBMIT_STR_LEN(answer, len)`.
 
 You can only use this once in your program -- submitting multiple answers invalidates all of them.
 
-Use the `LEN` variant when you can't guarantee your buffer will be zero-initialized.
+Use the `LEN` variant when you can't guarantee your buffer will be zero-initialized. Trailing null bytes are trimmed from answers, but trailing garbage is not.
 
 ## The backend
 
