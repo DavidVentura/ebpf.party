@@ -96,39 +96,35 @@ impl VmPermit {
 
         let handle = thread::spawn(move || {
             let listener = UnixListener::bind(vsock_listener).unwrap();
-            for stream in listener.incoming() {
-                eprintln!("Host Connected, at {:?}", start.elapsed());
-                match stream {
-                    Ok(mut stream) => {
-                        let host_msg = shared::HostMessage::ExecuteProgram {
-                            exercise_id,
-                            timeout: Duration::from_millis(500),
-                            program,
-                            user_key,
-                        };
-                        let config = bincode::config::standard();
-                        bincode::encode_into_std_write(&host_msg, &mut stream, config).unwrap();
+            let mut stream = listener.incoming().next().unwrap().unwrap();
+            eprintln!(" Host Connected, at {:?}", start.elapsed());
+            let host_msg = shared::HostMessage::ExecuteProgram {
+                exercise_id,
+                timeout: Duration::from_millis(500),
+                program,
+                user_key,
+            };
+            let config = bincode::config::standard();
+            bincode::encode_into_std_write(&host_msg, &mut stream, config).unwrap();
 
-                        while let Ok(msg) =
-                            bincode::decode_from_std_read::<GuestMessage, _, _>(&mut stream, config)
-                        {
-                            let _ = out_tx.send(PlatformMessage::GuestMessage(msg.clone()));
+            while let Ok(msg) =
+                bincode::decode_from_std_read::<GuestMessage, _, _>(&mut stream, config)
+            {
+                let _ = out_tx.send(PlatformMessage::GuestMessage(msg.clone()));
 
-                            match msg {
-                                GuestMessage::Finished => {
-                                    break;
-                                }
-                                _ => (),
-                            }
-                        }
-                        println!("host disconnected");
-                        break;
-                    }
-                    Err(_) => panic!("uh"),
+                if let GuestMessage::Finished = msg {
+                    break;
                 }
             }
+            println!(" host disconnected at {:?}", start.elapsed());
         });
-        v.make(Box::new(io::stdout())).unwrap();
+        let vm = v.make(Box::new(io::stdout())).unwrap();
+        // dropping takes ~30ms, do it in a thread
+        // only release the permit after the vm is done
+        thread::spawn(move || {
+            drop(vm);
+            drop(self);
+        });
         io::stdout().flush().unwrap();
         io::stderr().flush().unwrap();
         handle.join().unwrap();

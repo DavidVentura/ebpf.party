@@ -219,10 +219,6 @@ fn run_code_handler(
                 }
                 let _ = tx.send(PlatformMessage::Booting).unwrap();
                 permit.run(tx, compiled, exercise_id, user_key);
-                // running `vm` requires running through a KVM `Drop`
-                // which takes like 30ms -- the request insta-flushed the msgs
-                // so it only delays closing the connection, and skews
-                // the VM measurement time
             }
             Err(_) => {
                 let _ = tx.send(PlatformMessage::NoCapacityLeft(
@@ -271,6 +267,7 @@ fn handle_guest_events(
         0 => PlatformMessage::NoAnswer,
         1 => {
             let expected_answer = shared::get_answer(exercise_id, user_key);
+            println!("E {expected_answer:?}");
             let is_correct = match answer.as_ref().unwrap() {
                 UserAnswer::String(submitted) => {
                     let trimmed = submitted
