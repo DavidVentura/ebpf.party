@@ -1,4 +1,4 @@
-use shared::{ExerciseId, GuestMessage};
+use shared::{ExerciseId, GuestMessage, get_answer};
 use std::io::Write;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -79,15 +79,21 @@ fn real_main() {
 }
 
 fn run_exercise(exercise_id: ExerciseId, user_key: u64) {
+    let _password = get_answer(exercise_id, user_key);
     match exercise_id {
-        shared::ExerciseId::ReadArgvPassword => exercises::exercise_argv(user_key),
-        shared::ExerciseId::PlatformOverview => exercises::exercise_platform_overview(user_key),
-        shared::ExerciseId::ConceptIntro => exercises::exercise_concept_intro(user_key),
-        shared::ExerciseId::ReadingEventData => exercises::exercise_reading_event_data(user_key),
-        shared::ExerciseId::ReadingSyscalls => exercises::exercise_reading_syscalls(user_key),
-        shared::ExerciseId::ReadEnvPassword => exercises::exercise_env(user_key),
-        shared::ExerciseId::ReadFilePassword => exercises::exercise_file(user_key),
-        shared::ExerciseId::ReadDns => exercises::exercise_dns(user_key),
-        shared::ExerciseId::ReadHttpPassword => exercises::exercise_http(user_key),
+        ExerciseId::PlatformOverview => exercises::exercise_platform_overview(user_key),
+        ExerciseId::ConceptIntro => exercises::exercise_concept_intro(user_key),
+
+        ExerciseId::ReadingEventData => exercises::exercise_reading_event_data(user_key),
+        ExerciseId::ReadingSyscalls => exercises::exercise_reading_syscalls(user_key),
+        ExerciseId::ReadArgvPassword => exercises::exercise_argv(user_key),
+
+        ExerciseId::IntroMapsPrograms => exercises::exercise_intro_maps(user_key),
+        ExerciseId::ReadBufferContents => exercises::exercise_buffer_contents(user_key),
+        ExerciseId::ReadFilePassword => exercises::exercise_file(user_key),
+        ExerciseId::TrackSocketAndConnect => exercises::exercise_track_and_connect(user_key),
+
+        ExerciseId::ReadDns => exercises::exercise_dns(user_key),
+        ExerciseId::ReadHttpPassword => exercises::exercise_http(user_key),
     }
 }

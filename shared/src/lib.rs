@@ -21,13 +21,19 @@ pub enum GuestMessage {
 
 #[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExerciseId {
+    // Chapter 0
     PlatformOverview,
     ConceptIntro,
+    // Chapter 1
     ReadingEventData,
     ReadingSyscalls,
     ReadArgvPassword,
-    ReadEnvPassword,
+    // Chapter 2
+    IntroMapsPrograms,
+    ReadBufferContents,
     ReadFilePassword,
+    TrackSocketAndConnect,
+    // Chapter 3
     ReadDns,
     ReadHttpPassword,
 }
@@ -35,13 +41,22 @@ pub enum ExerciseId {
 impl ExerciseId {
     pub fn from_str(s: &str) -> Option<Self> {
         match s {
+            // Chapter 0
             "platform-overview" => Some(Self::PlatformOverview),
             "concept-intro" => Some(Self::ConceptIntro),
+
+            // Chapter 1
             "reading-event-data" => Some(Self::ReadingEventData),
             "reading-syscalls" => Some(Self::ReadingSyscalls),
             "read-argv-password" => Some(Self::ReadArgvPassword),
-            "read-env-password" => Some(Self::ReadEnvPassword),
+
+            // Chapter 2
+            "intro-maps-and-programs" => Some(Self::IntroMapsPrograms),
+            "read-buffer-contents" => Some(Self::ReadBufferContents),
             "read-file-password" => Some(Self::ReadFilePassword),
+            "socket-and-connect" => Some(Self::TrackSocketAndConnect),
+
+            // Chapter 3
             "read-dns" => Some(Self::ReadDns),
             "read-http-password" => Some(Self::ReadHttpPassword),
             _ => None,
@@ -52,11 +67,16 @@ impl ExerciseId {
         match self {
             Self::PlatformOverview => "platform-overview",
             Self::ConceptIntro => "concept-intro",
+
             Self::ReadingEventData => "reading-event-data",
             Self::ReadingSyscalls => "reading-syscalls",
             Self::ReadArgvPassword => "read-argv-password",
-            Self::ReadEnvPassword => "read-env-password",
+
+            Self::IntroMapsPrograms => "intro-maps-and-programs",
+            Self::ReadBufferContents => "read-buffer-contents",
             Self::ReadFilePassword => "read-file-password",
+            Self::TrackSocketAndConnect => "socket-and-connect",
+
             Self::ReadDns => "read-dns",
             Self::ReadHttpPassword => "read-http-password",
         }
@@ -73,10 +93,16 @@ pub fn get_answer(exercise_id: ExerciseId, user_key: u64) -> Vec<u8> {
         // this one fits entirely in ctx->filename
         ReadingEventData => format!("/bin/secret_{:0>6}", user_key % 1_000_000).into_bytes(),
         ReadingSyscalls => format!("/bin/secret_{:0>6}", user_key % 1_000_000).into_bytes(),
-
         ReadArgvPassword => user_key.to_string().into_bytes(),
-        ReadEnvPassword => todo!("Implement answer generation for ex-2-2"),
-        ReadFilePassword => todo!("Implement answer generation for ex-2-3"),
+
+        // numbers always require u64, simplifies the macro
+        IntroMapsPrograms => (user_key % u8::MAX as u64).to_le_bytes().to_vec(),
+        ReadBufferContents => "for sure there's a lot of content in this file"
+            .to_string()
+            .into_bytes(),
+        TrackSocketAndConnect => (user_key % u16::MAX as u64).to_le_bytes().to_vec(),
+        ReadFilePassword => format!("banana-{:0>6}", user_key % 1_000_000).into_bytes(),
+
         ReadDns => todo!("Implement answer generation for ex-3-1"),
         ReadHttpPassword => todo!("Implement answer generation for ex-3-2"),
     }

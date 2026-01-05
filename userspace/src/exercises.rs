@@ -70,13 +70,37 @@ pub fn exercise_reading_syscalls(user_key: u64) {
     cmds_with_secret_command(cmd_name_str);
 }
 
-pub fn exercise_env(user_key: u64) {
-    let _answer = shared::get_answer(shared::ExerciseId::ReadEnvPassword, user_key);
-    todo!("Implement environment variable reading exercise")
+pub fn exercise_intro_maps(user_key: u64) {
+    let answer = shared::get_answer(shared::ExerciseId::IntroMapsPrograms, user_key);
+    let answer_num: u16 = u16::from_le_bytes(answer[0..2].try_into().unwrap());
+    let mut cmd = Command::new("/true").spawn().expect("missing /true bin");
+    let _ = cmd.wait();
+
+    let mut cmd = Command::new("/exit_with_code")
+        .args(&[answer_num.to_string()])
+        .spawn()
+        .expect("missing exit bin");
+    let _ = cmd.wait();
 }
 
+pub fn exercise_buffer_contents(user_key: u64) {
+    let answer = shared::get_answer(shared::ExerciseId::ReadBufferContents, user_key);
+    std::fs::write("/bin/file.txt", answer).unwrap();
+
+    // exercise tracks readat call
+    std::fs::read("/bin/file.txt").unwrap();
+}
 pub fn exercise_file(user_key: u64) {
-    let _answer = shared::get_answer(shared::ExerciseId::ReadFilePassword, user_key);
+    let answer = shared::get_answer(shared::ExerciseId::ReadFilePassword, user_key);
+    std::fs::write("/bin/bait_file.txt", "this file was bait").unwrap();
+    std::fs::write("/bin/config.toml", answer).unwrap();
+
+    // exercise tracks readat call
+    std::fs::read("/bin/bait_file.txt").unwrap();
+    std::fs::read("/bin/config.toml").unwrap();
+}
+pub fn exercise_track_and_connect(user_key: u64) {
+    let _answer = shared::get_answer(shared::ExerciseId::TrackSocketAndConnect, user_key);
     todo!("Implement file reading exercise")
 }
 
