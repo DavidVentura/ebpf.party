@@ -13,6 +13,28 @@ export default defineConfig({
     },
     server: {
       allowedHosts: ['ebpf.party']
+    },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: (id) => {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) {
+                return 'vendor-react';
+              }
+              if (id.includes('@codemirror') || id.includes('@uiw/react-codemirror')) {
+                return 'vendor-codemirror';
+              }
+              if (id.includes('react-resizable-panels')) {
+                return 'vendor-panels';
+              }
+              if (id.includes('syntax_check')) {
+                return 'vendor-wasm';
+              }
+            }
+          }
+        }
+      }
     }
   }
 });
