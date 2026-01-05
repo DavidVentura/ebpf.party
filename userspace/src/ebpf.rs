@@ -89,7 +89,7 @@ pub fn run_program(program: &[u8], timeout: Duration, tx: Sender<GuestMessage>) 
     // TODO signal loaded
     while start.elapsed() < timeout && !crate::SHOULD_STOP.load(Ordering::Relaxed) {
         let time_left = timeout.saturating_sub(start.elapsed());
-        let min_dur = Duration::from_millis(50);
+        let min_dur = Duration::from_millis(10);
         if let Err(e) = pb.poll(std::cmp::min(time_left, min_dur)) {
             // Error polling perf buffer: Interrupted system call (os error 4)
             if e.kind() == libbpf_rs::ErrorKind::Interrupted {

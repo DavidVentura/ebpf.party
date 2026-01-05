@@ -57,7 +57,7 @@ fn real_main() {
             let panic_tx = tx.clone();
             let jh2 = std::thread::spawn(move || {
                 // TODO: wait for ebpf::run_program to have started
-                std::thread::sleep(Duration::from_millis(20));
+                std::thread::sleep(Duration::from_millis(1));
                 let panics = std::panic::catch_unwind(|| {
                     run_exercise(exercise_id, user_key);
                 });
