@@ -244,7 +244,10 @@ starterCode = await readFile(codeFilePath, "utf-8");
     border: 1px dotted black;
   }
 
-  :global(ol, ul) {
+  .content-scroll :global(p ~ ol, p ~ ul) {
     margin: 8px 0px;
+  }
+  .content-scroll :global(ul) {
+    padding-left: 20px;
   }
 </style>

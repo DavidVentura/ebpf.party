@@ -7,52 +7,22 @@ exerciseId: read-buffer-contents
 
 In the previous exercise, we learned how to use maps to share data between multiple eBPF programs.
 
-Now let's apply this technique to a more complex scenario: capturing data from syscall buffers.
-
-## The problem
-
-Consider the `read()` syscall:
-
-```c
-ssize_t read(int fd, void *buf, size_t count);
-```
-
-When `read()` is **called** (entry), the buffer is empty.
-When `read()` **returns** (exit), the buffer is filled with data.
-
-We need to:
-1. At **entry**: Save the buffer pointer
-2. At **exit**: Read the filled buffer
-
-## Syscall entry and exit
-
-Syscalls have two tracepoint types: `enter` and `exit`, which execute before the syscall starts and after it finishes.
-
-**At entry (`sys_enter_*`):**
-- Context type: `struct trace_event_raw_sys_enter`
-- Available: `args[6]` - the syscall arguments
-
-**At exit (`sys_exit_*`):**
-- Context type: `struct trace_event_raw_sys_exit`
-- Available: `ret` - the return value only
-
-To correlate data between entry and exit, we use maps (as we learned in the previous exercise).
+Now let's apply this to capturing data from syscall buffers. Syscalls have two tracepoint types: `enter` (before it starts) and `exit` (after it finishes). We'll need to correlate data between both.
 
 ## The read syscall
 
-Looking at the [read manual](https://man7.org/linux/man-pages/man2/read.2.html):
+Looking at the [read syscall](https://man7.org/linux/man-pages/man2/read.2.html):
 
 ```c
 ssize_t read(int fd, void *buf, size_t count);
 ```
 
-**Arguments (available at entry):**
-- `ctx->args[0]` - file descriptor
-- `ctx->args[1]` - pointer to destination buffer
-- `ctx->args[2]` - max bytes to read
+If we hook into `sys_enter_read` and `sys_exit_read`:
 
-**Return value (available at exit):**
-- `ctx->ret` - Number of bytes read (or negative on error, 0 on EOF)
+- At **entry**: we have access to the arguments, but the buffer is still empty.
+- At **exit**: the buffer is filled with data, but we only have access to the return value.
+
+To correlate both, we capture the buffer pointer at entry using a map, then read the filled buffer at exit.
 
 ## The entry program
 
@@ -79,21 +49,26 @@ int trace_read_entry(struct trace_event_raw_sys_enter *ctx)
 
 ## The challenge
 
-A program reads a file containing a password. Submit the entire file contents with `SUBMIT_STR_LEN`.
+A program reads a file containing a password. Submit the contents of the entire file with `SUBMIT_STR_LEN`.
 
 ### Your task
 
-Write the exit program to capture the buffer contents.
+Write the `exit` program to capture the buffer contents.
 
 You will need to:
 1. Check if the read succeeded (`ctx->ret > 0`)
    - The return value indicates how many bytes were read
-2. Look up the buffer pointer we stored (using the same PID)
+2. Look up the buffer pointer we stored with `bpf_map_lookup_elem` and the PID as key
+    - Check if you get a value or NULL
 3. Create a local buffer on the stack
 4. Read the now-filled buffer from user space
-   - Use `bpf_probe_read_user(local_buf, count, (void *)*buf_ptr)`
-   - Note the dereference: `*buf_ptr` (map lookup returns a pointer)
    - Limit count to your buffer size (e.g., `if (count > 64) count = 64`)
-5. Submit your answer with `SUBMIT_STR_LEN(data, count)`
 
-**Hint:** Use `DEBUG_STR` to see what's being read from various files.
+
+Remember that we are storing the address of the buffer in the map (as `u64`), so `bpf_map_lookup_elem` returns a pointer to the value (`u64*`). You'll need to de-reference the pointer in your call to `bpf_probe_read_user`:
+
+```c
+u64 *buf_ptr = bpf_map_lookup_elem(&read_buffers, &pid);
+// ...
+bpf_probe_read_user(local_buf, count, (void *)*buf_ptr)
+```

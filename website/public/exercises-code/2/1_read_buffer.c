@@ -21,13 +21,6 @@ int trace_read_entry(struct trace_event_raw_sys_enter *ctx)
 SEC("tracepoint/syscalls/sys_exit_read")
 int trace_read_exit(struct trace_event_raw_sys_exit *ctx)
 {
-    // Check if ctx->ret > 0 (successful read)
-    // Get current PID
-    // Look up buffer pointer with bpf_map_lookup_elem()
-    // Check if pointer is not NULL
-    // Read buffer contents with bpf_probe_read_user()
-    // Use ctx->ret as the byte count (limit to 64)
-    // Use DEBUG_STR to see what was read
-    // Submit the password with SUBMIT_STR_LEN
+    // Fill this in
     return 0;
 }

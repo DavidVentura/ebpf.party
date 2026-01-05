@@ -33,7 +33,7 @@ int on_process_exit(struct trace_event_raw_sys_enter *ctx) {
     // Debug: see all processes and their exit codes
     int exit_code = ctx->args[0];  // exit's first argument
     DEBUG_NUM("Exit code", exit_code);
-    DEBUG_STR_PTR("Process", comm, 16);  // comm is char*, use directly
+    DEBUG_STR_PTR("Process", comm, 16);
 
     // TODO: If process name is "exit_with_code", submit the exit code
 
