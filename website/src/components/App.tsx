@@ -31,6 +31,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   const codeStorageKey = `user-code-${exerciseId}`;
 
   const getInitialCode = () => {
+    if (typeof window === 'undefined') return starterCode;
     const savedCode = localStorage.getItem(codeStorageKey);
     return savedCode !== null ? savedCode : starterCode;
   };
@@ -44,6 +45,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   );
   const [isRunning, setIsRunning] = useState(false);
   const [events, setEvents] = useState<SSEEvent[]>([]);
+  const [savedLayout, setSavedLayout] = useState<{ [key: string]: number } | undefined>(undefined);
   const workerRef = useRef<TccWorkerClient | null>(null);
   const hasOutputRef = useRef(false);
   const compilationOutputRef = useRef("");
@@ -124,6 +126,14 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const storageKey = `ebpf-party-layout`;
+    const saved = localStorage.getItem(storageKey);
+    if (saved) {
+      setSavedLayout(JSON.parse(saved));
+    }
+  }, []);
+
   const performCheck = (code: string) => {
     compilationOutputRef.current = "";
     hasOutputRef.current = false;
@@ -190,11 +200,6 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
 
   const storageKey = `ebpf-party-layout`;
 
-  const getInitialLayout = () => {
-    const saved = localStorage.getItem(storageKey);
-    return saved ? JSON.parse(saved) : undefined;
-  };
-
   const handleLayoutChange = (layout: { [key: string]: number }) => {
     localStorage.setItem(storageKey, JSON.stringify(layout));
   };
@@ -204,7 +209,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
       <Group
         orientation="vertical"
         id={storageKey}
-        defaultLayout={getInitialLayout()}
+        defaultLayout={savedLayout}
         onLayoutChange={handleLayoutChange}
         style={{ height: "100%" }}
       >
