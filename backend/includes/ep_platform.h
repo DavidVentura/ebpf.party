@@ -27,6 +27,8 @@ struct {
     __debug_struct(label_str, __COUNTER__, &struct_val, sizeof(struct_val), 0); \
 } while (0)
 
+// only doing _Static_assert here because the verifier
+// requires `len` to be a constant
 #define DEBUG_STR_PTR(label_str, str_ptr, len) do { \
     _Static_assert((len) < 256, "Max string length is 255"); \
     __debug_str(label_str, __COUNTER__, str_ptr, len, len, 0); \
