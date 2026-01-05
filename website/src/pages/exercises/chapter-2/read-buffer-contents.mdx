@@ -24,28 +24,8 @@ If we hook into `sys_enter_read` and `sys_exit_read`:
 
 To correlate both, we capture the buffer pointer at entry using a map, then read the filled buffer at exit.
 
-## The entry program
+The entry program is already written for you, which saves the the buffer pointer in a map, keyed by PID.
 
-At entry, we save the buffer pointer in a map, keyed by PID:
-
-```c
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 1024);
-    __type(key, u64);    // PID
-    __type(value, u64);  // Buffer pointer
-} read_buffers SEC(".maps");
-
-SEC("tracepoint/syscalls/sys_enter_read")
-int trace_read_entry(struct trace_event_raw_sys_enter *ctx)
-{
-    u64 pid = bpf_get_current_pid_tgid();
-    u64 buf_ptr = ctx->args[1];  // The buffer pointer
-
-    bpf_map_update_elem(&read_buffers, &pid, &buf_ptr, BPF_ANY);
-    return 0;
-}
-```
 
 ## The challenge
 
