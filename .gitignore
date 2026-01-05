@@ -3,3 +3,4 @@ rootfs
 vmlinux
 *ext4
 *.o
+sync.sh
