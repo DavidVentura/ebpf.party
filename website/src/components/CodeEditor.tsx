@@ -3,7 +3,7 @@ import { cpp } from "@codemirror/lang-cpp";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
+import { indentUnit, syntaxTree } from "@codemirror/language";
 
 interface CodeEditorProps {
   code: string;
@@ -51,7 +51,13 @@ export default function CodeEditor({
       },
     ])
   );
-  const extensions = [cpp(), ctrlEnterHandler, ctrlClickHandler];
+
+  const extensions = [
+    cpp(),
+    ctrlEnterHandler,
+    ctrlClickHandler,
+    indentUnit.of("    "),
+  ];
 
   return (
     <CodeMirror
