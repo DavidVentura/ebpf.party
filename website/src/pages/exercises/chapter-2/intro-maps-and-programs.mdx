@@ -1,0 +1,94 @@
+---
+layout: ../../../layouts/ExerciseLayout.astro
+title: Maps and multiple programs
+codeFile: 0_maps_intro.c
+exerciseId: intro-maps-and-programs
+---
+
+So far, each exercise has used a single eBPF program. But what if we need to correlate information across different events?
+
+For example: When a process **starts**, we know its name. When it **exits**, we know its exit code. What if we want to know the **name** of processes that exit with a specific code?
+
+## Multiple eBPF programs
+
+You can define **multiple programs in one file**, each hooking into different events.
+
+Each program is independent and runs at its own event.
+
+A common case that requires multiple programs is the `entry`+`exit` event pair.
+
+At **entry**, we have the input (arguments, process info).
+
+```c
+SEC("tracepoint/sched/sched_process_exec")
+int on_process_start(struct trace_event_raw_sched_process_exec *ctx) {
+    // Before the process is scheduled
+}
+```
+
+At **exit**, we have the output (return values, exit codes).
+
+```c
+SEC("tracepoint/syscalls/sys_enter_exit")
+int on_process_exit(struct trace_event_raw_sys_enter *ctx) {
+    // When the process calls exit (program termination)
+    // ctx->args[0] contains the exit code
+}
+```
+
+To correlate both events, we need to persist data between the executions.
+
+## Persisting state
+
+**Maps** are data structures that persist between eBPF program invocations.
+
+In eBPF, there are [many kinds](https://docs.ebpf.io/linux/map-type/) of maps. For this exercise, we'll use hash maps (key-value store).
+
+Let's speed-run map usage.
+
+
+To define a map, you declare a struct with these `__uint`/`__type` macros.
+
+```c
+struct {
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(max_entries, 1024);
+    __type(key, u64);         // What you use to look up
+    __type(value, char[16]);  // What you store
+} my_map SEC(".maps");
+```
+
+To store a value, retrieve, or delete a value, call the appropriate helper.
+
+To store:
+```c
+u64 key = 12345;
+char value[16] = "hello";
+bpf_map_update_elem(&my_map, &key, value, BPF_ANY);
+```
+
+To retrieve a value:
+```c
+char *stored = bpf_map_lookup_elem(&my_map, &key);
+if (!stored) { // Key not found
+    return 0;
+}
+// Use `stored` (it's a pointer to the char[16] array)
+```
+
+To delete:
+```c
+bpf_map_delete_elem(&my_map, &key);
+```
+
+## The challenge
+
+A program named `exit_with_code` will run and exit. Submit its exit code using `SUBMIT_NUM(code)`.
+
+The starter code has most of the logic already, this is an introduction chapter after all.
+
+## Your task
+
+Check if the process name matches `"exit_with_code"`, and if so, submit the exit code.
+
+Use `bpf_strncmp(comm, 16, "exit_with_code")` for comparison (returns **0 on match**).
