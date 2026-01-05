@@ -1,50 +1,62 @@
 #include "ep_platform.h"
 #include "syscalls.h"
 
-// Map 1: Temporary pathname storage (PID → pathname)
+// Compound key for tracking (pid, fd) pairs
+struct pid_fd_key {
+    u64 pid;
+    u32 fd;
+};
+
+// Current open in progress (PID → marker)
+// Lifetime: open entry → exit only
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 1024);
     __type(key, u64);
-    __type(value, char[64]);
-} openat_paths SEC(".maps");
+    __type(value, u8);
+} open_curr_fd_interesting SEC(".maps");
 
-// Map 2: FD to filename mapping (fd → filename)
+// Tracked interesting FDs ((pid, fd) → marker)
+// Lifetime: open exit → until we're done tracking
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 1024);
-    __type(key, u32);
-    __type(value, char[64]);
-} fd_to_filename SEC(".maps");
+    __type(key, struct pid_fd_key);
+    __type(value, u8);
+} open_interesting_fds SEC(".maps");
 
-// Map 3: Read buffer tracking (PID → buffer pointer)
+// Current read buffer (PID → buffer pointer)
+// Lifetime: read entry → exit only
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);
     __uint(max_entries, 1024);
     __type(key, u64);
     __type(value, u64);
-} read_buffers SEC(".maps");
+} read_curr_fd_buf SEC(".maps");
 
-SEC("tracepoint/syscalls/sys_enter_openat")
-int trace_openat_entry(struct trace_event_raw_sys_enter *ctx)
+SEC("tracepoint/syscalls/sys_enter_open")
+int trace_open_entry(struct trace_event_raw_sys_enter *ctx)
 {
-    // Get PID
-    // Get pathname pointer from ctx->args[1]
-    // Read pathname string
-    // Store in openat_paths
+    u64 pid = bpf_get_current_pid_tgid();
+    u8 mark = 1;
+    // Get pathname pointer from ctx->args[0]
+    // Read pathname string into local buffer with `bpf_probe_read_user_str`
+    // Check if pathname == "/tmp/password" with bpf_strncmp
+    // If yes, mark PID in open_curr_fd_interesting with `bpf_map_update_elem`
 
     return 0;
 }
 
-SEC("tracepoint/syscalls/sys_exit_openat")
-int trace_openat_exit(struct trace_event_raw_sys_exit *ctx)
+SEC("tracepoint/syscalls/sys_exit_open")
+int trace_open_exit(struct trace_event_raw_sys_exit *ctx)
 {
+    u64 pid = bpf_get_current_pid_tgid();
     // Check ctx->ret >= 0 (success)
-    // Get PID
-    // Get fd from ctx->ret
-    // Lookup pathname from openat_paths
-    // Store fd → filename in fd_to_filename
-    // Cleanup openat_paths
+    // Check if PID exists in open_curr_fd_interesting with `bpf_map_lookup_elem`
+    // If yes:
+    //   - Get fd from ctx->ret
+    //   - Delete PID from open_curr_fd_interesting with `bpf_map_delete_elem`
+    //   - Store (pid, fd) in open_interesting_fds
 
     return 0;
 }
@@ -52,10 +64,11 @@ int trace_openat_exit(struct trace_event_raw_sys_exit *ctx)
 SEC("tracepoint/syscalls/sys_enter_read")
 int trace_read_entry(struct trace_event_raw_sys_enter *ctx)
 {
-    // Get fd from ctx->args[0]
-    // Lookup filename from fd_to_filename
-    // Check if filename == "config.toml"
-    // If yes, get PID and store buffer pointer
+    u64 pid = bpf_get_current_pid_tgid();
+    u64 fd = ctx->args[0];
+    u64 buf_addr = ctx->args[1];
+    // Check if (pid, fd) exists in open_interesting_fds
+    // If yes, store buffer address in read_curr_fd_buf
 
     return 0;
 }
@@ -63,12 +76,15 @@ int trace_read_entry(struct trace_event_raw_sys_enter *ctx)
 SEC("tracepoint/syscalls/sys_exit_read")
 int trace_read_exit(struct trace_event_raw_sys_exit *ctx)
 {
+    u64 pid = bpf_get_current_pid_tgid();
+
     // Check ctx->ret > 0
-    // Get PID
-    // Lookup buffer pointer from read_buffers
-    // Read buffer contents
-    // Submit with SUBMIT_STR_LEN
-    // Cleanup read_buffers
+    // Lookup buffer pointer from read_curr_fd_buf
+    // If found:
+    //   - Create local buffer
+    //   - Read from user space with bpf_probe_read_user
+    //   - Submit with SUBMIT_STR_LEN
+    //   - Cleanup: delete from read_curr_fd_buf
 
     return 0;
 }

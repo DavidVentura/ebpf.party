@@ -24,7 +24,7 @@ If we hook into `sys_enter_read` and `sys_exit_read`:
 
 To correlate both, we capture the buffer pointer at entry using a map, then read the filled buffer at exit.
 
-The entry program is already written for you, which saves the the buffer pointer in a map, keyed by PID.
+The entry program is already written for you, which saves the buffer pointer in a map, keyed by PID.
 
 
 ## The challenge
