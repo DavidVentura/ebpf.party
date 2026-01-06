@@ -1,4 +1,5 @@
 use crate::config::Config;
+use crate::metrics::MetricEvent;
 use crate::types::PlatformMessage;
 use firecracker_spawn::{Disk, Vm};
 use shared::GuestMessage;
@@ -8,6 +9,7 @@ use std::io;
 use std::io::Write;
 use std::os::unix::net::UnixListener;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::mpsc::Sender;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -61,8 +63,10 @@ impl VmPermit {
         program: Vec<u8>,
         exercise_id: shared::ExerciseId,
         user_key: u64,
+        metrics_tx: Sender<MetricEvent>,
     ) {
         let start = Instant::now();
+        let boot_start = Instant::now();
 
         static VM_COUNTER: AtomicU64 = AtomicU64::new(0);
         let vm_id = VM_COUNTER.fetch_add(1, Ordering::SeqCst);
@@ -97,7 +101,14 @@ impl VmPermit {
         let handle = thread::spawn(move || {
             let listener = UnixListener::bind(vsock_listener).unwrap();
             let mut stream = listener.incoming().next().unwrap().unwrap();
+            let boot_duration = boot_start.elapsed();
             eprintln!(" Host Connected, at {:?}", start.elapsed());
+            let _ = metrics_tx.send(MetricEvent::VmBootDuration {
+                exercise_id,
+                duration_secs: boot_duration.as_secs_f64(),
+            });
+
+            let execution_start = Instant::now();
             let host_msg = shared::HostMessage::ExecuteProgram {
                 exercise_id,
                 timeout: Duration::from_millis(500),
@@ -116,7 +127,12 @@ impl VmPermit {
                     break;
                 }
             }
+            let execution_duration = execution_start.elapsed();
             println!(" host disconnected at {:?}", start.elapsed());
+            let _ = metrics_tx.send(MetricEvent::ExecutionDuration {
+                exercise_id,
+                duration_secs: execution_duration.as_secs_f64(),
+            });
         });
         let vm = v.make(Box::new(io::stdout())).unwrap();
         // dropping takes ~30ms, do it in a thread

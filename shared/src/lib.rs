@@ -1,5 +1,7 @@
+use std::fmt;
 use std::time::Duration;
 
+use aetos::core::Label;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +21,9 @@ pub enum GuestMessage {
     Finished,
 }
 
-#[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(
+    Encode, Decode, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter,
+)]
 pub enum ExerciseId {
     // Chapter 0
     PlatformOverview,
@@ -80,6 +84,18 @@ impl ExerciseId {
             Self::ReadDns => "read-dns",
             Self::ReadHttpPassword => "read-http-password",
         }
+    }
+}
+
+impl fmt::Display for ExerciseId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl Label for ExerciseId {
+    fn fmt_labels(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "exercise_id=\"{}\"", self.as_str())
     }
 }
 

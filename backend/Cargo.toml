@@ -17,7 +17,9 @@ httparse = "1.9"
 gimli = { version = "0.32", default-features = false, features = ["endian-reader", "read", "read-all"] }
 object = { version = "0.36", default-features = false, features = ["elf", "read_core"] }
 rand = "0.8"
+aetos = "0.1.1"
+strum = { version = "0.27.2", features = ["derive"] }
 
-#[patch.crates-io]
+[patch.crates-io]
 #kvm-bindings = { git = "https://github.com/firecracker-microvm/kvm-bindings", tag = "v0.7.0-2", features = ["fam-wrappers"] }
 #event-manager = { git = "https://github.com/firecracker-microvm/kvm-bindings", tag = "v0.4.0" }

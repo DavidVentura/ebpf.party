@@ -2,18 +2,22 @@ use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::net::TcpStream;
-use std::sync::Arc;
-use std::sync::mpsc::{Receiver, channel};
+use std::sync::mpsc::{Receiver, Sender, channel};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use strum::IntoEnumIterator;
+
 use crate::guest_message::UserAnswer;
+use crate::metrics::{MetricEvent, Metrics};
 use crate::types::PlatformMessage;
 
 mod compile;
 mod config;
 mod dwarf;
 mod guest_message;
+mod metrics;
 mod types;
 mod vm_pool;
 
@@ -46,6 +50,35 @@ fn main() {
 
     check_hugepages(config.max_concurrent_vms, 64).expect("Hugepages check failed");
 
+    let metrics = Arc::new(Mutex::new(Metrics::new()));
+    let (metrics_tx, rx) = channel();
+    let m = metrics.clone();
+    thread::spawn(move || {
+        metrics::process_metrics_events(rx, m);
+    });
+
+    {
+        let mut m = metrics.lock().unwrap();
+        for exercise_id in shared::ExerciseId::iter() {
+            m.init(MetricEvent::CompileDuration {
+                exercise_id,
+                duration_secs: 0.0,
+            });
+            m.init(MetricEvent::VmBootDuration {
+                exercise_id,
+                duration_secs: 0.0,
+            });
+            m.init(MetricEvent::ExecutionDuration {
+                exercise_id,
+                duration_secs: 0.0,
+            });
+            m.init(MetricEvent::TotalRequestDuration {
+                exercise_id,
+                duration_secs: 0.0,
+            });
+        }
+    }
+
     let vm_pool = Arc::new(vm_pool::VmPool::new(
         config.max_concurrent_vms,
         config.clone(),
@@ -54,9 +87,11 @@ fn main() {
     println!("Server running on {}", config.listen_address);
 
     for stream in listener.incoming() {
-        let stream = stream.unwrap();
+        let mut stream = stream.unwrap();
         let pool = vm_pool.clone();
         let cfg = config.clone();
+        let metrics_tx = metrics_tx.clone();
+        let metrics = metrics.clone();
 
         thread::spawn(move || {
             let start = Instant::now();
@@ -71,7 +106,18 @@ fn main() {
             let status = req.parse(&buf[..n]).unwrap();
             let path = req.path.unwrap_or("/");
             println!("path is '{path}'");
-            if path.starts_with("/run_code/") {
+            if path == "/metrics" {
+                let metrics_output = metrics.lock().unwrap().to_string();
+                stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
+                stream
+                    .write_all(b"Content-Type: text/plain; version=0.0.4\r\n")
+                    .unwrap();
+                stream
+                    .write_all(format!("Content-Length: {}\r\n", metrics_output.len()).as_bytes())
+                    .unwrap();
+                stream.write_all(b"\r\n").unwrap();
+                stream.write_all(metrics_output.as_bytes()).unwrap();
+            } else if path.starts_with("/run_code/") {
                 let exercise_id_str = &path[10..];
                 run_code_handler(
                     stream,
@@ -81,6 +127,7 @@ fn main() {
                     pool,
                     cfg,
                     exercise_id_str,
+                    metrics_tx,
                 );
             }
 
@@ -96,6 +143,7 @@ fn run_code_handler(
     vm_pool: Arc<vm_pool::VmPool>,
     config: Arc<config::Config>,
     exercise_id_str: &str,
+    metrics_tx: Sender<MetricEvent>,
 ) {
     let start = Instant::now();
 
@@ -111,6 +159,7 @@ fn run_code_handler(
     let exercise_id = match shared::ExerciseId::from_str(exercise_id_str) {
         Some(id) => id,
         None => {
+            let _ = metrics_tx.send(MetricEvent::BadExerciseRequest);
             stream.write_all(b"HTTP/1.1 400 Bad Request\r\n").unwrap();
             stream
                 .write_all(format!("Access-Control-Allow-Origin: {}\r\n", cors_origin).as_bytes())
@@ -202,9 +251,20 @@ fn run_code_handler(
     let s = Instant::now();
     tx.send(PlatformMessage::Compiling).unwrap();
     let c = compile::compile(&program, &config);
-    println!("Compile of {} bytes took {:?}", program.len(), s.elapsed());
+    let compile_duration = s.elapsed();
+    println!(
+        "Compile of {} bytes took {:?}",
+        program.len(),
+        compile_duration
+    );
     let compiled = match c {
-        Ok(bytes) => Some(bytes),
+        Ok(bytes) => {
+            let _ = metrics_tx.send(MetricEvent::CompileDuration {
+                exercise_id,
+                duration_secs: compile_duration.as_secs_f64(),
+            });
+            Some(bytes)
+        }
         Err(e) => {
             let _ = tx.send(PlatformMessage::CompileError(e));
             None
@@ -218,7 +278,7 @@ fn run_code_handler(
                     let _ = tx.send(PlatformMessage::Stack(stack));
                 }
                 let _ = tx.send(PlatformMessage::Booting).unwrap();
-                permit.run(tx, compiled, exercise_id, user_key);
+                permit.run(tx, compiled, exercise_id, user_key, metrics_tx.clone());
             }
             Err(_) => {
                 let _ = tx.send(PlatformMessage::NoCapacityLeft(
@@ -231,7 +291,12 @@ fn run_code_handler(
         drop(tx);
     }
     jh.join().unwrap();
-    eprintln!("Run-code completed in {:?}", start.elapsed());
+    let total_duration = start.elapsed();
+    eprintln!("Run-code completed in {:?}", total_duration);
+    let _ = metrics_tx.send(MetricEvent::TotalRequestDuration {
+        exercise_id,
+        duration_secs: total_duration.as_secs_f64(),
+    });
 }
 
 fn send_msg(stream: &mut TcpStream, msg: &PlatformMessage) -> Result<(), std::io::Error> {
