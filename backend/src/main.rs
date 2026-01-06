@@ -1,13 +1,12 @@
 use std::fs;
-use std::io::{Read, Write};
-use std::net::TcpListener;
-use std::net::TcpStream;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use shared::GuestMessage;
+use http::header;
+use touche::{Body, HttpBody, Method, Request, Response, Server, StatusCode};
+
 use strum::IntoEnumIterator;
 
 use crate::guest_message::UserAnswer;
@@ -46,215 +45,166 @@ fn check_hugepages(required_vms: usize, vm_mem_mb: usize) -> Result<(), String> 
     Ok(())
 }
 
+fn init_metrics(m: &mut Metrics) {
+    for exercise_id in shared::ExerciseId::iter() {
+        m.init(MetricEvent::CompileDuration {
+            exercise_id,
+            duration_secs: 0.0,
+        });
+        m.init(MetricEvent::VmBootDuration {
+            exercise_id,
+            duration_secs: 0.0,
+        });
+        m.init(MetricEvent::ExecutionDuration {
+            exercise_id,
+            duration_secs: 0.0,
+        });
+        m.init(MetricEvent::TotalRequestDuration {
+            exercise_id,
+            duration_secs: 0.0,
+        });
+        for result in ExerciseResult::iter() {
+            let sr = SubmissionResult {
+                exercise: exercise_id,
+                result,
+            };
+            m.init(MetricEvent::ExerciseResult(sr));
+        }
+    }
+}
 fn main() {
+    let metrics = Arc::new(Mutex::new(Metrics::new()));
     let config = Arc::new(config::Config::load("config.toml").expect("Failed to load config.toml"));
 
     check_hugepages(config.max_concurrent_vms, 64).expect("Hugepages check failed");
+    init_metrics(&mut metrics.lock().unwrap());
 
-    let metrics = Arc::new(Mutex::new(Metrics::new()));
     let (metrics_tx, rx) = channel();
     let m = metrics.clone();
     thread::spawn(move || {
         metrics::process_metrics_events(rx, m);
     });
 
-    {
-        let mut m = metrics.lock().unwrap();
-        for exercise_id in shared::ExerciseId::iter() {
-            m.init(MetricEvent::CompileDuration {
-                exercise_id,
-                duration_secs: 0.0,
-            });
-            m.init(MetricEvent::VmBootDuration {
-                exercise_id,
-                duration_secs: 0.0,
-            });
-            m.init(MetricEvent::ExecutionDuration {
-                exercise_id,
-                duration_secs: 0.0,
-            });
-            m.init(MetricEvent::TotalRequestDuration {
-                exercise_id,
-                duration_secs: 0.0,
-            });
-            for result in ExerciseResult::iter() {
-                let sr = SubmissionResult {
-                    exercise: exercise_id,
-                    result,
-                };
-                m.init(MetricEvent::ExerciseResult(sr));
-            }
-        }
-    }
-
     let vm_pool = Arc::new(vm_pool::VmPool::new(
         config.max_concurrent_vms,
         config.clone(),
     ));
-    let listener = TcpListener::bind(&config.listen_address).unwrap();
+
     println!("Server running on {}", config.listen_address);
 
-    for stream in listener.incoming() {
-        let mut stream = stream.unwrap();
-        let pool = vm_pool.clone();
-        let cfg = config.clone();
-        let metrics_tx = metrics_tx.clone();
-        let metrics = metrics.clone();
-
-        thread::spawn(move || {
+    let _ = Server::bind(&config.listen_address).serve(
+        move |req: Request<Body>| -> Result<Response<Body>, std::io::Error> {
+            let pool = vm_pool.clone();
+            let cfg = config.clone();
+            let metrics_tx = metrics_tx.clone();
+            let metrics = metrics.clone();
             let start = Instant::now();
-            // Parse HTTP request headers
-            let mut buf = [0u8; 4096];
-            let n = {
-                let mut stream_r = stream.try_clone().unwrap();
-                stream_r.read(&mut buf).unwrap()
-            };
-            let mut headers = [httparse::EMPTY_HEADER; 64];
-            let mut req = httparse::Request::new(&mut headers);
-            let status = req.parse(&buf[..n]).unwrap();
-            let path = req.path.unwrap_or("/");
+
+            let path = req.uri().path().to_string();
+            let method = req.method().clone();
             println!("path is '{path}'");
-            if path == "/metrics" {
-                let metrics_output = metrics.lock().unwrap().to_string();
-                stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
-                stream
-                    .write_all(b"Content-Type: text/plain; version=0.0.4\r\n")
-                    .unwrap();
-                stream
-                    .write_all(format!("Content-Length: {}\r\n", metrics_output.len()).as_bytes())
-                    .unwrap();
-                stream.write_all(b"\r\n").unwrap();
-                stream.write_all(metrics_output.as_bytes()).unwrap();
-            } else if path.starts_with("/run_code/") {
-                let exercise_id_str = &path[10..];
-                run_code_handler(
-                    stream,
-                    &buf[..n],
-                    status.unwrap(),
-                    &req.headers,
-                    pool,
-                    cfg,
-                    exercise_id_str,
-                    metrics_tx,
-                );
-            }
+
+            let response = match (method, path.as_str()) {
+                (Method::GET, "/metrics") => handle_metrics(req, metrics),
+                (Method::POST, path) if path.starts_with("/run_code/") => {
+                    let exercise_id_str = &path[10..];
+                    handle_run_code(req, pool, cfg, exercise_id_str, metrics_tx)
+                }
+                (_, path) if path.starts_with("/run_code/") => Response::builder()
+                    .status(StatusCode::METHOD_NOT_ALLOWED)
+                    .header(header::ALLOW, "POST")
+                    .body(Body::from("Method Not Allowed - use POST"))
+                    .unwrap(),
+                _ => Response::builder()
+                    .status(StatusCode::NOT_FOUND)
+                    .body(Body::from("Not Found"))
+                    .unwrap(),
+            };
 
             eprintln!("Request completed in {:?}", start.elapsed());
-        });
-    }
+            Ok(response)
+        },
+    );
 }
-fn run_code_handler(
-    mut stream: TcpStream,
-    initial_buf: &[u8],
-    body_offset: usize,
-    headers: &[httparse::Header],
+
+fn handle_metrics(_req: Request<Body>, metrics: Arc<Mutex<Metrics>>) -> Response<Body> {
+    let metrics_output = metrics.lock().unwrap().to_string();
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/plain; version=0.0.4")
+        .body(Body::from(metrics_output))
+        .unwrap()
+}
+
+fn handle_run_code(
+    req: Request<Body>,
     vm_pool: Arc<vm_pool::VmPool>,
     config: Arc<config::Config>,
     exercise_id_str: &str,
     metrics_tx: Sender<MetricEvent>,
-) {
+) -> Response<Body> {
     let start = Instant::now();
 
-    let origin = headers
-        .iter()
-        .find(|h| h.name.eq_ignore_ascii_case("Origin"))
-        .and_then(|h| std::str::from_utf8(h.value).ok());
-
-    let cors_origin = origin
+    let cors_origin = req
+        .headers()
+        .get(header::ORIGIN)
+        .and_then(|h| h.to_str().ok())
         .filter(|o| o.starts_with("http://localhost:") || o.starts_with("http://127.0.0.1:"))
-        .unwrap_or("http://localhost:3000");
+        .unwrap_or("http://localhost:3000")
+        .to_string();
 
     let exercise_id = match shared::ExerciseId::from_str(exercise_id_str) {
         Some(id) => id,
-        None => {
+        _ => {
             let _ = metrics_tx.send(MetricEvent::BadExerciseRequest);
-            stream.write_all(b"HTTP/1.1 400 Bad Request\r\n").unwrap();
-            stream
-                .write_all(format!("Access-Control-Allow-Origin: {}\r\n", cors_origin).as_bytes())
+            return Response::builder()
+                .status(StatusCode::BAD_REQUEST)
+                .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, cors_origin.as_str())
+                .body(Body::from(format!(
+                    "Invalid exercise ID: {}",
+                    exercise_id_str
+                )))
                 .unwrap();
-            stream.write_all(b"\r\n").unwrap();
-            stream
-                .write_all(format!("Invalid exercise ID: {}", exercise_id_str).as_bytes())
-                .unwrap();
-            return;
         }
     };
 
     let user_key: u64 = rand::random();
 
-    let has_expect_continue = headers
-        .iter()
-        .any(|h| h.name.eq_ignore_ascii_case("Expect") && h.value == b"100-continue");
-
-    if has_expect_continue {
-        stream.write_all(b"HTTP/1.1 100 Continue\r\n\r\n").unwrap();
-        stream.flush().unwrap();
-    }
-
-    let content_length = headers
-        .iter()
-        .find(|h| h.name.eq_ignore_ascii_case("Content-Length"))
-        .and_then(|h| std::str::from_utf8(h.value).ok())
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(0);
-
-    let mut program = Vec::new();
-    let already_read = initial_buf.len() - body_offset;
-    program.extend_from_slice(&initial_buf[body_offset..]);
-
     const MAX_PROGRAM_SIZE: usize = 16 * 1024;
-    let mut remaining = content_length.saturating_sub(already_read);
-    let mut buf = [0u8; 16 * 4096];
-    while remaining > 0 && program.len() <= MAX_PROGRAM_SIZE {
-        let to_read = remaining.min(buf.len());
-        let bytes_read = stream.read(&mut buf[..to_read]).unwrap();
-        if bytes_read == 0 {
-            break;
+
+    let program = match req.into_body().into_bytes() {
+        Ok(bytes) => bytes,
+        Err(e) => {
+            eprintln!("Failed to read request body: {}", e);
+            return Response::builder()
+                .status(StatusCode::INTERNAL_SERVER_ERROR)
+                .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, cors_origin.as_str())
+                .body(Body::from("Failed to read request body"))
+                .unwrap();
         }
-        program.extend_from_slice(&buf[..bytes_read]);
-        remaining -= bytes_read;
-    }
+    };
+
     if program.len() > MAX_PROGRAM_SIZE {
-        stream
-            .write_all(b"HTTP/1.1 413 Content Too Large\r\n")
+        return Response::builder()
+            .status(StatusCode::PAYLOAD_TOO_LARGE)
+            .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, cors_origin.as_str())
+            .body(Body::from(format!(
+                "Program size {} exceeds maximum of {} bytes",
+                program.len(),
+                MAX_PROGRAM_SIZE
+            )))
             .unwrap();
-        stream
-            .write_all(format!("Access-Control-Allow-Origin: {}\r\n", cors_origin).as_bytes())
-            .unwrap();
-        stream.write_all(b"\r\n").unwrap();
-        stream
-            .write_all(
-                format!(
-                    "Program size {} exceeds maximum of {} bytes",
-                    program.len(),
-                    MAX_PROGRAM_SIZE
-                )
-                .as_bytes(),
-            )
-            .unwrap();
-        return;
     }
 
-    // TODO, maybe do a tinycc pass, as quick check??
-    // clang = ~20ms to fail, tinycc should be .. 2?
-    // clang = ~30ms to succeed
     let (tx, rx) = channel();
-
-    stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
-    stream
-        .write_all(b"Content-Type: text/event-stream\r\n")
-        .unwrap();
-    stream.write_all(b"Cache-Control: no-cache\r\n").unwrap();
-    stream
-        .write_all(format!("Access-Control-Allow-Origin: {}\r\n", cors_origin).as_bytes())
-        .unwrap();
-    stream.write_all(b"\r\n").unwrap();
-    stream.flush().unwrap();
+    let (body_tx, body) = Body::channel();
 
     let user_key_clone = user_key;
     let mtx = metrics_tx.clone();
-    let jh =
-        thread::spawn(move || handle_guest_events(stream, rx, mtx, exercise_id, user_key_clone));
+    thread::spawn(move || {
+        handle_guest_events(body_tx, rx, mtx, exercise_id, user_key_clone);
+    });
 
     let s = Instant::now();
     tx.send(PlatformMessage::Compiling).unwrap();
@@ -269,7 +219,6 @@ fn run_code_handler(
             Some(bytes)
         }
         Err(e) => {
-            // TODO track content to improve TCC
             let _ = tx.send(PlatformMessage::CompileError(e));
             None
         }
@@ -294,58 +243,34 @@ fn run_code_handler(
     } else {
         drop(tx);
     }
-    jh.join().unwrap();
+
     let total_duration = start.elapsed();
     let _ = metrics_tx.send(MetricEvent::TotalRequestDuration {
         exercise_id,
         duration_secs: total_duration.as_secs_f64(),
     });
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/event-stream")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, cors_origin.as_str())
+        .body(body)
+        .unwrap()
 }
 
-fn send_msg(stream: &mut TcpStream, msg: &PlatformMessage) -> Result<(), std::io::Error> {
-    let json = serde_json::to_string(msg).unwrap();
-
-    stream.write_all(format!("data: {}\n\n", json).as_bytes())?;
-    let _ = stream.flush();
+fn send_msg(
+    body_tx: &touche::body::BodyChannel,
+    msg: &PlatformMessage,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let json = serde_json::to_string(msg)?;
+    let sse_chunk = format!("data: {}\n\n", json);
+    body_tx.send(sse_chunk)?;
     Ok(())
 }
 
-impl TryFrom<&PlatformMessage> for ExerciseResult {
-    type Error = ();
-    fn try_from(value: &PlatformMessage) -> Result<Self, Self::Error> {
-        match value {
-            PlatformMessage::CorrectAnswer => Ok(ExerciseResult::Success),
-            PlatformMessage::WrongAnswer => Ok(ExerciseResult::Fail),
-            PlatformMessage::MultipleAnswers => Ok(ExerciseResult::MultipleAnswer),
-            PlatformMessage::NoAnswer => Ok(ExerciseResult::NoAnswer),
-
-            PlatformMessage::CompileError(..) => Ok(ExerciseResult::CompileError),
-            PlatformMessage::NoCapacityLeft(..) => Ok(ExerciseResult::NoCapacityLeft),
-
-            PlatformMessage::Booting => Err(()),
-            PlatformMessage::Compiling => Err(()),
-            PlatformMessage::Stack(..) => Err(()),
-
-            PlatformMessage::GuestMessage(gm) => match gm {
-                // not interested to track
-                GuestMessage::Booted => Err(()),
-                GuestMessage::Event(..) => Err(()),
-                GuestMessage::Finished => Err(()),
-                GuestMessage::FoundMap { .. } => Err(()),
-                GuestMessage::FoundProgram { .. } => Err(()),
-                GuestMessage::NoProgramsFound => Err(()),
-
-                // interesting
-                GuestMessage::DebugMapNotFound => Ok(ExerciseResult::DebugMapNotFound),
-                GuestMessage::LoadFail(..) => Ok(ExerciseResult::VerifierFail),
-                GuestMessage::VerifierFail(..) => Ok(ExerciseResult::VerifierFail),
-                GuestMessage::Crashed => Ok(ExerciseResult::Crashed),
-            },
-        }
-    }
-}
 fn handle_guest_events(
-    mut stream: TcpStream,
+    body_tx: touche::body::BodyChannel,
     rx: Receiver<PlatformMessage>,
     metrics_tx: Sender<MetricEvent>,
     exercise_id: shared::ExerciseId,
@@ -373,15 +298,16 @@ fn handle_guest_events(
 
         // forward all messages
         // disconnected is not a big deal
-        if let Err(_) = send_msg(&mut stream, &msg) {
+        if send_msg(&body_tx, &msg).is_err() {
             break;
         }
     }
+
     let answer_msg = match answer_count {
         0 => PlatformMessage::NoAnswer,
         1 => {
             let expected_answer = shared::get_answer(exercise_id, user_key);
-            println!("E {expected_answer:?}");
+            // println!("E {expected_answer:?}");
             let is_correct = match answer.as_ref().unwrap() {
                 UserAnswer::String(submitted) => {
                     let trimmed = submitted
@@ -403,8 +329,10 @@ fn handle_guest_events(
         }
         _ => PlatformMessage::MultipleAnswers,
     };
-    let _ = send_msg(&mut stream, &answer_msg);
-    // also submit answer
+    let _ = send_msg(&body_tx, &answer_msg);
+    drop(body_tx);
+
+    // also track metrics for answer
     if let Ok(r) = ExerciseResult::try_from(&answer_msg) {
         let sr = SubmissionResult {
             exercise: exercise_id,
