@@ -1,0 +1,42 @@
+---
+layout: ../../../layouts/ExerciseLayout.astro
+title: Platform overview
+codeFile: 1_editor_intro.c
+exerciseId: platform-overview
+---
+
+
+The main goal of this platform is to give you both a configured environment and some exercises to get acquainted with eBPF.
+
+The editor compiles your code locally as you type. Compilation errors are highlighted inline. You can change the auto-compile behavior in settings.
+
+Try typing a bunch into the code box and see how it reacts.
+
+Click 'Run' to execute your code on the server.
+
+## Hotkeys
+
+- <kbd>Ctrl</kbd>+<kbd>Enter</kbd> will run the code.
+- <kbd>Ctrl</kbd>+<kbd>Click</kbd> on type definitions (`my_struct`, `trace_event_raw_sched_process_exec`) will show a type definition popup
+
+## Debugging utilities
+
+There are multiple `DEBUG_` macros to display data from your programs.
+All of these take a label (a string constant) as a first argument.
+
+- `DEBUG_STR(label, buf)` requires a fixed-size buf (eg: `char[64]`)
+- `DEBUG_STR_PTR(label, ptr, len)` can take any pointer, but `len` must be a constant
+- `DEBUG_NUM(label, num)` can take any number (eg: `u32`, `ssize_t`)
+- `DEBUG_STRUCT(label, struct)` can take any struct _by value_
+
+## Submitting answers
+
+To solve the exercises, you will need to submit answers directly from your code.
+
+Use `SUBMIT_NUM(answer)`, `SUBMIT_STR(answer)` or `SUBMIT_STR_LEN(answer, len)`.
+
+You can only submit once in your program. Multiple submissions invalidate all answers.
+
+Trailing null bytes are trimmed, use the `SUBMIT_STR_LEN` variant when you can't guarantee null termination. 
+
+Solve this exercise by uncommenting `SUBMIT_STR("the answer");`

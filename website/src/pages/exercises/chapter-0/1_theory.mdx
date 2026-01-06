@@ -1,0 +1,61 @@
+---
+layout: ../../../layouts/ExerciseLayout.astro
+title: Intro to eBPF
+exerciseId: theory
+---
+
+eBPF is a Linux mechanism that allows you to hook custom code directly into kernel events.
+
+When an event triggers, the kernel pauses its normal execution, runs your eBPF program, and then continues. This happens at the kernel level, giving you visibility into system behavior that would be impossible from user space alone.
+
+Examples of events you can hook:
+- A process opens a file
+- A program is executed
+- A network packet arrives
+- A function is called
+
+This makes eBPF powerful for observability, security monitoring, and network filtering without modifying the kernel itself or loading kernel modules.
+
+## Program types
+
+eBPF programs are categorized by where they attach in the kernel. We will focus on two categories.
+
+### Tracepoints
+
+Tracepoints are hook points defined throughout the kernel code. They expose almost all kernel events, for example: process scheduling, file operations, network operations and system calls.
+
+### XDP
+
+XDP programs attach at the network driver level, processing packets before they reach the kernel's network stack.
+
+XDP programs run so early that they can drop or redirect packets with minimal overhead.
+
+## The verifier
+
+If you could run arbitrary code in the kernel, you could crash the system, leak sensitive data, or create infinite loops that hang the machine.
+
+The eBPF verifier prevents this by analyzing your program before it runs. It enforces strict safety rules.
+
+As you work through the exercises, you'll encounter verifier errors. They can be cryptic, but they're always pointing to something the verifier couldn't prove was safe. Learning to read these errors is part of learning eBPF.
+
+
+### Guarantee of termination
+
+Programs must be guaranteed to terminate, for this the verifier imposes limits on t:
+
+- **Instruction limit**: Programs have a maximum complexity limit (counted as "instructions processed" by the verifier)
+- **Bounded loops**: Loops must have a fixed upper bound that the verifier can verify at load time
+- **No infinite recursion**: Helper functions can't call back into your program
+
+If the verifier can't prove your program will finish, it rejects it.
+
+### Memory safety
+
+All memory access must be safe:
+- **No arbitrary pointers**: You can't do pointer arithmetic or dereference arbitrary addresses
+- **Helper functions only**: Reading kernel or user memory requires special helpers (`bpf_probe_read_kernel`, `bpf_probe_read_user`)
+- **Bounds checking**: Array access must be bounds-checked before use
+- **No NULL dereferences**: Pointers from map lookups must be checked for NULL
+
+The verifier tracks what it knows about each register and memory location, rejecting programs it can't prove are safe.
+
