@@ -15,6 +15,13 @@ fn capturing_printer(lvl: PrintLevel, s: String) {
     }
 }
 
+pub fn extract_prog_load_log(log: &str) -> Option<String> {
+    let begin = log.find("BEGIN PROG LOAD LOG")?;
+    let end = log.find("END PROG LOAD LOG")?;
+    let start = log[begin..].find('\n')? + begin + 1;
+    Some(log[start..end].trim_end().to_string())
+}
+
 pub struct ProgramDetails {
     pub name: String,
     pub section: String,
@@ -40,7 +47,6 @@ impl<'a> EbpfLoader<'a> {
 
         libbpf_rs::set_print(Some((PrintLevel::Info, capturing_printer)));
 
-        // TODO split error
         let open_obj = match ObjectBuilder::default().open_memory(program) {
             Ok(o) => o,
             Err(_) => {
@@ -53,7 +59,10 @@ impl<'a> EbpfLoader<'a> {
             Ok(o) => o,
             Err(_) => {
                 let captured_log = VERIFIER_LOG.lock().unwrap().clone();
-                return Err(GuestMessage::VerifierFail(captured_log));
+                let prog_load_log = extract_prog_load_log(&captured_log);
+                return Err(GuestMessage::VerifierFail(
+                    prog_load_log.unwrap_or(captured_log),
+                ));
             }
         };
 
