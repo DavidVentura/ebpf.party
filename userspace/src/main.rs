@@ -55,7 +55,6 @@ fn real_main() {
         }
     }
     jh.join().unwrap();
-    println!("done with sending");
 }
 
 fn run_exercise(hm: HostMessage, tx: Sender<GuestMessage>) {

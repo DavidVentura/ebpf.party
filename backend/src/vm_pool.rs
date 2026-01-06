@@ -65,7 +65,6 @@ impl VmPermit {
         user_key: u64,
         metrics_tx: Sender<MetricEvent>,
     ) {
-        let start = Instant::now();
         let boot_start = Instant::now();
 
         static VM_COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -102,7 +101,6 @@ impl VmPermit {
             let listener = UnixListener::bind(vsock_listener).unwrap();
             let mut stream = listener.incoming().next().unwrap().unwrap();
             let boot_duration = boot_start.elapsed();
-            eprintln!(" Host Connected, at {:?}", start.elapsed());
             let _ = metrics_tx.send(MetricEvent::VmBootDuration {
                 exercise_id,
                 duration_secs: boot_duration.as_secs_f64(),
@@ -128,7 +126,6 @@ impl VmPermit {
                 }
             }
             let execution_duration = execution_start.elapsed();
-            println!(" host disconnected at {:?}", start.elapsed());
             let _ = metrics_tx.send(MetricEvent::ExecutionDuration {
                 exercise_id,
                 duration_secs: execution_duration.as_secs_f64(),
