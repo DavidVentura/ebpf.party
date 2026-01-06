@@ -1,11 +1,8 @@
 use crate::config::Config;
 use std::io::Write;
 use std::process::{Command, Stdio};
-use std::time::Instant;
 
 pub fn compile(source: &[u8], config: &Config) -> Result<Vec<u8>, String> {
-    let s = Instant::now();
-
     let includes_flag = format!("-I{}", config.includes_path.display());
     let pch_path = config.includes_path.join("task.h.pch");
 
@@ -44,11 +41,5 @@ pub fn compile(source: &[u8], config: &Config) -> Result<Vec<u8>, String> {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
     }
 
-    println!(
-        "Compiling {} bytes to {} bytes took {:?}",
-        source.len(),
-        output.stdout.len(),
-        s.elapsed()
-    );
     Ok(output.stdout)
 }

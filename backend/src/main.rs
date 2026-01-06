@@ -7,10 +7,11 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use shared::GuestMessage;
 use strum::IntoEnumIterator;
 
 use crate::guest_message::UserAnswer;
-use crate::metrics::{MetricEvent, Metrics};
+use crate::metrics::{ExerciseResult, MetricEvent, Metrics, SubmissionResult};
 use crate::types::PlatformMessage;
 
 mod compile;
@@ -76,6 +77,13 @@ fn main() {
                 exercise_id,
                 duration_secs: 0.0,
             });
+            for result in ExerciseResult::iter() {
+                let sr = SubmissionResult {
+                    exercise: exercise_id,
+                    result,
+                };
+                m.init(MetricEvent::ExerciseResult(sr));
+            }
         }
     }
 
@@ -228,10 +236,8 @@ fn run_code_handler(
     }
 
     // TODO, maybe do a tinycc pass, as quick check??
-    // clang = ~50ms to fail, tinycc should be .. 2?
-    // clang = 90~100ms to succeed
-    // -- about 15ms to strip
-    // with static, ~50ms to succeed, no strip needed (ish)
+    // clang = ~20ms to fail, tinycc should be .. 2?
+    // clang = ~30ms to succeed
     let (tx, rx) = channel();
 
     stream.write_all(b"HTTP/1.1 200 OK\r\n").unwrap();
@@ -246,17 +252,14 @@ fn run_code_handler(
     stream.flush().unwrap();
 
     let user_key_clone = user_key;
-    let jh = thread::spawn(move || handle_guest_events(stream, rx, exercise_id, user_key_clone));
+    let mtx = metrics_tx.clone();
+    let jh =
+        thread::spawn(move || handle_guest_events(stream, rx, mtx, exercise_id, user_key_clone));
 
     let s = Instant::now();
     tx.send(PlatformMessage::Compiling).unwrap();
     let c = compile::compile(&program, &config);
     let compile_duration = s.elapsed();
-    println!(
-        "Compile of {} bytes took {:?}",
-        program.len(),
-        compile_duration
-    );
     let compiled = match c {
         Ok(bytes) => {
             let _ = metrics_tx.send(MetricEvent::CompileDuration {
@@ -266,6 +269,7 @@ fn run_code_handler(
             Some(bytes)
         }
         Err(e) => {
+            // TODO track content to improve TCC
             let _ = tx.send(PlatformMessage::CompileError(e));
             None
         }
@@ -292,7 +296,6 @@ fn run_code_handler(
     }
     jh.join().unwrap();
     let total_duration = start.elapsed();
-    eprintln!("Run-code completed in {:?}", total_duration);
     let _ = metrics_tx.send(MetricEvent::TotalRequestDuration {
         exercise_id,
         duration_secs: total_duration.as_secs_f64(),
@@ -307,9 +310,44 @@ fn send_msg(stream: &mut TcpStream, msg: &PlatformMessage) -> Result<(), std::io
     Ok(())
 }
 
+impl TryFrom<&PlatformMessage> for ExerciseResult {
+    type Error = ();
+    fn try_from(value: &PlatformMessage) -> Result<Self, Self::Error> {
+        match value {
+            PlatformMessage::CorrectAnswer => Ok(ExerciseResult::Success),
+            PlatformMessage::WrongAnswer => Ok(ExerciseResult::Fail),
+            PlatformMessage::MultipleAnswers => Ok(ExerciseResult::MultipleAnswer),
+            PlatformMessage::NoAnswer => Ok(ExerciseResult::NoAnswer),
+
+            PlatformMessage::CompileError(..) => Ok(ExerciseResult::CompileError),
+            PlatformMessage::NoCapacityLeft(..) => Ok(ExerciseResult::NoCapacityLeft),
+
+            PlatformMessage::Booting => Err(()),
+            PlatformMessage::Compiling => Err(()),
+            PlatformMessage::Stack(..) => Err(()),
+
+            PlatformMessage::GuestMessage(gm) => match gm {
+                // not interested to track
+                GuestMessage::Booted => Err(()),
+                GuestMessage::Event(..) => Err(()),
+                GuestMessage::Finished => Err(()),
+                GuestMessage::FoundMap { .. } => Err(()),
+                GuestMessage::FoundProgram { .. } => Err(()),
+                GuestMessage::NoProgramsFound => Err(()),
+
+                // interesting
+                GuestMessage::DebugMapNotFound => Ok(ExerciseResult::DebugMapNotFound),
+                GuestMessage::LoadFail(..) => Ok(ExerciseResult::VerifierFail),
+                GuestMessage::VerifierFail(..) => Ok(ExerciseResult::VerifierFail),
+                GuestMessage::Crashed => Ok(ExerciseResult::Crashed),
+            },
+        }
+    }
+}
 fn handle_guest_events(
     mut stream: TcpStream,
     rx: Receiver<PlatformMessage>,
+    metrics_tx: Sender<MetricEvent>,
     exercise_id: shared::ExerciseId,
     user_key: u64,
 ) {
@@ -323,6 +361,17 @@ fn handle_guest_events(
             }
             continue;
         }
+
+        if let Ok(r) = ExerciseResult::try_from(&msg) {
+            let sr = SubmissionResult {
+                exercise: exercise_id,
+                result: r,
+            };
+            let r = MetricEvent::ExerciseResult(sr);
+            let _ = metrics_tx.send(r);
+        }
+
+        // forward all messages
         // disconnected is not a big deal
         if let Err(_) = send_msg(&mut stream, &msg) {
             break;
@@ -355,4 +404,13 @@ fn handle_guest_events(
         _ => PlatformMessage::MultipleAnswers,
     };
     let _ = send_msg(&mut stream, &answer_msg);
+    // also submit answer
+    if let Ok(r) = ExerciseResult::try_from(&answer_msg) {
+        let sr = SubmissionResult {
+            exercise: exercise_id,
+            result: r,
+        };
+        let r = MetricEvent::ExerciseResult(sr);
+        let _ = metrics_tx.send(r);
+    }
 }

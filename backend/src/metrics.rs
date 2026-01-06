@@ -1,32 +1,14 @@
-use aetos::{define_histogram, exponential_buckets, linear_buckets, metrics};
+use aetos::{Label, define_histogram, exponential_buckets, linear_buckets, metrics};
 use shared::ExerciseId;
+use std::collections::HashMap;
 use std::fmt;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
-
-struct AtomicCounter(AtomicU64);
-
-impl AtomicCounter {
-    fn new(val: u64) -> Self {
-        Self(AtomicU64::new(val))
-    }
-
-    fn increment(&self) {
-        self.0.fetch_add(1, Ordering::Relaxed);
-    }
-}
-
-impl fmt::Display for AtomicCounter {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0.load(Ordering::Relaxed))
-    }
-}
 
 define_histogram!(CompileDuration<ExerciseId> = linear_buckets::<8>(0.01, 0.01));
 define_histogram!(VmBootDuration<ExerciseId> = linear_buckets::<8>(0.04, 0.01));
 define_histogram!(ExecutionDuration<ExerciseId> = exponential_buckets::<8>(0.01, 1.5));
-define_histogram!(TotalRequestDuration<ExerciseId> = exponential_buckets::<7>(0.02, 2.0));
+define_histogram!(TotalRequestDuration<ExerciseId> = exponential_buckets::<8>(0.02, 1.5));
 
 #[derive(Debug, Clone)]
 pub enum MetricEvent {
@@ -47,12 +29,53 @@ pub enum MetricEvent {
         exercise_id: ExerciseId,
         duration_secs: f64,
     },
+    ExerciseResult(SubmissionResult),
 }
 
-#[metrics(prefix = "ebpf_party")]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, strum::EnumIter)]
+pub enum ExerciseResult {
+    // platform
+    Success,
+    Fail,
+    NoAnswer,
+    MultipleAnswer,
+    VerifierFail,
+    DebugMapNotFound,
+    CompileError,
+    NoCapacityLeft,
+    // guest
+    Crashed,
+}
+
+impl fmt::Display for ExerciseResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ExerciseResult::Success => write!(f, "success"),
+            ExerciseResult::Fail => write!(f, "fail"),
+            ExerciseResult::NoAnswer => write!(f, "no_answer"),
+            ExerciseResult::MultipleAnswer => write!(f, "multiple_answer"),
+            ExerciseResult::VerifierFail => write!(f, "verifier_fail"),
+            ExerciseResult::Crashed => write!(f, "crashed"),
+            ExerciseResult::DebugMapNotFound => write!(f, "debug_map_not_found"),
+            ExerciseResult::CompileError => write!(f, "clang_compile_error"),
+            ExerciseResult::NoCapacityLeft => write!(f, "no_capacity_left"),
+        }
+    }
+}
+
+#[derive(Label, Clone, Debug, Hash, PartialEq, Eq)]
+pub struct SubmissionResult {
+    pub exercise: ExerciseId,
+    pub result: ExerciseResult,
+}
+
+#[metrics]
 pub(crate) struct Metrics {
     #[counter(help = "Requests with invalid exercise ID")]
-    bad_exercise_requests_total: AtomicCounter,
+    bad_exercise_requests_total: u64,
+
+    #[counter(help = "Exercise submissions")]
+    exercise_submissions_total: HashMap<SubmissionResult, u64>,
 
     #[histogram(help = "Compilation duration in seconds")]
     compile_duration_seconds: CompileDuration,
@@ -70,7 +93,8 @@ pub(crate) struct Metrics {
 impl Metrics {
     pub fn new() -> Self {
         Self {
-            bad_exercise_requests_total: AtomicCounter::new(0),
+            bad_exercise_requests_total: 0,
+            exercise_submissions_total: HashMap::new(),
             compile_duration_seconds: CompileDuration::default(),
             vm_boot_duration_seconds: VmBootDuration::default(),
             execution_duration_seconds: ExecutionDuration::default(),
@@ -93,13 +117,16 @@ impl Metrics {
                 self.total_request_duration_seconds
                     .zero_initialize(exercise_id);
             }
+            MetricEvent::ExerciseResult(e) => {
+                self.exercise_submissions_total.entry(e).or_default();
+            }
             _ => (),
         }
     }
     fn handle_event(&mut self, event: MetricEvent) {
         match event {
             MetricEvent::BadExerciseRequest => {
-                self.bad_exercise_requests_total.increment();
+                self.bad_exercise_requests_total += 1;
             }
             MetricEvent::CompileDuration {
                 exercise_id,
@@ -128,6 +155,10 @@ impl Metrics {
             } => {
                 self.total_request_duration_seconds
                     .observe(exercise_id, duration_secs);
+            }
+            MetricEvent::ExerciseResult(e) => {
+                let v = self.exercise_submissions_total.entry(e).or_default();
+                *v += 1;
             }
         }
     }
