@@ -1,4 +1,5 @@
 use std::fs;
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
 use std::panic::RefUnwindSafe;
 use std::process::Command;
 use std::time::Duration;
@@ -177,10 +178,25 @@ impl Exercise for ReadFilePassword {
 pub struct TrackSocketAndConnect;
 
 impl Exercise for TrackSocketAndConnect {
-    fn setup(&self, _answer: &[u8]) {}
+    fn setup(&self, answer: &[u8]) {
+        let port_: u64 = u64::from_le_bytes(answer.try_into().unwrap());
+        assert!(port_ < u16::MAX as u64);
+        let port: u16 = port_ as u16;
+        std::thread::spawn(move || {
+            let listener = TcpListener::bind(format!("127.0.0.1:{port}")).unwrap();
+            while !crate::SHOULD_STOP.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            drop(listener);
+        });
+    }
 
-    fn run(&self, _answer: &[u8]) {
-        todo!("Implement socket tracking exercise")
+    fn run(&self, answer: &[u8]) {
+        let port_: u64 = u64::from_le_bytes(answer.try_into().unwrap());
+        assert!(port_ < u16::MAX as u64);
+        let port: u16 = port_ as u16;
+        let sa = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port));
+        TcpStream::connect_timeout(&sa, Duration::from_millis(100)).unwrap();
     }
 }
 
