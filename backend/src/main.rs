@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::fs;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::sync::{Arc, Mutex};
@@ -92,10 +93,17 @@ fn main() {
 
     println!("Server running on {}", config.listen_address);
 
-    let _ = Server::bind(&config.listen_address).serve(
-        move |req: Request<Body>| -> Result<Response<Body>, std::io::Error> {
-            let pool = vm_pool.clone();
-            let cfg = config.clone();
+    let _ = Server::bind(&config.listen_address).make_service(move |conn: &touche::Connection| {
+        conn.set_nodelay(true).ok();
+
+        let pool = vm_pool.clone();
+        let cfg = config.clone();
+        let metrics_tx = metrics_tx.clone();
+        let metrics = metrics.clone();
+
+        Ok::<_, Infallible>(move |req: Request<Body>| {
+            let pool = pool.clone();
+            let cfg = cfg.clone();
             let metrics_tx = metrics_tx.clone();
             let metrics = metrics.clone();
             let start = Instant::now();
@@ -113,28 +121,28 @@ fn main() {
                 (_, path) if path.starts_with("/run_code/") => Response::builder()
                     .status(StatusCode::METHOD_NOT_ALLOWED)
                     .header(header::ALLOW, "POST")
-                    .body(Body::from("Method Not Allowed - use POST"))
-                    .unwrap(),
+                    .body(Body::from("Method Not Allowed - use POST")),
                 _ => Response::builder()
                     .status(StatusCode::NOT_FOUND)
-                    .body(Body::from("Not Found"))
-                    .unwrap(),
+                    .body(Body::from("Not Found")),
             };
 
             eprintln!("Request completed in {:?}", start.elapsed());
-            Ok(response)
-        },
-    );
+            response
+        })
+    });
 }
 
-fn handle_metrics(_req: Request<Body>, metrics: Arc<Mutex<Metrics>>) -> Response<Body> {
+fn handle_metrics(
+    _req: Request<Body>,
+    metrics: Arc<Mutex<Metrics>>,
+) -> Result<Response<Body>, http::Error> {
     let metrics_output = metrics.lock().unwrap().to_string();
 
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/plain; version=0.0.4")
         .body(Body::from(metrics_output))
-        .unwrap()
 }
 
 fn handle_run_code(
@@ -143,7 +151,7 @@ fn handle_run_code(
     config: Arc<config::Config>,
     exercise_id_str: &str,
     metrics_tx: Sender<MetricEvent>,
-) -> Response<Body> {
+) -> Result<Response<Body>, http::Error> {
     let start = Instant::now();
 
     let cors_origin = req
@@ -164,8 +172,7 @@ fn handle_run_code(
                 .body(Body::from(format!(
                     "Invalid exercise ID: {}",
                     exercise_id_str
-                )))
-                .unwrap();
+                )));
         }
     };
 
@@ -180,8 +187,7 @@ fn handle_run_code(
             return Response::builder()
                 .status(StatusCode::INTERNAL_SERVER_ERROR)
                 .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, cors_origin.as_str())
-                .body(Body::from("Failed to read request body"))
-                .unwrap();
+                .body(Body::from("Failed to read request body"));
         }
     };
 
@@ -193,8 +199,7 @@ fn handle_run_code(
                 "Program size {} exceeds maximum of {} bytes",
                 program.len(),
                 MAX_PROGRAM_SIZE
-            )))
-            .unwrap();
+            )));
     }
 
     let (tx, rx) = channel();
@@ -256,7 +261,6 @@ fn handle_run_code(
         .header(header::CACHE_CONTROL, "no-cache")
         .header(header::ACCESS_CONTROL_ALLOW_ORIGIN, cors_origin.as_str())
         .body(body)
-        .unwrap()
 }
 
 fn send_msg(
