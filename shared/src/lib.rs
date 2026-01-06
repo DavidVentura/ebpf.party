@@ -22,7 +22,19 @@ pub enum GuestMessage {
 }
 
 #[derive(
-    Encode, Decode, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Hash, strum::EnumIter,
+    Encode,
+    Decode,
+    Serialize,
+    Deserialize,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    strum::EnumIter,
+    PartialOrd,
+    Ord,
 )]
 pub enum ExerciseId {
     // Chapter 0

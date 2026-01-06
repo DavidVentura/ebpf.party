@@ -1,6 +1,6 @@
 use aetos::{Label, define_histogram, exponential_buckets, linear_buckets, metrics};
 use shared::ExerciseId;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, Mutex};
@@ -32,7 +32,7 @@ pub enum MetricEvent {
     ExerciseResult(SubmissionResult),
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq, strum::EnumIter)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, strum::EnumIter, PartialOrd, Ord)]
 pub enum ExerciseResult {
     // platform
     Success,
@@ -63,7 +63,7 @@ impl fmt::Display for ExerciseResult {
     }
 }
 
-#[derive(Label, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Label, Clone, Debug, PartialOrd, Ord, PartialEq, Eq)]
 pub struct SubmissionResult {
     pub exercise: ExerciseId,
     pub result: ExerciseResult,
@@ -75,7 +75,7 @@ pub(crate) struct Metrics {
     bad_exercise_requests_total: u64,
 
     #[counter(help = "Exercise submissions")]
-    exercise_submissions_total: HashMap<SubmissionResult, u64>,
+    exercise_submissions_total: BTreeMap<SubmissionResult, u64>,
 
     #[histogram(help = "Compilation duration in seconds")]
     compile_duration_seconds: CompileDuration,
@@ -94,7 +94,7 @@ impl Metrics {
     pub fn new() -> Self {
         Self {
             bad_exercise_requests_total: 0,
-            exercise_submissions_total: HashMap::new(),
+            exercise_submissions_total: BTreeMap::new(),
             compile_duration_seconds: CompileDuration::default(),
             vm_boot_duration_seconds: VmBootDuration::default(),
             execution_duration_seconds: ExecutionDuration::default(),
