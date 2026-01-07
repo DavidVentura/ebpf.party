@@ -1,0 +1,51 @@
+.exerciseNav {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #444;
+  margin-top: 2rem;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: background 0.2s;
+  flex: 1;
+  max-width: 35%;
+}
+
+.navLink.prev {
+  justify-content: flex-start;
+}
+
+.navLink.next {
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.navArrow {
+  font-size: 1.5rem;
+  color: var(--color-text-primary);
+}
+
+.navText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.navLabel {
+  font-size: 0.85rem;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.navTitle {
+  font-size: 1rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}

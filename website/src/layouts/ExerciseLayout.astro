@@ -1,6 +1,7 @@
 ---
 import Layout from './Layout.astro';
 import InteractiveEditor from "../components/InteractiveEditor.astro";
+import ExerciseNav from "../components/ExerciseNav";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -33,6 +34,38 @@ if (hasCode) {
   starterCode = await readFile(codeFilePath, "utf-8");
 }
 
+// Load all exercises for navigation
+const allExercises = await Astro.glob("../pages/exercises/**/*.mdx");
+const metadataFiles = await Astro.glob("../pages/exercises/**/metadata.json");
+
+// Create a map of chapter slug to chapter number
+const chapterNumbers = metadataFiles.reduce((acc, meta) => {
+  acc[meta.default.slug] = meta.default.number;
+  return acc;
+}, {} as Record<string, number>);
+
+// Sort exercises by chapter number and filename
+const sortedExercises = allExercises
+  .filter(ex => ex.url && !ex.url.includes('/pending/'))
+  .sort((a, b) => {
+    const aMatch = a.url?.match(/\/exercises\/(chapter-\d+)\/(.+)/);
+    const bMatch = b.url?.match(/\/exercises\/(chapter-\d+)\/(.+)/);
+    if (!aMatch || !bMatch) return 0;
+
+    const aChapter = chapterNumbers[aMatch[1]] || 0;
+    const bChapter = chapterNumbers[bMatch[1]] || 0;
+
+    if (aChapter !== bChapter) return aChapter - bChapter;
+
+    // Sort by filename within chapter
+    return aMatch[2].localeCompare(bMatch[2]);
+  });
+
+// Find current exercise index
+const currentIndex = sortedExercises.findIndex(ex => ex.url === urlPath);
+const prevExercise = currentIndex > 0 ? sortedExercises[currentIndex - 1] : null;
+const nextExercise = currentIndex < sortedExercises.length - 1 ? sortedExercises[currentIndex + 1] : null;
+
 ---
 
 <Layout hasCodeTabs={hasCode}>
@@ -52,9 +85,12 @@ if (hasCode) {
 
         <div class="content tab-content">
           <div class="content-scroll">
-            <h4>{chapterTitle}</h4>
-            <h1>{frontmatter.title}</h1>
-            <slot />
+            <div class="content-body">
+              <h4>{chapterTitle}</h4>
+              <h1>{frontmatter.title}</h1>
+              <slot />
+            </div>
+            <ExerciseNav prevExercise={prevExercise} nextExercise={nextExercise} client:load />
           </div>
         </div>
       <div class="editor-wrapper tab-content">
@@ -69,9 +105,12 @@ if (hasCode) {
       {!hasCode && (
       <div class="content">
         <div class="content-scroll nocode">
-          <h4>{chapterTitle}</h4>
-          <h1>{frontmatter.title}</h1>
-          <slot />
+          <div class="content-body">
+            <h4>{chapterTitle}</h4>
+            <h1>{frontmatter.title}</h1>
+            <slot />
+          </div>
+          <ExerciseNav prevExercise={prevExercise} nextExercise={nextExercise} client:load />
         </div>
       </div>
       )}
@@ -101,13 +140,18 @@ if (hasCode) {
     background-color: var(--color-bg-primary);
     color: var(--color-text-primary);
   }
+  .content-scroll {
+    padding: 0.5rem 2rem 0rem 2rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 100%;
+    box-sizing: border-box;
+  }
+
   .content-scroll.nocode {
     max-width: 100ch;
     margin: 0px auto;
-  }
-
-  .content-scroll {
-    padding: 0.5rem 2rem 2rem 2rem;
   }
 
   .tab-input {

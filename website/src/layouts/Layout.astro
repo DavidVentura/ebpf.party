@@ -30,21 +30,26 @@ body {
   </head>
   <body>
     <nav class="navbar">
-      <div class="navbar-left">
-        <a href="/" class="site-name">eBPF.party</a>
+      <div class="navbar-content">
+        <div class="navbar-left">
+          <a href="/" class="site-link">
+            <img src="/logo.svg" alt="eBPF.party logo" class="logo" />
+            <span class="site-name">eBPF.party</span>
+          </a>
+        </div>
+        {
+          hasCodeTabs && (
+            <div class="navbar-tabs">
+              <label for="tab-instructions" class="tab-toggle">
+                <BookOpen size={18} />
+              </label>
+              <label for="tab-code" class="tab-toggle">
+                <Terminal size={18} />
+              </label>
+            </div>
+          )
+        }
       </div>
-      {
-        hasCodeTabs && (
-          <div class="navbar-tabs">
-            <label for="tab-instructions" class="tab-toggle">
-              <BookOpen size={18} />
-            </label>
-            <label for="tab-code" class="tab-toggle">
-              <Terminal size={18} />
-            </label>
-          </div>
-        )
-      }
     </nav>
     <main class="app-content">
       <slot />
@@ -64,22 +69,39 @@ body {
     position: sticky;
     top: 0;
     z-index: 1000;
+    background: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .navbar-content {
+    max-width: 220ch;
+    margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #f5f5f5;
-    padding: 0.75rem 1rem;
-    border-bottom: 1px solid #ddd;
+    padding: 0.75rem 2rem;
+    box-sizing: border-box;
+  }
+
+  .site-link {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+
+  .logo {
+    height: 1.5rem;
+    width: auto;
   }
 
   .site-name {
     font-weight: 600;
     font-size: 1.1rem;
     color: #333;
-    text-decoration: none;
   }
 
-  .site-name:hover {
+  .site-link:hover .site-name {
     color: #000;
   }
 
@@ -89,6 +111,8 @@ body {
 
   .app-content {
     height: calc(100vh - 50px);
+    max-width: 220ch;
+    margin: 0 auto;
   }
 
   @media (max-width: 1280px) {
