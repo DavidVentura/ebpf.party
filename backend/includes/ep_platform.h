@@ -3,6 +3,7 @@
 #if __TINYC__
 #define __builtin_classify_type(a) 6
 #define __builtin_preserve_access_index(x) x
+#define __builtin_bswap16(x) x
 #endif
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_core_read.h>
