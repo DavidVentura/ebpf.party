@@ -13,7 +13,7 @@ import type { DebTypeInfo } from "../types/debtypeinfo";
 import type { SSEEvent } from "../types/sse-events";
 import styles from "./App.module.css";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
-import Settings from "lucide-react/dist/esm/icons/settings";
+import Ellipsis from "lucide-react/dist/esm/icons/ellipsis";
 
 interface AppProps {
   starterCode: string;
@@ -51,6 +51,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   >(undefined);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [compileAsYouType, setCompileAsYouType] = useState(true);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const workerRef = useRef<TccWorkerClient | null>(null);
   const hasOutputRef = useRef(false);
   const compilationOutputRef = useRef("");
@@ -271,6 +272,22 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     }
   };
 
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        isSettingsOpen &&
+        settingsButtonRef.current &&
+        !settingsButtonRef.current.contains(event.target as Node) &&
+        !(event.target as Element).closest(`.${styles.settingsDropdown}`)
+      ) {
+        setIsSettingsOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isSettingsOpen]);
+
   return (
     <div className={styles.app}>
       <Group
@@ -283,25 +300,37 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
         <Panel id="editor-panel" defaultSize="80%" minSize="33%" maxSize="80%">
           <div className={styles.editorPanel}>
             <div className={styles.runButtonHeader}>
-              <RunButton
-                disabled={!canRun}
-                isRunning={isRunning}
-                onRun={handleRun}
-              />
-              <button
-                className={styles.settingsButton}
-                onClick={() => setIsSettingsOpen(true)}
-                title="Settings"
-              >
-                <Settings size={16} />
-              </button>
-              <button
-                className={styles.deleteButton}
-                onClick={handleDelete}
-                title="Reset to starter code"
-              >
-                <RotateCcw size={16} />
-              </button>
+              <div className={styles.buttonGroup}>
+                <div className={styles.settingsContainer}>
+                  <button
+                    ref={settingsButtonRef}
+                    className={styles.settingsButton}
+                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                    title="Settings"
+                  >
+                    <Ellipsis size={16} />
+                  </button>
+                  {isSettingsOpen && (
+                    <div className={styles.settingsDropdown}>
+                      <label className={styles.settingItem}>
+                        <input
+                          type="checkbox"
+                          checked={compileAsYouType}
+                          onChange={(e) =>
+                            handleCompileAsYouTypeChange(e.target.checked)
+                          }
+                        />
+                        <span>Compile as you type</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+                <RunButton
+                  disabled={!canRun}
+                  isRunning={isRunning}
+                  onRun={handleRun}
+                />
+              </div>
             </div>
             <div className={styles.editorWrapper}>
               <CodeEditor
@@ -350,41 +379,6 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
           )}
         </Panel>
       </Group>
-
-      {isSettingsOpen && (
-        <div
-          className={styles.modalOverlay}
-          onClick={() => setIsSettingsOpen(false)}
-        >
-          <div
-            className={styles.modalContent}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.modalHeader}>
-              <h2>Settings</h2>
-              <button
-                className={styles.modalCloseButton}
-                onClick={() => setIsSettingsOpen(false)}
-                title="Close"
-              >
-                ✕
-              </button>
-            </div>
-            <div className={styles.modalBody}>
-              <label className={styles.settingItem}>
-                <input
-                  type="checkbox"
-                  checked={compileAsYouType}
-                  onChange={(e) =>
-                    handleCompileAsYouTypeChange(e.target.checked)
-                  }
-                />
-                <span>Compile as you type</span>
-              </label>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

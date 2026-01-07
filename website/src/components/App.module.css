@@ -32,7 +32,6 @@
   font-family: monospace;
   white-space: pre-wrap;
   border-top: 1px solid #444;
-  min-height: 100px;
   max-height: 150px;
   overflow-y: auto;
 }
@@ -58,24 +57,35 @@
   display: flex;
   align-items: center;
   padding: 0.5rem;
-  background: var(--color-bg-primary);
-  border-bottom: 1px solid #444;
+  background: var(--color-code-bg);
+  border-bottom: 1px solid var(--color-navbar-border);
   flex-shrink: 0;
+}
+
+.buttonGroup {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
+}
+
+.settingsContainer {
+  position: relative;
 }
 
 .settingsButton {
   background: #616161;
   border: none;
   color: white;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  border-radius: 4px;
+  padding: 0.5rem;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 40px;
+  min-height: 36px;
 }
 
 .settingsButton:hover {
@@ -86,27 +96,38 @@
   background: #424242;
 }
 
-.deleteButton {
-  margin-left: auto;
-  background: #d32f2f;
-  border: none;
-  color: white;
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: background 0.2s;
+.settingsDropdown {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  background: var(--color-code-bg);
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0.75rem;
+  min-width: 200px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+.settingItem {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  color: #d4d4d4;
+  font-size: 0.875rem;
 }
 
-.deleteButton:hover {
-  background: #b71c1c;
+.settingItem input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  accent-color: var(--color-accent);
 }
 
-.deleteButton:active {
-  background: #9a0007;
+.settingItem span {
+  white-space: nowrap;
 }
 
 .editorWrapper {
@@ -176,99 +197,4 @@
     width: 60px;
     height: 4px;
   }
-}
-
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modalContent {
-  background: var(--color-code-bg);
-  border-radius: 8px;
-  min-width: 400px;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-}
-
-.modalHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #444;
-  background: #252525;
-}
-
-.modalHeader h2 {
-  margin: 0;
-  color: #d4d4d4;
-  font-size: 1.25rem;
-  font-weight: 500;
-}
-
-.modalCloseButton {
-  background: transparent;
-  border: none;
-  color: #d4d4d4;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-
-.modalCloseButton:hover {
-  background: #424242;
-}
-
-.modalCloseButton:active {
-  background: #333;
-}
-
-.modalBody {
-  padding: 1.5rem;
-  color: #d4d4d4;
-  overflow-y: auto;
-}
-
-.modalBody p {
-  margin: 0;
-  line-height: 1.6;
-}
-
-.settingItem {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.settingItem input[type="checkbox"] {
-  width: 1.125rem;
-  height: 1.125rem;
-  cursor: pointer;
-  accent-color: var(--color-accent);
-}
-
-.settingItem span {
-  font-size: 0.95rem;
 }
