@@ -1,5 +1,6 @@
 ---
 import { theme } from '../styles/theme';
+const { hasCodeTabs = false } = Astro.props;
 ---
 
 <!doctype html>
@@ -9,15 +10,33 @@ import { theme } from '../styles/theme';
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
-    <title>Astro Basics</title>
+    <title><slot name="title">eBPF.party</slot></title>
     <style is:global set:html={`:root {
   --color-bg-primary: ${theme.bgPrimary};
   --color-code-bg: ${theme.codeBg};
   --color-text-primary: ${theme.textPrimary};
+}
+body {
+  margin: 0;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
 }`}></style>
   </head>
   <body>
-    <slot />
+    <nav class="navbar">
+      <div class="navbar-left">
+        <a href="/" class="site-name">eBPF.party</a>
+      </div>
+      {hasCodeTabs && (
+        <div class="navbar-tabs">
+          <label for="tab-instructions" class="tab-toggle">📖</label>
+          <label for="tab-code" class="tab-toggle">💻</label>
+        </div>
+      )}
+    </nav>
+    <main class="app-content">
+      <slot />
+    </main>
   </body>
 </html>
 
@@ -28,4 +47,78 @@ import { theme } from '../styles/theme';
     width: 100%;
     height: 100%;
   }
+
+  .navbar {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f5f5f5;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .site-name {
+    font-weight: 600;
+    font-size: 1.1rem;
+    color: #333;
+    text-decoration: none;
+  }
+
+  .site-name:hover {
+    color: #000;
+  }
+
+  .navbar-tabs {
+    display: none;
+  }
+
+  .app-content {
+    height: calc(100vh - 50px);
+  }
+
+  @media (max-width: 1280px) {
+    .navbar-tabs {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .tab-toggle {
+      cursor: pointer;
+      font-size: 1.5rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      background: #e0e0e0;
+      transition: all 0.2s;
+      user-select: none;
+    }
+
+    .tab-toggle:hover {
+      background: #d0d0d0;
+    }
+
+    .tab-toggle.active {
+      background: #4caf50;
+    }
+  }
 </style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const labels = document.querySelectorAll('.tab-toggle');
+    labels.forEach(label => {
+      label.addEventListener('click', () => {
+        labels.forEach(l => l.classList.remove('active'));
+        label.classList.add('active');
+      });
+    });
+
+    const activeInput = document.querySelector('input[name="mobile-tabs"]:checked');
+    if (activeInput) {
+      const activeLabel = document.querySelector(`.tab-toggle[for="${activeInput.id}"]`);
+      activeLabel?.classList.add('active');
+    }
+  });
+</script>

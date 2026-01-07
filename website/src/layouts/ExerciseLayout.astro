@@ -1,5 +1,5 @@
 ---
-import { theme } from '../styles/theme';
+import Layout from './Layout.astro';
 import InteractiveEditor from "../components/InteractiveEditor.astro";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -35,24 +35,12 @@ if (hasCode) {
 
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{chapterTitle} - {frontmatter.title}</title>
-    <style is:global set:html={`:root {
-  --color-bg-primary: ${theme.bgPrimary};
-  --color-code-bg: ${theme.codeBg};
-  --color-text-primary: ${theme.textPrimary};
-}`}></style>
-  </head>
-  <body>
-    <div class="container">
+<Layout hasCodeTabs={hasCode}>
+  <Fragment slot="title">{chapterTitle} - {frontmatter.title}</Fragment>
+
+  <div class="exercise-container">
       {hasCode &&
       (
-        <!-- Tab controls (hidden on desktop) -->
         <input
           type="radio"
           name="mobile-tabs"
@@ -62,18 +50,7 @@ if (hasCode) {
         />
         <input type="radio" name="mobile-tabs" id="tab-code" class="tab-input" />
 
-        <!-- Tab bar (mobile only) -->
-        <div class="tab-bar">
-          <label for="tab-instructions" class="tab-label">
-            📖 Instructions
-          </label>
-          <label for="tab-code" class="tab-label"> 💻 Code </label>
-        </div>
-        <!-- Content panes -->
-        <div class={"content tab-content " + (hasCode?"":"hcenter")}>
-          <div class="topbar">
-            <a href="/" class="home-button">Home</a>
-          </div>
+        <div class="content tab-content">
           <div class="content-scroll">
             <h4>{chapterTitle}</h4>
             <h1>{frontmatter.title}</h1>
@@ -90,11 +67,7 @@ if (hasCode) {
       )}
 
       {!hasCode && (
-      <!-- Content panes -->
       <div class="content">
-        <div class="topbar">
-          <a href="/" class="home-button">Home</a>
-        </div>
         <div class="content-scroll nocode">
           <h4>{chapterTitle}</h4>
           <h1>{frontmatter.title}</h1>
@@ -103,19 +76,10 @@ if (hasCode) {
       </div>
       )}
 
-    </div>
-  </body>
-</html>
+  </div>
+</Layout>
 
 <style>
-  html,
-  body {
-    margin: 0;
-    width: 100%;
-    height: 100%;
-    font-family: sans-serif;
-  }
-
   h4 ~ h1,
   h4:has(~ h1) {
     padding: 0px;
@@ -126,9 +90,9 @@ if (hasCode) {
     font-size: 30px;
   }
 
-  .container {
+  .exercise-container {
     display: flex;
-    height: 100vh;
+    height: 100%;
   }
 
   .content {
@@ -142,35 +106,11 @@ if (hasCode) {
     margin: 0px auto;
   }
 
-  .topbar {
-    background: #f5f5f5;
-    padding: 1rem;
-    border-bottom: 1px solid #ddd;
-  }
-
-  .home-button {
-    text-decoration: none;
-    color: #555;
-    font-weight: 500;
-    font-size: 14px;
-    display: inline-block;
-    transition: color 0.2s;
-  }
-
-  .home-button:hover {
-    color: #000;
-  }
-
   .content-scroll {
     padding: 0.5rem 2rem 2rem 2rem;
   }
 
-  /* Tab system - hidden on desktop */
   .tab-input {
-    display: none;
-  }
-
-  .tab-bar {
     display: none;
   }
 
@@ -179,56 +119,15 @@ if (hasCode) {
     display: flex;
     flex-direction: column;
   }
-  /* Mobile-only tab system */
   @media (max-width: 1280px) {
-    .container {
-      height: 100vh;
-      display: flex;
+    .exercise-container {
       flex-direction: column;
     }
 
-    /* Show tab bar */
-    .tab-bar {
-      display: flex;
-      background: #f5f5f5;
-      border-bottom: 2px solid #ddd;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .tab-label {
-      flex: 1;
-      text-align: center;
-      padding: 1rem;
-      cursor: pointer;
-      font-weight: 500;
-      font-size: 14px;
-      color: #666;
-      border-bottom: 3px solid transparent;
-      transition: all 0.2s;
-      user-select: none;
-    }
-
-    .tab-label:hover {
-      background: #fafafa;
-      color: #333;
-    }
-
-    /* Active tab styling */
-    #tab-instructions:checked ~ .tab-bar label[for="tab-instructions"],
-    #tab-code:checked ~ .tab-bar label[for="tab-code"] {
-      color: #4caf50;
-      border-bottom-color: #4caf50;
-      background: white;
-    }
-
-    /* Hide all tab content by default */
     .tab-content {
       display: none;
     }
 
-    /* Show active tab content */
     #tab-instructions:checked ~ .content.tab-content {
       display: block;
       flex: 1;
@@ -238,7 +137,6 @@ if (hasCode) {
     #tab-code:checked ~ .editor-wrapper.tab-content {
       display: flex;
       flex: 1;
-      overflow: hidden;
     }
 
     .content {
