@@ -1,9 +1,9 @@
 import CodeMirror from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
 import { indentUnit, syntaxTree } from "@codemirror/language";
+import { oneDark } from "@codemirror/theme-one-dark";
 
 interface CodeEditorProps {
   code: string;

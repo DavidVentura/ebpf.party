@@ -1,4 +1,5 @@
 ---
+import { theme } from '../styles/theme';
 import InteractiveEditor from "../components/InteractiveEditor.astro";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -41,6 +42,11 @@ if (hasCode) {
     <meta name="viewport" content="width=device-width" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{chapterTitle} - {frontmatter.title}</title>
+    <style is:global set:html={`:root {
+  --color-bg-primary: ${theme.bgPrimary};
+  --color-code-bg: ${theme.codeBg};
+  --color-text-primary: ${theme.textPrimary};
+}`}></style>
   </head>
   <body>
     <div class="container">
@@ -171,7 +177,10 @@ if (hasCode) {
     display: flex;
     flex-direction: column;
   }
-
+  .content  {
+      background-color: var(--color-bg-primary);
+      color: white;
+  }
   /* Mobile-only tab system */
   @media (max-width: 1280px) {
     .container {
@@ -244,6 +253,10 @@ if (hasCode) {
     }
   }
   /* mdx rules */
+  .content-scroll  :global(p, h1,h2,h3, h4, code, a, li) {
+    color: var(--color-text-primary);   
+  }
+
   .content-scroll :global(h2) {
     margin: 0.5em 0px;
   }
@@ -257,7 +270,7 @@ if (hasCode) {
     overflow-x: auto;
   }
   .content-scroll :global(:not(pre) > code) {
-    background-color: rgb(220 220 220);
+    background-color: var(--color-code-bg);
     border-radius: 4px;
     padding: 4px;
   }

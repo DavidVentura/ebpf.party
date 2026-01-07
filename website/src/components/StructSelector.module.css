@@ -1,6 +1,6 @@
 .structSelector {
   padding: 1rem;
-  background: #2d2d2d;
+  background: var(--color-code-bg);
   border-top: 1px solid #444;
   display: flex;
   align-items: center;
@@ -14,7 +14,7 @@
 
 .structSelector select {
   flex: 1;
-  background: #1e1e1e;
+  background: var(--color-bg-primary);
   color: #d4d4d4;
   border: 1px solid #444;
   padding: 0.5rem;

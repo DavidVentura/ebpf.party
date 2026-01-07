@@ -1,5 +1,5 @@
 .eventViewer {
-  background: #2d2d2d;
+  background: var(--color-code-bg);
   padding: 1rem;
   height: 100%;
   overflow: hidden;
@@ -59,7 +59,7 @@
   font-size: 12px;
   margin: 0;
   padding: 0.5rem;
-  background: #1e1e1e;
+  background: var(--color-bg-primary);
   border-left: 2px solid #4caf50;
   border-radius: 2px;
   white-space: pre-wrap;

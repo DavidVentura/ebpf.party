@@ -1,3 +1,7 @@
+---
+import { theme } from '../styles/theme';
+---
+
 <!doctype html>
 <html lang="en">
   <head>
@@ -6,6 +10,11 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
     <title>Astro Basics</title>
+    <style is:global set:html={`:root {
+  --color-bg-primary: ${theme.bgPrimary};
+  --color-code-bg: ${theme.codeBg};
+  --color-text-primary: ${theme.textPrimary};
+}`}></style>
   </head>
   <body>
     <slot />

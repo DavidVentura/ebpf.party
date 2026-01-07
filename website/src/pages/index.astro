@@ -56,15 +56,24 @@ const chapters = metadataFiles
   </div>
 </Layout>
 
+<style is:global>
+  body {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+  }
+</style>
+
 <style>
   .home {
     padding: 2rem;
     max-width: 800px;
     margin: 0 auto;
+    min-height: 100vh;
   }
 
   h1 {
     margin-bottom: 2rem;
+    color: var(--color-text-primary);
   }
 
   .chapter {
@@ -72,7 +81,7 @@ const chapters = metadataFiles
   }
 
   .chapter h2 {
-    color: #333;
+    color: var(--color-text-primary);
     font-size: 1.25rem;
     margin-bottom: 0.5rem;
   }

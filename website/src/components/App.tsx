@@ -6,7 +6,6 @@ import CodeEditor from "./CodeEditor";
 import CompilerOutput from "./CompilerOutput";
 import RunButton from "./RunButton";
 import EventViewer from "./EventViewer";
-import StructSelector from "./StructSelector";
 import StructViewer from "./StructViewer";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import type { TypeInfo } from "../types/typeinfo";
