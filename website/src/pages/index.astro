@@ -1,37 +1,17 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import { CONTENT_METADATA } from "../lib/exercises-metadata";
-
-const chapters = CONTENT_METADATA.chapters;
+import ExerciseList from "../components/ExerciseList";
 ---
 
 <Layout>
   <div class="home">
     <h1>eBPF Exercises</h1>
-    {
-      chapters.map((chapter) => (
-        <section class="chapter">
-          <h2>
-            <span class="chapter-number">Chapter {chapter.number}:</span>{" "}
-            {chapter.title}
-          </h2>
-          <ul>
-            {chapter.exercises.map((exercise) => {
-              const url = `/exercises/${chapter.slug}/${exercise.slug}`;
-              return (
-                <li>
-                  {exercise.incomplete && !import.meta.env.DEV ? (
-                    <span>{exercise.title} (coming soon)</span>
-                  ) : (
-                    <a href={url}>{exercise.title}</a>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))
-    }
+    <p>
+      Learn eBPF through hands-on exercises. Write, compile, and run programs
+      directly in your browser.
+    </p>
+    <ExerciseList client:load metadata={CONTENT_METADATA} />
   </div>
 </Layout>
 
@@ -42,43 +22,50 @@ const chapters = CONTENT_METADATA.chapters;
     margin: 0 auto;
   }
 
-  h1 {
+  .home h1 {
     margin-bottom: 2rem;
     color: var(--color-text-primary);
   }
 
-  .chapter {
+  :global(.chapter) {
     margin-bottom: 2rem;
   }
 
-  .chapter h2 {
+  :global(.chapter h2) {
     color: var(--color-text-primary);
     font-size: 1.25rem;
     margin-bottom: 0.5rem;
   }
 
-  .chapter-number {
+  :global(.chapter-number) {
     color: var(--color-accent);
     font-weight: 600;
   }
 
-  ul {
+  :global(.chapter ul) {
     list-style: none;
     padding: 0;
     margin-left: 1rem;
   }
 
-  li {
+  :global(.chapter li) {
     margin: 0.5rem 0;
   }
 
-  a {
+  :global(.chapter a) {
     color: #0066cc;
     text-decoration: none;
     font-size: 1rem;
   }
 
-  a:hover {
+  :global(.chapter a:hover) {
     text-decoration: underline;
+  }
+
+  :global(.completion-indicator) {
+    margin-left: 0.5rem;
+    color: var(--color-accent);
+    font-weight: bold;
+    font-size: 1.1em;
   }
 </style>

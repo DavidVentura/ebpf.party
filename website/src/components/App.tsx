@@ -287,6 +287,13 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isSettingsOpen]);
 
+  useEffect(() => {
+    const hasCorrectAnswer = events.some(e => e.type === 'correctAnswer');
+    if (hasCorrectAnswer) {
+      localStorage.setItem(`exercise-completed-${exerciseId}`, 'true');
+    }
+  }, [events, exerciseId]);
+
   return (
     <div className={styles.app}>
       <Group
