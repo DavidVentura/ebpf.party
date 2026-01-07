@@ -1,6 +1,8 @@
 ---
 import { theme } from "../styles/theme";
-import { BookOpen, Terminal } from "@lucide/astro";
+import BookOpen from "@lucide/astro/icons/book-open";
+import Terminal from "@lucide/astro/icons/terminal";
+import Logo from "../../public/logo.svg";
 const { hasCodeTabs = false } = Astro.props;
 ---
 
@@ -19,6 +21,8 @@ const { hasCodeTabs = false } = Astro.props;
   --color-code-bg: ${theme.codeBg};
   --color-text-primary: ${theme.textPrimary};
   --color-accent: ${theme.accent};
+  --color-navbar-bg: hsl(224, 14%, 16%);
+  --color-navbar-border: hsl(224, 10%, 10%);
 }
 body {
   margin: 0;
@@ -33,7 +37,7 @@ body {
       <div class="navbar-content">
         <div class="navbar-left">
           <a href="/" class="site-link">
-            <img src="/logo.svg" alt="eBPF.party logo" class="logo" />
+            <Logo stroke="currentColor" class="logo" />
             <span class="site-name">eBPF.party</span>
           </a>
         </div>
@@ -66,11 +70,9 @@ body {
   }
 
   .navbar {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    background: #f5f5f5;
-    border-bottom: 1px solid #ddd;
+    z-index: 1;
+    border-bottom: 1px solid var(--color-navbar-);
+    background-color: var(--color-navbar-bg);
   }
 
   .navbar-content {
@@ -88,6 +90,7 @@ body {
     align-items: center;
     gap: 0.5rem;
     text-decoration: none;
+    color: var(--color-text-primary);
   }
 
   .logo {
@@ -98,11 +101,6 @@ body {
   .site-name {
     font-weight: 600;
     font-size: 1.1rem;
-    color: #333;
-  }
-
-  .site-link:hover .site-name {
-    color: #000;
   }
 
   .navbar-tabs {
@@ -110,7 +108,7 @@ body {
   }
 
   .app-content {
-    height: calc(100vh - 50px);
+    height: calc(100vh - 60px);
     max-width: 220ch;
     margin: 0 auto;
   }
@@ -119,7 +117,7 @@ body {
     .navbar-tabs {
       display: flex;
       gap: 0;
-      background: #e0e0e0;
+      background: #111;
       border-radius: 6px;
       padding: 3px;
     }
@@ -146,7 +144,7 @@ body {
     }
 
     .tab-toggle:hover {
-      background: rgba(255, 255, 255, 0.5);
+      background: rgba(255, 255, 255, 0.1);
     }
 
     body:has(#tab-instructions:checked)

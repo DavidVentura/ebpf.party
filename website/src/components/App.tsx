@@ -12,7 +12,8 @@ import type { TypeInfo } from "../types/typeinfo";
 import type { DebTypeInfo } from "../types/debtypeinfo";
 import type { SSEEvent } from "../types/sse-events";
 import styles from "./App.module.css";
-import { RotateCcw, Settings } from "lucide-react";
+import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import Settings from "lucide-react/dist/esm/icons/settings";
 
 interface AppProps {
   starterCode: string;

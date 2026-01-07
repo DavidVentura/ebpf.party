@@ -1,4 +1,5 @@
-import { Loader, Play } from "lucide-react";
+import Loader from "lucide-react/dist/esm/icons/loader";
+import Play from "lucide-react/dist/esm/icons/play";
 import styles from "./RunButton.module.css";
 
 interface RunButtonProps {
