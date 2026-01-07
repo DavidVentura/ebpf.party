@@ -1,11 +1,4 @@
----
-layout: ../../../layouts/ExerciseLayout.astro
-title: Tracing a system call
-codeFile: 3_execve_syscall.c
-exerciseId: reading-syscalls
----
 import ExecveArgs from '../../../components/ExecveArgs.tsx';
-
 
 In the previous exercises, we hooked into the scheduler (`sched_process_exec`). This event fires *after* the kernel has loaded a binary and populated its internal structures.
 

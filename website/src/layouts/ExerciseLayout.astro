@@ -2,74 +2,32 @@
 import Layout from './Layout.astro';
 import InteractiveEditor from "../components/InteractiveEditor.astro";
 import ExerciseNav from "../components/ExerciseNav";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 
-const { frontmatter } = Astro.props;
-
-const exerciseId = frontmatter.exerciseId!!;
-
-const urlPath = Astro.url.pathname;
-const chapterMatch = urlPath.match(/\/exercises\/(chapter-\d+)\//)!!;
-
-const chapterSlug = chapterMatch[1];
-const metadataPath = join(
-  process.cwd(),
-  "src/pages/exercises",
-  chapterSlug,
-  "metadata.json"
-);
-const metadata = JSON.parse(await readFile(metadataPath, "utf-8"));
-const chapterId: number = metadata.number;
-const chapterTitle = metadata.title;
-const hasCode = !!frontmatter.codeFile;
-let starterCode = null;
-if (hasCode) {
-  const codeFilePath = join(
-    process.cwd(),
-    "public/exercises-code",
-    chapterId.toString(),
-    frontmatter.codeFile
-  );
-  starterCode = await readFile(codeFilePath, "utf-8");
+interface Props {
+  chapterTitle: string;
+  exerciseTitle: string;
+  exerciseId: string;
+  chapterId: number;
+  hasCode: boolean;
+  starterCode: string | null;
+  prevExercise: any;
+  nextExercise: any;
 }
 
-// Load all exercises for navigation
-const allExercises = await Astro.glob("../pages/exercises/**/*.mdx");
-const metadataFiles = await Astro.glob("../pages/exercises/**/metadata.json");
-
-// Create a map of chapter slug to chapter number
-const chapterNumbers = metadataFiles.reduce((acc, meta) => {
-  acc[meta.default.slug] = meta.default.number;
-  return acc;
-}, {} as Record<string, number>);
-
-// Sort exercises by chapter number and filename
-const sortedExercises = allExercises
-  .filter(ex => ex.url && !ex.url.includes('/pending/'))
-  .sort((a, b) => {
-    const aMatch = a.url?.match(/\/exercises\/(chapter-\d+)\/(.+)/);
-    const bMatch = b.url?.match(/\/exercises\/(chapter-\d+)\/(.+)/);
-    if (!aMatch || !bMatch) return 0;
-
-    const aChapter = chapterNumbers[aMatch[1]] || 0;
-    const bChapter = chapterNumbers[bMatch[1]] || 0;
-
-    if (aChapter !== bChapter) return aChapter - bChapter;
-
-    // Sort by filename within chapter
-    return aMatch[2].localeCompare(bMatch[2]);
-  });
-
-// Find current exercise index
-const currentIndex = sortedExercises.findIndex(ex => ex.url === urlPath);
-const prevExercise = currentIndex > 0 ? sortedExercises[currentIndex - 1] : null;
-const nextExercise = currentIndex < sortedExercises.length - 1 ? sortedExercises[currentIndex + 1] : null;
-
+const {
+  chapterTitle,
+  exerciseTitle,
+  exerciseId,
+  chapterId,
+  hasCode,
+  starterCode,
+  prevExercise,
+  nextExercise
+} = Astro.props;
 ---
 
 <Layout hasCodeTabs={hasCode}>
-  <Fragment slot="title">{chapterTitle} - {frontmatter.title}</Fragment>
+  <Fragment slot="title">{chapterTitle} - {exerciseTitle}</Fragment>
 
   <div class="exercise-container">
       {hasCode &&
@@ -87,7 +45,7 @@ const nextExercise = currentIndex < sortedExercises.length - 1 ? sortedExercises
           <div class="content-scroll">
             <div class="content-body">
               <h4>{chapterTitle}</h4>
-              <h1>{frontmatter.title}</h1>
+              <h1>{exerciseTitle}</h1>
               <slot />
             </div>
             <ExerciseNav prevExercise={prevExercise} nextExercise={nextExercise} client:load />
@@ -107,7 +65,7 @@ const nextExercise = currentIndex < sortedExercises.length - 1 ? sortedExercises
         <div class="content-scroll nocode">
           <div class="content-body">
             <h4>{chapterTitle}</h4>
-            <h1>{frontmatter.title}</h1>
+            <h1>{exerciseTitle}</h1>
             <slot />
           </div>
           <ExerciseNav prevExercise={prevExercise} nextExercise={nextExercise} client:load />

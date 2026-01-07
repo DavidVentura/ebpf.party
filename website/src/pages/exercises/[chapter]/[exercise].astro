@@ -1,0 +1,69 @@
+---
+import { getEntry } from 'astro:content';
+import { getExerciseByParams, getNavigationContext } from '../../../lib/exercises-metadata';
+import ExerciseLayout from '../../../layouts/ExerciseLayout.astro';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+
+export async function getStaticPaths() {
+  const { getAllExercisesFlat } = await import('../../../lib/exercises-metadata');
+  const exercises = getAllExercisesFlat();
+
+  return exercises.map(({ chapter, exercise }) => ({
+    params: {
+      chapter: chapter.slug,
+      exercise: exercise.slug
+    },
+  }));
+}
+
+const { chapter, exercise } = Astro.params;
+const result = getExerciseByParams(chapter, exercise);
+if (!result) {
+  return Astro.redirect('/404');
+}
+
+const { chapter: chapterData, exercise: exerciseData } = result;
+
+const entry = await getEntry('exercises', exerciseData.contentPath);
+if (!entry) {
+  return Astro.redirect('/404');
+}
+
+const { Content } = await entry.render();
+
+const hasCode = !!exerciseData.codeFile;
+let starterCode = null;
+if (hasCode) {
+  const codeFilePath = join(
+    process.cwd(),
+    'public/exercises-code',
+    chapterData.number.toString(),
+    exerciseData.codeFile
+  );
+  starterCode = await readFile(codeFilePath, 'utf-8');
+}
+
+const navContext = getNavigationContext(chapter, exercise);
+const prevExercise = navContext?.prev ? {
+  url: navContext.prev.url,
+  frontmatter: { title: navContext.prev.exercise.title }
+} : null;
+const nextExercise = navContext?.next ? {
+  url: navContext.next.url,
+  frontmatter: { title: navContext.next.exercise.title }
+} : null;
+---
+
+<ExerciseLayout
+  chapterTitle={chapterData.title}
+  exerciseTitle={exerciseData.title}
+  exerciseId={exerciseData.exerciseId}
+  chapterId={chapterData.number}
+  hasCode={hasCode}
+  starterCode={starterCode}
+  prevExercise={prevExercise}
+  nextExercise={nextExercise}
+>
+  <Content />
+</ExerciseLayout>

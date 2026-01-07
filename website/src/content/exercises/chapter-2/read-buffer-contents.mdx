@@ -1,10 +1,3 @@
----
-layout: ../../../layouts/ExerciseLayout.astro
-title: Reading syscall buffers
-codeFile: 1_read_buffer.c
-exerciseId: read-buffer-contents
----
-
 In the previous exercise, we learned how to use maps to share data between multiple eBPF programs.
 
 Now let's apply this to capturing data from syscall buffers. Syscalls have two tracepoint types: `enter` (before it starts) and `exit` (after it finishes). We'll need to correlate data between both.

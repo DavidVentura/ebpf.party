@@ -1,0 +1,52 @@
+If this code was running on a regular environment, then we could read the parent's PID like this:
+
+```c
+int ppid = task->real_parent->tgid;
+```
+
+```verifier
+9: (85) call bpf_get_current_task#35          ; R0=scalar()
+;  @ <stdin>:65
+10: (79) r1 = *(u64 *)(r0 +2504)
+R0 invalid mem access 'scalar'
+processed 11 insns (limit 1000000) max_states_per_insn 0 total_states 1 peak_states 1 mark_read 0
+-- END PROG LOAD LOG --
+libbpf: prog 'handle_exec': failed to load: -EACCES
+libbpf: failed to load object '7f3a6cc81050-25a8'
+```
+
+<details>
+<summary>Here's a short refresher of the eBPF concepts seen [in the tutorial]().</summary>
+
+eBPF allows us to attach arbitrary programs to specific points in the Kernel.
+
+To see what's available:
+
+```bash
+sudo ls /sys/kernel/debug/tracing/events/
+block dev sock syscalls tcp ...
+```
+
+Each tracepoint takes a single argument, with a dedicated struct type.
+
+The tracepoint is invoked _before the start_ of the kernel function.
+
+</details>
+
+<details>
+<summary>Excessive details on `__data_loc` definition</summary>
+You can find that the `__data_loc` prefix is prepended in the [__dynamic_array macro](https://github.com/torvalds/linux/blob/v6.18/include/trace/stages/stage4_event_fields.h#L33-L36).
+```c
+#define __dynamic_array(_type, _item, _len) {				\
+	.type = "__data_loc " #_type "[]", .name = #_item,		\
+	.size = 4, .align = 4,						\
+	.is_signed = is_signed_type(_type), .filter_type = FILTER_OTHER },
+```
+which is part of the machinery that generates the tracing format we saw before.
+
+For the actual runtime behavior, see the [sched_process_exec tracepoint definition](https://github.com/torvalds/linux/blob/v6.18/include/trace/events/sched.h#L438)
+which uses `__string()` to declare the field and `__assign_str()` to populate it.
+
+The `__assign_str` macro copies the string to a buffer and encodes the offset + length into that 4-byte `filename` field.
+
+</details>

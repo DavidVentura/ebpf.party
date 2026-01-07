@@ -1,32 +1,8 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import { CONTENT_METADATA } from "../lib/exercises-metadata";
 
-const exercises = await Astro.glob("./exercises/**/*.mdx");
-const metadataFiles = await Astro.glob("./exercises/**/metadata.json");
-
-// Group exercises by chapter slug
-const exercisesBySlug = exercises.reduce(
-  (acc, exercise) => {
-    const match = exercise.url?.match(/\/exercises\/(chapter-\d+)\//);
-    const slug = match ? match[1] : "other";
-
-    if (!acc[slug]) {
-      acc[slug] = [];
-    }
-    acc[slug].push(exercise);
-    return acc;
-  },
-  {} as Record<string, typeof exercises>
-);
-
-// Build chapters with metadata
-const chapters = metadataFiles
-  .map((meta) => meta.default)
-  .sort((a, b) => a.number - b.number)
-  .map((chapter) => ({
-    ...chapter,
-    exercises: exercisesBySlug[chapter.slug] || [],
-  }));
+const chapters = CONTENT_METADATA.chapters;
 ---
 
 <Layout>
@@ -40,15 +16,18 @@ const chapters = metadataFiles
             {chapter.title}
           </h2>
           <ul>
-            {chapter.exercises.map((exercise) => (
-              <li>
-                {exercise.frontmatter.incomplete && !import.meta.env.DEV ? (
-                  <span>{exercise.frontmatter.title} (coming soon)</span>
-                ) : (
-                  <a href={exercise.url}>{exercise.frontmatter.title}</a>
-                )}
-              </li>
-            ))}
+            {chapter.exercises.map((exercise) => {
+              const url = `/exercises/${chapter.slug}/${exercise.slug}`;
+              return (
+                <li>
+                  {exercise.incomplete && !import.meta.env.DEV ? (
+                    <span>{exercise.title} (coming soon)</span>
+                  ) : (
+                    <a href={url}>{exercise.title}</a>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       ))
