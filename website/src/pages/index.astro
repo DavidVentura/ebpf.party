@@ -11,6 +11,7 @@ import ExerciseList from "../components/ExerciseList";
       Learn eBPF through hands-on exercises. Write, compile, and run programs
       directly in your browser.
     </p>
+    <p>Curious about how it works? <a href="">Here's an explanation.</a></p>
     <ExerciseList client:load metadata={CONTENT_METADATA} />
   </div>
 </Layout>
@@ -27,45 +28,10 @@ import ExerciseList from "../components/ExerciseList";
     color: var(--color-text-primary);
   }
 
-  :global(.chapter) {
+  .home p {
     margin-bottom: 2rem;
   }
-
-  :global(.chapter h2) {
+  a {
     color: var(--color-text-primary);
-    font-size: 1.25rem;
-    margin-bottom: 0.5rem;
-  }
-
-  :global(.chapter-number) {
-    color: var(--color-accent);
-    font-weight: 600;
-  }
-
-  :global(.chapter ul) {
-    list-style: none;
-    padding: 0;
-    margin-left: 1rem;
-  }
-
-  :global(.chapter li) {
-    margin: 0.5rem 0;
-  }
-
-  :global(.chapter a) {
-    color: #0066cc;
-    text-decoration: none;
-    font-size: 1rem;
-  }
-
-  :global(.chapter a:hover) {
-    text-decoration: underline;
-  }
-
-  :global(.completion-indicator) {
-    margin-left: 0.5rem;
-    color: var(--color-accent);
-    font-weight: bold;
-    font-size: 1.1em;
   }
 </style>

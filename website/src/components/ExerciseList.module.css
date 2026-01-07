@@ -1,0 +1,63 @@
+.chapter {
+  margin-bottom: 2rem;
+}
+
+.chapterHeader {
+  color: var(--color-text-primary);
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.chapterNumber {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.chapterBox {
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.exerciseRow {
+  display: flex;
+  align-items: center;
+  padding: 0.1rem 1rem;
+  border-bottom: 1px solid var(--color-border);
+  gap: 1rem;
+}
+
+.exerciseRow:last-child {
+  border-bottom: none;
+}
+
+.exerciseRow:hover {
+  background-color: var(--color-background-secondary);
+}
+
+.exerciseHex {
+  color: var(--color-text-secondary);
+  font-family: monospace;
+  font-size: 0.9rem;
+  min-width: 3rem;
+}
+
+.exerciseCompletion {
+  color: var(--color-accent);
+  font-weight: bold;
+  font-size: 1.1em;
+  min-width: 1rem;
+  text-align: center;
+}
+
+.exerciseTitle {
+  color: var(--color-text-primary);
+  text-decoration: none;
+  font-size: 1rem;
+  flex: 1;
+}
+
+a.exerciseTitle:hover {
+  text-decoration: underline;
+}
+

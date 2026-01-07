@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { ContentMetadata } from '../lib/exercises-metadata';
+import styles from './ExerciseList.module.css';
 
 interface ExerciseListProps {
   metadata: ContentMetadata;
@@ -23,30 +24,32 @@ export default function ExerciseList({ metadata }: ExerciseListProps) {
   return (
     <>
       {metadata.chapters.map((chapter) => (
-        <section key={chapter.slug} className="chapter">
-          <h2>
-            <span className="chapter-number">Chapter {chapter.number}:</span>{" "}
+        <section key={chapter.slug} className={styles.chapter}>
+          <h2 className={styles.chapterHeader}>
+            <span className={styles.chapterNumber}>Chapter {chapter.number}:</span>{" "}
             {chapter.title}
           </h2>
-          <ul>
-            {chapter.exercises.map((exercise) => {
+          <div className={styles.chapterBox}>
+            {chapter.exercises.map((exercise, index) => {
               const url = `/exercises/${chapter.slug}/${exercise.slug}`;
               const isCompleted = completedExercises.has(exercise.exerciseId);
+              const hexNum = `0x${index.toString(16).padStart(2, '0')}`;
 
               return (
-                <li key={exercise.slug}>
+                <div key={exercise.slug} className={styles.exerciseRow}>
+                  <span className={styles.exerciseHex}>{hexNum}</span>
+                  <span className={styles.exerciseCompletion}>
+                    {isCompleted ? '✓' : ''}
+                  </span>
                   {exercise.incomplete && !import.meta.env.DEV ? (
-                    <span>{exercise.title} (coming soon)</span>
+                    <span className={styles.exerciseTitle}>{exercise.title} (coming soon)</span>
                   ) : (
-                    <>
-                      <a href={url}>{exercise.title}</a>
-                      {isCompleted && <span className="completion-indicator">✓</span>}
-                    </>
+                    <a href={url} className={styles.exerciseTitle}>{exercise.title}</a>
                   )}
-                </li>
+                </div>
               );
             })}
-          </ul>
+          </div>
         </section>
       ))}
     </>

@@ -18,10 +18,13 @@ const { hasCodeTabs = false } = Astro.props;
       is:global
       set:html={`:root {
   --color-bg-primary: ${theme.bgPrimary};
+  --color-background-secondary: ${theme.bgSecondary};
   --color-code-bg: ${theme.codeBg};
   --color-text-primary: ${theme.textPrimary};
+  --color-text-secondary: ${theme.textSecondary};
   --color-accent: ${theme.accent};
   --color-alert-bg: ${theme.alertBg};
+  --color-border: ${theme.border};
   --color-navbar-bg: hsl(224, 14%, 16%);
   --color-navbar-border: hsl(224, 10%, 10%);
 }
