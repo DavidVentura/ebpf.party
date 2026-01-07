@@ -1,5 +1,6 @@
 ---
-import { theme } from '../styles/theme';
+import { theme } from "../styles/theme";
+import { BookOpen, Terminal } from "@lucide/astro";
 const { hasCodeTabs = false } = Astro.props;
 ---
 
@@ -11,29 +12,39 @@ const { hasCodeTabs = false } = Astro.props;
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="generator" content={Astro.generator} />
     <title><slot name="title">eBPF.party</slot></title>
-    <style is:global set:html={`:root {
+    <style
+      is:global
+      set:html={`:root {
   --color-bg-primary: ${theme.bgPrimary};
   --color-code-bg: ${theme.codeBg};
   --color-text-primary: ${theme.textPrimary};
+  --color-accent: ${theme.accent};
 }
 body {
   margin: 0;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
   font-family: sans-serif;
-}`}></style>
+}`}
+    ></style>
   </head>
   <body>
     <nav class="navbar">
       <div class="navbar-left">
         <a href="/" class="site-name">eBPF.party</a>
       </div>
-      {hasCodeTabs && (
-        <div class="navbar-tabs">
-          <label for="tab-instructions" class="tab-toggle">📖</label>
-          <label for="tab-code" class="tab-toggle">💻</label>
-        </div>
-      )}
+      {
+        hasCodeTabs && (
+          <div class="navbar-tabs">
+            <label for="tab-instructions" class="tab-toggle">
+              <BookOpen size={18} />
+            </label>
+            <label for="tab-code" class="tab-toggle">
+              <Terminal size={18} />
+            </label>
+          </div>
+        )
+      }
     </nav>
     <main class="app-content">
       <slot />
@@ -98,20 +109,26 @@ body {
       transition: all 0.2s;
       user-select: none;
       border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #999;
     }
 
     body:has(#tab-instructions:checked) .tab-toggle[for="tab-instructions"],
     body:has(#tab-code:checked) .tab-toggle[for="tab-code"] {
-      background: #4caf50;
+      background: var(--color-accent);
+      color: white;
     }
 
     .tab-toggle:hover {
       background: rgba(255, 255, 255, 0.5);
     }
 
-    body:has(#tab-instructions:checked) .tab-toggle[for="tab-instructions"]:hover,
+    body:has(#tab-instructions:checked)
+      .tab-toggle[for="tab-instructions"]:hover,
     body:has(#tab-code:checked) .tab-toggle[for="tab-code"]:hover {
-      background: #4caf50;
+      background: var(--color-accent);
     }
   }
 </style>

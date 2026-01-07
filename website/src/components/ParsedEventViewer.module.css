@@ -16,7 +16,7 @@
 }
 
 .eventType {
-  color: #4caf50;
+  color: var(--color-accent);
   font-family: monospace;
   font-size: 12px;
   font-weight: bold;

@@ -73,6 +73,9 @@
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .settingsButton:hover {
@@ -93,6 +96,9 @@
   border-radius: 4px;
   cursor: pointer;
   transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .deleteButton:hover {
@@ -260,7 +266,7 @@
   width: 1.125rem;
   height: 1.125rem;
   cursor: pointer;
-  accent-color: #4caf50;
+  accent-color: var(--color-accent);
 }
 
 .settingItem span {

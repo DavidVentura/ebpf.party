@@ -1,3 +1,4 @@
+import { Loader, Play } from "lucide-react";
 import styles from "./RunButton.module.css";
 
 interface RunButtonProps {
@@ -17,7 +18,7 @@ export default function RunButton({
       onClick={onRun}
       disabled={disabled || isRunning}
     >
-      {isRunning ? "..." : "Run"}
+      {isRunning ? <Loader size={16} /> : <Play size={16} />}
     </button>
   );
 }

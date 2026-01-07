@@ -1,5 +1,5 @@
 .runButton {
-  background: #4caf50;
+  background: var(--color-accent);
   color: white;
   border: none;
   padding: 0.5rem;
@@ -9,10 +9,14 @@
   transition: background 0.2s;
   border-radius: 6px;
   min-width: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
 }
 
 .runButton:hover:not(:disabled) {
-  background: #45a049;
+  filter: brightness(0.9);
 }
 
 .runButton:disabled {

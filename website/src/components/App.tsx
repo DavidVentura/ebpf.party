@@ -12,6 +12,7 @@ import type { TypeInfo } from "../types/typeinfo";
 import type { DebTypeInfo } from "../types/debtypeinfo";
 import type { SSEEvent } from "../types/sse-events";
 import styles from "./App.module.css";
+import { RotateCcw, Settings } from "lucide-react";
 
 interface AppProps {
   starterCode: string;
@@ -291,14 +292,14 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
                 onClick={() => setIsSettingsOpen(true)}
                 title="Settings"
               >
-                ⚙️
+                <Settings size={16} />
               </button>
               <button
                 className={styles.deleteButton}
                 onClick={handleDelete}
                 title="Reset to starter code"
               >
-                🗑️
+                <RotateCcw size={16} />
               </button>
             </div>
             <div className={styles.editorWrapper}>
