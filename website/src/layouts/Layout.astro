@@ -20,6 +20,7 @@ body {
   margin: 0;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
+  font-family: sans-serif;
 }`}></style>
   </head>
   <body>
@@ -82,43 +83,35 @@ body {
   @media (max-width: 1280px) {
     .navbar-tabs {
       display: flex;
-      gap: 0.5rem;
+      gap: 0;
+      background: #e0e0e0;
+      border-radius: 6px;
+      padding: 3px;
     }
 
     .tab-toggle {
       cursor: pointer;
-      font-size: 1.5rem;
-      padding: 0.25rem 0.75rem;
+      font-size: 1.25rem;
+      padding: 0.35rem 0.6rem;
       border-radius: 4px;
-      background: #e0e0e0;
+      background: transparent;
       transition: all 0.2s;
       user-select: none;
+      border: none;
+    }
+
+    body:has(#tab-instructions:checked) .tab-toggle[for="tab-instructions"],
+    body:has(#tab-code:checked) .tab-toggle[for="tab-code"] {
+      background: #4caf50;
     }
 
     .tab-toggle:hover {
-      background: #d0d0d0;
+      background: rgba(255, 255, 255, 0.5);
     }
 
-    .tab-toggle.active {
+    body:has(#tab-instructions:checked) .tab-toggle[for="tab-instructions"]:hover,
+    body:has(#tab-code:checked) .tab-toggle[for="tab-code"]:hover {
       background: #4caf50;
     }
   }
 </style>
-
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const labels = document.querySelectorAll('.tab-toggle');
-    labels.forEach(label => {
-      label.addEventListener('click', () => {
-        labels.forEach(l => l.classList.remove('active'));
-        label.classList.add('active');
-      });
-    });
-
-    const activeInput = document.querySelector('input[name="mobile-tabs"]:checked');
-    if (activeInput) {
-      const activeLabel = document.querySelector(`.tab-toggle[for="${activeInput.id}"]`);
-      activeLabel?.classList.add('active');
-    }
-  });
-</script>
