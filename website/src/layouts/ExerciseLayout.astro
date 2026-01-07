@@ -5,7 +5,6 @@ import { join } from "node:path";
 
 const { frontmatter } = Astro.props;
 
-let starterCode = frontmatter.starterCode || "";
 const exerciseId = frontmatter.exerciseId!!;
 
 const urlPath = Astro.url.pathname;
@@ -19,16 +18,20 @@ const metadataPath = join(
   "metadata.json"
 );
 const metadata = JSON.parse(await readFile(metadataPath, "utf-8"));
-let chapterId: number = metadata.number;
-let chapterTitle = metadata.title;
+const chapterId: number = metadata.number;
+const chapterTitle = metadata.title;
+const hasCode = !!frontmatter.codeFile;
+let starterCode = null;
+if (hasCode) {
+  const codeFilePath = join(
+    process.cwd(),
+    "public/exercises-code",
+    chapterId.toString(),
+    frontmatter.codeFile
+  );
+  starterCode = await readFile(codeFilePath, "utf-8");
+}
 
-const codeFilePath = join(
-  process.cwd(),
-  "public/exercises-code",
-  chapterId.toString(),
-  frontmatter.codeFile
-);
-starterCode = await readFile(codeFilePath, "utf-8");
 ---
 
 <!doctype html>
@@ -41,36 +44,36 @@ starterCode = await readFile(codeFilePath, "utf-8");
   </head>
   <body>
     <div class="container">
-      <!-- Tab controls (hidden on desktop) -->
-      <input
-        type="radio"
-        name="mobile-tabs"
-        id="tab-instructions"
-        class="tab-input"
-        checked
-      />
-      <input type="radio" name="mobile-tabs" id="tab-code" class="tab-input" />
+      {hasCode &&
+      (
+        <!-- Tab controls (hidden on desktop) -->
+        <input
+          type="radio"
+          name="mobile-tabs"
+          id="tab-instructions"
+          class="tab-input"
+          checked
+        />
+        <input type="radio" name="mobile-tabs" id="tab-code" class="tab-input" />
 
-      <!-- Tab bar (mobile only) -->
-      <div class="tab-bar">
-        <label for="tab-instructions" class="tab-label">
-          📖 Instructions
-        </label>
-        <label for="tab-code" class="tab-label"> 💻 Code </label>
-      </div>
-
-      <!-- Content panes -->
-      <div class="content tab-content">
-        <div class="topbar">
-          <a href="/" class="home-button">Home</a>
+        <!-- Tab bar (mobile only) -->
+        <div class="tab-bar">
+          <label for="tab-instructions" class="tab-label">
+            📖 Instructions
+          </label>
+          <label for="tab-code" class="tab-label"> 💻 Code </label>
         </div>
-        <div class="content-scroll">
-          <h4>{chapterTitle}</h4>
-          <h1>{frontmatter.title}</h1>
-          <slot />
+        <!-- Content panes -->
+        <div class={"content tab-content " + (hasCode?"":"hcenter")}>
+          <div class="topbar">
+            <a href="/" class="home-button">Home</a>
+          </div>
+          <div class="content-scroll">
+            <h4>{chapterTitle}</h4>
+            <h1>{frontmatter.title}</h1>
+            <slot />
+          </div>
         </div>
-      </div>
-
       <div class="editor-wrapper tab-content">
         <InteractiveEditor
           starterCode={starterCode}
@@ -78,6 +81,22 @@ starterCode = await readFile(codeFilePath, "utf-8");
           chapterId={chapterId}
         />
       </div>
+      )}
+
+      {!hasCode && (
+      <!-- Content panes -->
+      <div class={"content tab-content"}>
+        <div class="topbar">
+          <a href="/" class="home-button">Home</a>
+        </div>
+        <div class="content-scroll nocode">
+          <h4>{chapterTitle}</h4>
+          <h1>{frontmatter.title}</h1>
+          <slot />
+        </div>
+      </div>
+      )}
+
     </div>
   </body>
 </html>
@@ -109,6 +128,10 @@ starterCode = await readFile(codeFilePath, "utf-8");
   .content {
     flex: 1;
     overflow-y: auto;
+  }
+  .content-scroll.nocode {
+    max-width: 100ch;
+    margin: 0px auto;
   }
 
   .topbar {

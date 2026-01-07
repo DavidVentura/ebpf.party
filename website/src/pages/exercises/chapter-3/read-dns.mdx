@@ -3,5 +3,82 @@ layout: ../../../layouts/ExerciseLayout.astro
 title: Reading DNS responses
 codeFile: 1_dns.c
 exerciseId: read-dns
-incomplete: true
 ---
+
+We've read file contents from syscall buffers. Now let's read network data - specifically DNS responses to extract IP addresses.
+
+## The recvfrom syscall
+
+DNS clients use `recvfrom()` to receive UDP responses:
+
+```c
+ssize_t recvfrom(int sockfd, void *buf, size_t len, int flags,
+                 struct sockaddr *src_addr, socklen_t *addrlen);
+```
+
+Like `read()`, we need entry/exit correlation:
+- At **entry**: Buffer is empty, but we have the pointer at `ctx->args[1]`
+- At **exit**: Buffer is filled with DNS response, `ctx->ret` = bytes received
+
+## DNS packet structure
+
+```c
+struct dns_header {
+    u16 id;
+    u16 flags;
+    u16 qdcount;   // Question count
+    u16 ancount;   // Answer count
+    u16 nscount;
+    u16 arcount;
+};
+```
+
+After the header: **Question section** (domain name) → **Answer section** (IP address).
+
+### Domain name encoding
+
+DNS encodes domains as length-prefixed labels: `\x04ebpf\x05party\x00` for "ebpf.party".
+
+To parse:
+```c
+int pos = sizeof(struct dns_header);
+char domain[64];
+int out = 0;
+
+#pragma unroll
+for (int i = 0; i < 10; i++) {  // Max 10 labels
+    u8 len = buf[pos++];
+    if (len == 0) break;
+
+    #pragma unroll
+    for (int j = 0; j < 63; j++) {
+        if (j >= len) break;
+        domain[out++] = buf[pos++];
+    }
+
+    if (buf[pos] != 0) domain[out++] = '.';
+}
+```
+
+### Answer section structure
+
+After question (domain + QTYPE + QCLASS), the answer contains:
+
+```c
+// NAME (variable, often a pointer)
+// TYPE (2 bytes) - 0x0001 for A record (IPv4)
+// CLASS (2 bytes)
+// TTL (4 bytes)
+// RDLENGTH (2 bytes) - should be 4 for IPv4
+// RDATA (4 bytes) - the IP address
+```
+
+For A records, RDATA is the IPv4 address in network byte order.
+
+## The challenge
+
+A program makes DNS queries. Find the response for "ebpf.party" and submit its IP address.
+
+At `recvfrom` entry, store the buffer pointer. At exit, read the DNS response, parse the domain name from the question section, check if it matches "ebpf.party" with `bpf_strncmp()`, then extract and submit the IPv4 address from the answer section.
+
+The IP address is 4 bytes in network byte order. Convert it to a `u32` with `bpf_ntohl()` and submit with `SUBMIT_NUM()`.

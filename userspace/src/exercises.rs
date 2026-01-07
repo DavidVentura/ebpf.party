@@ -2,6 +2,7 @@ use std::fs;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
 use std::panic::RefUnwindSafe;
 use std::process::Command;
+use std::sync::mpsc;
 use std::time::Duration;
 
 pub trait Exercise: Send + RefUnwindSafe {
@@ -182,21 +183,40 @@ impl Exercise for TrackSocketAndConnect {
         let port_: u64 = u64::from_le_bytes(answer.try_into().unwrap());
         assert!(port_ < u16::MAX as u64);
         let port: u16 = port_ as u16;
+        let addr = format!("127.0.0.1:{port}");
+        println!("Listening on {addr}");
+
+        let (tx, rx) = mpsc::channel();
+
         std::thread::spawn(move || {
-            let listener = TcpListener::bind(format!("127.0.0.1:{port}")).unwrap();
+            let listener = TcpListener::bind(addr).unwrap();
+            tx.send(()).unwrap();
             while !crate::SHOULD_STOP.load(std::sync::atomic::Ordering::Relaxed) {
                 std::thread::sleep(Duration::from_millis(10));
             }
             drop(listener);
         });
+
+        // wait til the listener is up before confirming setup
+        rx.recv().unwrap();
+        std::thread::sleep(Duration::from_millis(10));
     }
 
     fn run(&self, answer: &[u8]) {
         let port_: u64 = u64::from_le_bytes(answer.try_into().unwrap());
         assert!(port_ < u16::MAX as u64);
         let port: u16 = port_ as u16;
+        for i in 1..10 {
+            let sa = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port + i));
+            // this is supposed to fail
+            let _ = TcpStream::connect(&sa);
+        }
+
         let sa = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port));
-        TcpStream::connect_timeout(&sa, Duration::from_millis(100)).unwrap();
+        // Using connect_timeout here sets the socket in non-blocking mode
+        // which means `connect` returns EINPROGRESS
+        // and tracking that is more complex than expected for a first socket intro
+        TcpStream::connect(&sa).unwrap();
     }
 }
 

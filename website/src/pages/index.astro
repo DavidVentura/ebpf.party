@@ -42,7 +42,7 @@ const chapters = metadataFiles
           <ul>
             {chapter.exercises.map((exercise) => (
               <li>
-                {exercise.frontmatter.incomplete ? (
+                {exercise.frontmatter.incomplete && !import.meta.env.DEV ? (
                   <span>{exercise.frontmatter.title} (coming soon)</span>
                 ) : (
                   <a href={exercise.url}>{exercise.frontmatter.title}</a>

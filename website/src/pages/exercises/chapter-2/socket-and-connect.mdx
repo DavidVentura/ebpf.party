@@ -3,25 +3,10 @@ layout: ../../../layouts/ExerciseLayout.astro
 title: Tracking network connections
 codeFile: 3_socket_connect.c
 exerciseId: socket-and-connect
-incomplete: true
 ---
 
-Now let's apply map correlation to network sockets!
 
-When a program makes a network connection:
-1. `socket()` creates a socket → returns socket fd
-2. `connect(fd, addr, ...)` connects using that fd
-
-We'll track socket creation, then intercept connection attempts.
-
-## The socket syscall
-
-```c
-int socket(int domain, int type, int protocol);
-```
-
-- Returns: socket file descriptor
-- We'll track this fd in a map
+Like `open()` and `read()`, network connections have both an attempt (entry) and a result (exit). To correlate these events, we store data at entry and retrieve it at exit.
 
 ## The connect syscall
 
@@ -29,87 +14,46 @@ int socket(int domain, int type, int protocol);
 int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 ```
 
-The `addr` structure for IPv4:
+At **entry** (`sys_enter_connect`):
+- `ctx->args[0]` = socket file descriptor
+- `ctx->args[1]` = pointer to `sockaddr` structure (user space)
+
+At **exit** (`sys_exit_connect`):
+- `ctx->ret == 0` → Connection succeeded
+- `ctx->ret < 0` → Connection failed (errno value)
+
+## Reading the sockaddr structure
+
+The `addr` pointer at `ctx->args[1]` points to user space memory. You must use `bpf_probe_read_user()` to safely copy it:
+
+```c
+struct sockaddr_in addr;
+bpf_probe_read_user(&addr, sizeof(addr), (void *)ctx->args[1]);
+```
+
+For IPv4 connections (`sin_family == 2`):
 
 ```c
 struct sockaddr_in {
     u16 sin_family;  // AF_INET = 2
     u16 sin_port;    // Port (network byte order!)
-    u32 sin_addr;    // IP address (network byte order!)
+    u32 sin_addr;    // IP address
     char __pad[8];
 };
 ```
 
-**Important:** Port and IP are in **network byte order** (big-endian).
-
-Convert to host order:
-```c
-u16 port = bpf_ntohs(addr.sin_port);     // Network to host (16-bit)
-u32 ip = bpf_ntohl(addr.sin_addr.s_addr); // Network to host (32-bit)
-```
-
-## The pattern
+Port and IP are in **network byte order** ([big-endian](https://en.wikipedia.org/wiki/Endianness)). Convert to host order with the helper:
 
 ```c
-// Track socket fds
-struct {
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __uint(max_entries, 1024);
-    __type(key, u32);   // socket fd
-    __type(value, u8);  // flag (1 = tracked)
-} tracked_sockets SEC(".maps");
-
-// At socket creation
-SEC("tracepoint/syscalls/sys_exit_socket")
-int trace_socket_exit(struct trace_event_raw_sys_exit *ctx)
-{
-    if (ctx->ret < 0) return 0;
-    u32 sockfd = ctx->ret;
-    u8 flag = 1;
-
-    bpf_map_update_elem(&tracked_sockets, &sockfd, &flag, BPF_ANY);
-    return 0;
-}
-
-// At connect
-SEC("tracepoint/syscalls/sys_enter_connect")
-int trace_connect_entry(struct trace_event_raw_sys_enter *ctx)
-{
-    u32 sockfd = ctx->args[0];
-
-    // Check if we're tracking this socket
-    u8 *tracked = bpf_map_lookup_elem(&tracked_sockets, &sockfd);
-    if (!tracked) return 0;
-
-    // Read sockaddr structure
-    struct sockaddr_in addr;
-    bpf_probe_read_user(&addr, sizeof(addr), (void *)ctx->args[1]);
-
-    if (addr.sin_family == 2) {  // AF_INET
-        u16 port = bpf_ntohs(addr.sin_port);
-        DEBUG_NUM("Port", port);
-    }
-
-    return 0;
-}
+u16 port = bpf_ntohs(addr.sin_port);
 ```
 
 ## The challenge
 
-A program creates a socket and connects to a suspicious port.
+A program attempts to connect to multiple ports. Most connections fail, but one succeeds. **Submit the port of the connection that succeeds.**
 
-Your task:
+### Your task:
+1. At `connect` entry: Read the `sockaddr_in` structure and store the port in a temporary map
+2. At `connect` exit: Check if the connection succeeded (`ret == 0`), then submit the port
 
-1. Define a map to track socket fds
-2. In `socket` exit: Store the socket fd in the map
-3. In `connect` entry:
-   - Check if fd is tracked
-   - Read the `sockaddr_in` structure
-   - Verify `sin_family == 2` (IPv4)
-   - Extract and convert the port number
-   - Submit the suspicious port with `SUBMIT_NUM(port)`
-
-**Hints:**
-- You'll see connections to common ports (22, 80, 443)
-- The suspicious port will stand out
-- Use `DEBUG_NUM` to see all connection attempts
+The starter code has the structure you need to follow.

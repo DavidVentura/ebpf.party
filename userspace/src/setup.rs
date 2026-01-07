@@ -1,5 +1,6 @@
 use std::ffi::CString;
 use std::fs;
+mod loopback;
 
 fn mount(source: &str, target: &str, fstype: &str, flags: u64) -> Result<(), String> {
     let source = CString::new(source).unwrap();
@@ -29,6 +30,8 @@ fn mount(source: &str, target: &str, fstype: &str, flags: u64) -> Result<(), Str
 
 pub fn setup_host_env() -> Result<(), String> {
     mount("sysfs", "/sys", "sysfs", 0)?;
+    // this takes like 30µs, not worth doing in a branch
+    loopback::setup_loopback()?;
     fs::create_dir_all("/sys/kernel/tracing/").unwrap();
     mount("tracefs", "/sys/kernel/tracing", "tracefs", 0)?;
     mount("ramfs", "/bin", "ramfs", 0)?;
