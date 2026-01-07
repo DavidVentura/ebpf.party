@@ -2,6 +2,7 @@
 import Layout from './Layout.astro';
 import InteractiveEditor from "../components/InteractiveEditor.astro";
 import ExerciseNav from "../components/ExerciseNav";
+import '../styles/mdx-content.css';
 
 interface Props {
   chapterTitle: string;
@@ -42,7 +43,7 @@ const {
         <input type="radio" name="mobile-tabs" id="tab-code" class="tab-input" />
 
         <div class="content tab-content">
-          <div class="content-scroll">
+          <div class="content-scroll mdx-content">
             <div class="content-body">
               <h4>{chapterTitle}</h4>
               <h1>{exerciseTitle}</h1>
@@ -62,7 +63,7 @@ const {
 
       {!hasCode && (
       <div class="content">
-        <div class="content-scroll nocode">
+        <div class="content-scroll mdx-content nocode">
           <div class="content-body">
             <h4>{chapterTitle}</h4>
             <h1>{exerciseTitle}</h1>
@@ -149,58 +150,5 @@ const {
     .content-scroll {
       overflow-y: visible;
     }
-  }
-  /* mdx rules */
-  .content-scroll :global(p, h1,h2,h3, h4, code, a, li) {
-    color: var(--color-text-primary);   
-  }
-  .content-scroll :global(*) {
-    box-sizing: border-box;
-  }
-
-  .content-scroll :global(h2) {
-    margin: 0.5em 0px;
-  }
-  .content-scroll :global(p),
-  .content-scroll :global(pre:has(code)) {
-    margin: 8px 0px;
-  }
-  .content-scroll :global(pre) {
-    padding: 10px;
-    border-radius: 4px;
-    overflow-x: auto;
-  }
-  .content-scroll :global(:not(pre) > code) {
-    background-color: var(--color-code-bg);
-    border-radius: 4px;
-    padding: 4px;
-  }
-
-  .content-scroll :global(details[open]::details-content) {
-    padding: 0.5rem;
-    border: 1px dotted black;
-  }
-
-  .content-scroll :global(p ~ ol, p ~ ul) {
-    margin: 8px 0px;
-  }
-
-  .content-scroll :global(ul) {
-    padding-left: 20px;
-  }
-
-  .content-scroll :global(kbd) {
-    background-color: #eeeeee;
-    border-radius: 3px;
-    border: 1px solid #b4b4b4;
-    box-shadow:
-      0 1px 1px rgb(0 0 0 / 0.2),
-      0 2px 0 0 rgb(255 255 255 / 0.7) inset;
-    color: #333333;
-    display: inline-block;
-    font-size: 0.85em;
-    line-height: 1;
-    padding: 4px 4px;
-    white-space: nowrap;
   }
 </style>

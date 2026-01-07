@@ -1,0 +1,22 @@
+---
+layout: ../layouts/ContentLayout.astro
+title: How this site works
+---
+
+# How this platform works
+
+When you send a request to the backend (after clicking `Run`), a fresh VM is created to handle your request.
+
+The VM you get has:
+
+  - 0.5vCPU
+  - 64MB RAM
+  - 8MB, read only, rootfs
+  - No network
+  - A 500ms self-destruct timer
+  - Kernel version 6.18.2
+
+It is quite limited, but this is plenty for the exercises we run.
+
+the code will be compiled into a BPF object file, then a new VM will be created, and your object file will be loaded.
+Source -> Clang -> VM -> Loader -> Execute -> Frontend

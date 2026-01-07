@@ -1,0 +1,48 @@
+---
+import Layout from './Layout.astro';
+import '../styles/mdx-content.css';
+
+interface Props {
+  title: string;
+}
+
+const { title } = Astro.props;
+---
+
+<Layout>
+  <div class="content-container">
+    <div class="content-scroll mdx-content">
+      <div class="content-body">
+        <h1>{title}</h1>
+        <slot />
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  .content-container {
+    display: flex;
+    height: 100%;
+    background-color: var(--color-bg-primary);
+    color: var(--color-text-primary);
+  }
+
+  .content-scroll {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem 2rem 2rem 2rem;
+    max-width: 100ch;
+    margin: 0px auto;
+    box-sizing: border-box;
+  }
+
+  .content-body {
+    padding-top: 1rem;
+  }
+
+  h1 {
+    font-size: 30px;
+    margin-bottom: 1.5rem;
+  }
+</style>

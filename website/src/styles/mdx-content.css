@@ -1,0 +1,64 @@
+.mdx-content p,
+.mdx-content h1,
+.mdx-content h2,
+.mdx-content h3,
+.mdx-content h4,
+.mdx-content code,
+.mdx-content a,
+.mdx-content li {
+  color: var(--color-text-primary);
+}
+
+.mdx-content * {
+  box-sizing: border-box;
+}
+
+.mdx-content h2 {
+  margin: 0.5em 0px;
+}
+
+.mdx-content p,
+.mdx-content pre:has(code) {
+  margin: 8px 0px;
+}
+
+.mdx-content pre {
+  padding: 10px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+
+.mdx-content :not(pre) > code {
+  background-color: var(--color-code-bg);
+  border-radius: 4px;
+  padding: 4px;
+}
+
+.mdx-content details[open]::details-content {
+  padding: 0.5rem;
+  border: 1px dotted black;
+}
+
+.mdx-content p ~ ol,
+.mdx-content p ~ ul {
+  margin: 8px 0px;
+}
+
+.mdx-content ul {
+  padding-left: 20px;
+}
+
+.mdx-content kbd {
+  background-color: #eeeeee;
+  border-radius: 3px;
+  border: 1px solid #b4b4b4;
+  box-shadow:
+    0 1px 1px rgb(0 0 0 / 0.2),
+    0 2px 0 0 rgb(255 255 255 / 0.7) inset;
+  color: #333333;
+  display: inline-block;
+  font-size: 0.85em;
+  line-height: 1;
+  padding: 4px 4px;
+  white-space: nowrap;
+}
