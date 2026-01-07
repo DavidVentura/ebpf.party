@@ -1,7 +1,6 @@
 #include "task.h"
 
 #if __TINYC__
-#define __builtin_classify_type(a) 6
 #define __builtin_preserve_access_index(x) x
 #define __builtin_bswap16(x) x
 #endif
@@ -23,7 +22,7 @@ struct {
 } _ep_debug_events SEC(".maps");
 
 #define DEBUG_STRUCT(label_str, struct_val) do { \
-    _Static_assert(__builtin_classify_type(struct_val) != 5, "need a struct by value"); \
+    _Static_assert(__builtin_classify_type(struct_val) != 5, "DEBUG_STRUCT takes a struct by value, not reference"); \
     _Static_assert(sizeof(struct_val) < 256, "Struct is too big, max size is 255"); \
     __debug_struct(label_str, __COUNTER__, &struct_val, sizeof(struct_val), 0); \
 } while (0)
@@ -43,7 +42,7 @@ struct {
 } while (0)
 
 #define DEBUG_NUM(label_str, num_val) do { \
-    _Static_assert(__builtin_classify_type(num_val) != 5, "need a number by value"); \
+    _Static_assert(__builtin_classify_type(num_val) != 5, "DEBUG_NUM takes a number by value, not reference"); \
     __typeof__(num_val) _tmp = (num_val); \
     __debug_num(label_str, __COUNTER__, &_tmp, sizeof(num_val), 0); \
 } while (0)
@@ -59,7 +58,7 @@ struct {
 } while (0)
 
 #define SUBMIT_NUM(num_val) do { \
-    _Static_assert(__builtin_classify_type(num_val) != 5, "need a number by value"); \
+    _Static_assert(__builtin_classify_type(num_val) != 5, "SUBMIT_NUM takes a number by value, not reference"); \
     __typeof__(num_val) _tmp = (num_val); \
     __debug_num("answer", __COUNTER__, &_tmp, sizeof(num_val), 1); \
 } while (0)
