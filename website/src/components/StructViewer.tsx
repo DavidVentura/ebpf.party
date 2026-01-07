@@ -2,19 +2,18 @@ import type { TypeInfo, TypeMember } from "../types/typeinfo";
 import styles from "./StructViewer.module.css";
 
 function StructMember({ member }: { member: TypeMember }) {
-  let meta = `offset: ${member.offset}, size: ${member.size}`;
-
-  if (member.kind === "scalar" && member.unsigned) {
-    meta += ", unsigned";
-  } else if (member.kind === "array") {
-    meta += `, [${member.element_count}]`;
-  }
+  const signIndicator = member.kind === "scalar" && !member.unsigned ? "±" : "";
+  const fieldName = member.kind === "array"
+    ? `${member.name}[${member.element_count}]`
+    : member.name;
 
   return (
     <div className={styles.member}>
+      <span className={styles.signIndicator}>{signIndicator}</span>
       <span className={styles.memberType}>{member.type}</span>
-      <span className={styles.memberName}>{member.name}</span>
-      <span className={styles.memberMeta}>{meta}</span>
+      <span className={styles.memberName}>{fieldName}</span>
+      <span className={styles.memberOffset}>{member.offset}</span>
+      <span className={styles.memberSize}>{member.size}</span>
     </div>
   );
 }
@@ -32,6 +31,14 @@ function Struct({ struct }: { struct: TypeInfo }) {
       </div>
       {struct.kind === "struct" && (
         <div className={styles.structMembers}>
+          <div className={styles.memberHeader}>
+            <span></span>
+            <span></span>
+            <span></span>
+            <span>offset</span>
+            <span>size</span>
+          </div>
+          <div className={styles.headerBorder}></div>
           {struct.members.map((member, i) => (
             <StructMember key={i} member={member} />
           ))}

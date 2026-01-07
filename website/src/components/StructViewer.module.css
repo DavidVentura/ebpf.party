@@ -1,7 +1,7 @@
 .structViewer {
   padding: 1rem;
-  background: #f9f9f9;
-  border-top: 1px solid #ddd;
+  background: var(--color-bg-primary);
+  border-top: 1px solid var(--color-border);
   max-height: 400px;
   overflow-y: auto;
 }
@@ -16,13 +16,14 @@
 .structViewer h3 {
   margin: 0;
   font-size: 1rem;
+  color: var(--color-text-primary);
 }
 
 .closeButton {
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #666;
+  color: var(--color-text-secondary);
   cursor: pointer;
   padding: 0;
   width: 24px;
@@ -35,21 +36,21 @@
 }
 
 .closeButton:hover {
-  background: #e0e0e0;
-  color: #333;
+  background: var(--color-code-bg);
+  color: var(--color-text-primary);
 }
 
 .struct {
   margin-bottom: 1rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
-  background: white;
+  background: var(--color-bgSecondary);
 }
 
 .structHeader {
   padding: 0.5rem;
-  background: #f0f0f0;
-  border-bottom: 1px solid #ddd;
+  background: var(--color-code-bg);
+  border-bottom: 1px solid var(--color-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -57,36 +58,57 @@
 
 .structMeta {
   font-size: 0.85rem;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
 .structMembers {
-  padding: 0.5rem;
+  padding: 0.75rem;
+  display: grid;
+  grid-template-columns: 2ch auto 1fr auto auto;
+  gap: 0.5rem;
+  row-gap: 0.25rem;
+  font-family: monospace;
+  align-items: baseline;
+}
+
+.memberHeader {
+  display: contents;
+  font-size: 0.85rem;
+  color: var(--color-text-secondary);
+}
+
+.headerBorder {
+  grid-column: 1 / -1;
+  border-bottom: 1px solid var(--color-border);
 }
 
 .member {
-  padding: 0.25rem 0;
-  font-family: monospace;
+  display: contents;
   font-size: 0.9rem;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 0.5rem;
+}
+
+.signIndicator {
+  text-align: center;
+  color: var(--color-accent);
+  font-weight: bold;
 }
 
 .memberType {
-  color: #0066cc;
+  color: #569cd6;
 }
 
 .memberName {
-  color: #333;
+  color: var(--color-text-primary);
 }
 
-.memberMeta {
-  font-size: 0.8rem;
-  color: #999;
+.memberOffset,
+.memberSize {
+  color: var(--color-text-secondary);
+  text-align: right;
+  min-width: 2.5rem;
 }
 
 .noData {
-  color: #666;
+  color: var(--color-text-secondary);
   font-style: italic;
 }

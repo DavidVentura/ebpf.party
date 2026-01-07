@@ -24,17 +24,20 @@ interface ParsedFieldProps {
 }
 
 function escapeNonPrintable(str: string): string {
-  return str.split('').map(char => {
-    const code = char.charCodeAt(0);
-    if (code >= 0x20 && code <= 0x7E) {
-      return char;
-    }
-    if (char === '\n') return '\\n';
-    if (char === '\r') return '\\r';
-    if (char === '\t') return '\\t';
-    if (char === '\0') return '\\0';
-    return '\\u' + code.toString(16).padStart(4, '0');
-  }).join('');
+  return str
+    .split("")
+    .map((char) => {
+      const code = char.charCodeAt(0);
+      if (code >= 0x20 && code <= 0x7e) {
+        return char;
+      }
+      if (char === "\n") return "\\n";
+      if (char === "\r") return "\\r";
+      if (char === "\t") return "\\t";
+      if (char === "\0") return "\\0";
+      return "\\u" + code.toString(16).padStart(4, "0");
+    })
+    .join("");
 }
 
 function ParsedFieldComponent({
@@ -46,7 +49,7 @@ function ParsedFieldComponent({
   onToggleNumber,
   depth,
 }: ParsedFieldProps) {
-  const indentStyle = { paddingLeft: `${depth * 1.5}rem` };
+  const indentStyle = { paddingLeft: `${depth * 0.5}rem` };
 
   if (field.value.kind === "scalar") {
     const mode = numberModes[path] || "decimal";
@@ -104,7 +107,7 @@ function ParsedFieldComponent({
     let displayValue: string;
 
     if (mode === "string") {
-      const trimmed = field.value.value.replace(/\0+$/, '');
+      const trimmed = field.value.value.replace(/\0+$/, "");
       const escaped = escapeNonPrintable(trimmed);
       if (trimmed.length !== field.value.value.length) {
         displayValue = `"${escaped}\\0"`;
@@ -355,7 +358,7 @@ export default function ParsedEventViewer({
     let displayValue: string;
 
     if (mode === "string") {
-      const trimmed = stringValue.replace(/\0+$/, '');
+      const trimmed = stringValue.replace(/\0+$/, "");
       const escaped = escapeNonPrintable(trimmed);
       if (trimmed.length !== stringValue.length) {
         displayValue = `"${escaped}\\0"`;
