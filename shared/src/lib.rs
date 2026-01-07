@@ -128,7 +128,7 @@ pub fn get_answer(exercise_id: ExerciseId, user_key: u64) -> Vec<u8> {
         ReadBufferContents => "for sure there's a lot of content in this file"
             .to_string()
             .into_bytes(),
-        TrackSocketAndConnect => (user_key % u16::MAX as u64).to_le_bytes().to_vec(),
+        TrackSocketAndConnect => ((user_key % 65000u64) + 10).to_le_bytes().to_vec(),
         ReadFilePassword => format!("banana-{:0>6}", user_key % 1_000_000).into_bytes(),
 
         ReadDns => todo!("Implement answer generation for ex-3-1"),
