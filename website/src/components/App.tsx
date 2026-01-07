@@ -13,7 +13,6 @@ import type { DebTypeInfo } from "../types/debtypeinfo";
 import type { SSEEvent } from "../types/sse-events";
 import styles from "./App.module.css";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
-import Ellipsis from "lucide-react/dist/esm/icons/ellipsis";
 
 interface AppProps {
   starterCode: string;
@@ -302,14 +301,13 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
             <div className={styles.runButtonHeader}>
               <div className={styles.buttonGroup}>
                 <div className={styles.settingsContainer}>
-                  <button
-                    ref={settingsButtonRef}
-                    className={styles.settingsButton}
-                    onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                    title="Settings"
-                  >
-                    <Ellipsis size={16} />
-                  </button>
+                  <RunButton
+                    disabled={!canRun}
+                    isRunning={isRunning}
+                    onRun={handleRun}
+                    onDropdownClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                    dropdownButtonRef={settingsButtonRef}
+                  />
                   {isSettingsOpen && (
                     <div className={styles.settingsDropdown}>
                       <label className={styles.settingItem}>
@@ -322,14 +320,20 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
                         />
                         <span>Compile as you type</span>
                       </label>
+                      <div className={styles.settingsSeparator} />
+                      <button
+                        className={styles.resetButton}
+                        onClick={() => {
+                          handleDelete();
+                          setIsSettingsOpen(false);
+                        }}
+                      >
+                        <RotateCcw size={14} />
+                        <span>Reset code to defaults</span>
+                      </button>
                     </div>
                   )}
                 </div>
-                <RunButton
-                  disabled={!canRun}
-                  isRunning={isRunning}
-                  onRun={handleRun}
-                />
               </div>
             </div>
             <div className={styles.editorWrapper}>

@@ -1,3 +1,7 @@
+.buttonGroup {
+  display: flex;
+}
+
 .runButton {
   background: var(--color-accent);
   color: white;
@@ -6,8 +10,8 @@
   font-family: monospace;
   font-size: 14px;
   cursor: pointer;
-  transition: background 0.2s;
-  border-radius: 6px;
+  transition: filter 0.2s;
+  border-radius: 6px 0 0 6px;
   min-width: 100px;
   min-height: 36px;
   display: flex;
@@ -24,4 +28,28 @@
   background: #555;
   color: #888;
   cursor: not-allowed;
+}
+
+.dropdownButton {
+  background: var(--color-accent);
+  border: none;
+  color: white;
+  padding: 0.5rem;
+  border-radius: 0 6px 6px 0;
+  cursor: pointer;
+  transition: filter 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 36px;
+  border-left: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.dropdownButton:hover {
+  filter: brightness(0.9);
+}
+
+.dropdownButton:active {
+  filter: brightness(0.8);
 }

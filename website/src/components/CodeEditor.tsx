@@ -57,6 +57,7 @@ export default function CodeEditor({
     ctrlEnterHandler,
     ctrlClickHandler,
     indentUnit.of("    "),
+    EditorView.lineWrapping,
   ];
 
   return (

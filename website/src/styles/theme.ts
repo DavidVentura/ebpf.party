@@ -3,4 +3,5 @@ export const theme = {
   codeBg: "#2a2e38",
   textPrimary: "#d4d4d4",
   accent: "#4caf50",
+  alertBg: "#2e1e1e",
 } as const;

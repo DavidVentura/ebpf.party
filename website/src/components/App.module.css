@@ -43,7 +43,7 @@
 
 .output.error {
   border-left: 4px solid #f44336;
-  background: #2e1e1e;
+  background: var(--color-alert-bg);
 }
 
 .editorPanel {
@@ -73,29 +73,6 @@
   position: relative;
 }
 
-.settingsButton {
-  background: #616161;
-  border: none;
-  color: white;
-  padding: 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 40px;
-  min-height: 36px;
-}
-
-.settingsButton:hover {
-  background: #757575;
-}
-
-.settingsButton:active {
-  background: #424242;
-}
-
 .settingsDropdown {
   position: absolute;
   top: calc(100% + 0.5rem);
@@ -117,8 +94,12 @@
   user-select: none;
   color: #d4d4d4;
   font-size: 0.875rem;
+  background: var(--color-code-bg);
 }
 
+.settingItem:hover{
+  filter: brightness(1.2);
+}
 .settingItem input[type="checkbox"] {
   width: 1rem;
   height: 1rem;
@@ -129,6 +110,31 @@
 .settingItem span {
   white-space: nowrap;
 }
+
+.settingsSeparator {
+  height: 1px;
+  background: #444;
+  margin: 0.5rem 0;
+}
+
+.resetButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  background: var(--color-code-bg);
+  border: none;
+  color: rgb(209, 84, 84);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  transition: filter 0.2s;
+}
+
+.resetButton:hover {
+  filter: brightness(1.2);
+}
+
 
 .editorWrapper {
   flex: 1;
