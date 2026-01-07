@@ -1,13 +1,10 @@
 .app {
   flex: 1;
-  background: var(--color-bg-primary);
   height: 100%;
 }
 
 .app :global(.cm-editor) {
   height: 100%;
-}
-.app :global(.cm-editor) {
   background-color: var(--color-code-bg) !important;
 }
 
@@ -22,6 +19,7 @@
 }
 
 .app :global(.cm-content) {
+  
   min-height: auto;
 }
 
@@ -141,6 +139,7 @@
   position: relative;
   min-height: 0;
   overflow: auto;
+  background-color: var(--color-code-bg);
 }
 
 .editorWrapper :global(.cm-editor) {
