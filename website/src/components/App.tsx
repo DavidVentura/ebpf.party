@@ -31,7 +31,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   const codeStorageKey = `user-code-${exerciseId}`;
 
   const getInitialCode = () => {
-    if (typeof window === 'undefined') return starterCode;
+    if (typeof window === "undefined") return starterCode;
     const savedCode = localStorage.getItem(codeStorageKey);
     return savedCode !== null ? savedCode : starterCode;
   };
@@ -45,7 +45,11 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   );
   const [isRunning, setIsRunning] = useState(false);
   const [events, setEvents] = useState<SSEEvent[]>([]);
-  const [savedLayout, setSavedLayout] = useState<{ [key: string]: number } | undefined>(undefined);
+  const [savedLayout, setSavedLayout] = useState<
+    { [key: string]: number } | undefined
+  >(undefined);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [compileAsYouType, setCompileAsYouType] = useState(true);
   const workerRef = useRef<TccWorkerClient | null>(null);
   const hasOutputRef = useRef(false);
   const compilationOutputRef = useRef("");
@@ -88,18 +92,20 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
         }
 
         if (errors.length > 0) {
-          errors.forEach(err => {
+          errors.forEach((err) => {
             const errorType = err.isWarning ? "Warning" : "Error";
             if (err.filename === "<string>") {
               compilationOutputRef.current += `${errorType} at line ${err.lineNum}: ${err.msg}\n`;
             } else {
-              compilationOutputRef.current += `${errorType} at ${err.filename || "<unknown>"}:${err.lineNum}: ${err.msg}\n`;
+              compilationOutputRef.current += `${errorType} at ${
+                err.filename || "<unknown>"
+              }:${err.lineNum}: ${err.msg}\n`;
             }
           });
         }
 
-        const hasErrors = errors.some(e => !e.isWarning);
-        const hasWarnings = errors.some(e => e.isWarning);
+        const hasErrors = errors.some((e) => !e.isWarning);
+        const hasWarnings = errors.some((e) => e.isWarning);
 
         let newOutputClass: "warning" | "error" | "" = "";
         if (hasErrors) {
@@ -132,6 +138,12 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     if (saved) {
       setSavedLayout(JSON.parse(saved));
     }
+
+    const compileSettingKey = `ebpf-party-compile-as-you-type`;
+    const savedCompileSetting = localStorage.getItem(compileSettingKey);
+    if (savedCompileSetting !== null) {
+      setCompileAsYouType(savedCompileSetting === "true");
+    }
   }, []);
 
   const performCheck = (code: string) => {
@@ -141,9 +153,50 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     lastCheckedCodeRef.current = code;
   };
 
+  const compileCode = (
+    code: string,
+    generateTypeBindings: boolean
+  ): Promise<{ success: boolean; errors: any[] }> => {
+    return new Promise((resolve) => {
+      compilationOutputRef.current = "";
+      hasOutputRef.current = false;
+
+      const originalOnResult = workerRef.current?.onResult;
+
+      workerRef.current!.onResult = (
+        result,
+        typeInfoJson,
+        debTypeInfoJson,
+        timing,
+        errors
+      ) => {
+        if (originalOnResult) {
+          originalOnResult(
+            result,
+            typeInfoJson,
+            debTypeInfoJson,
+            timing,
+            errors
+          );
+        }
+
+        const hasErrors = errors.some((e) => !e.isWarning);
+        resolve({ success: !hasErrors, errors });
+
+        workerRef.current!.onResult = originalOnResult;
+      };
+
+      workerRef.current?.checkSyntax(code, generateTypeBindings);
+    });
+  };
+
   const handleCodeChange = (newCode: string) => {
     setCode(newCode);
     currentCodeRef.current = newCode;
+
+    if (!compileAsYouType) {
+      return;
+    }
 
     if (!debounceTimeoutRef.current) {
       performCheck(newCode);
@@ -163,16 +216,20 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     }
   };
 
-  const handleRun = () => {
-    if (outputClass === "error" || isRunning) return;
-
-    setIsRunning(true);
-    setEvents([]);
+  const handleRun = async () => {
+    if (isRunning) return;
 
     localStorage.setItem(codeStorageKey, code);
 
-    // Re-generate type bindings on run
-    workerRef.current?.checkSyntax(code, true);
+    const { success } = await compileCode(code, true);
+
+    if (!success) {
+      setIsRunning(false);
+      return;
+    }
+    setIsRunning(true);
+
+    setEvents([]);
 
     const abort = runCode(
       code,
@@ -196,12 +253,21 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     performCheck(starterCode);
   };
 
-  const canRun = outputClass !== "error" && !isRunning;
+  const canRun = !isRunning;
 
   const storageKey = `ebpf-party-layout`;
 
   const handleLayoutChange = (layout: { [key: string]: number }) => {
     localStorage.setItem(storageKey, JSON.stringify(layout));
+  };
+
+  const handleCompileAsYouTypeChange = (checked: boolean) => {
+    setCompileAsYouType(checked);
+    localStorage.setItem("ebpf-party-compile-as-you-type", String(checked));
+
+    if (checked && currentCodeRef.current !== lastCheckedCodeRef.current) {
+      performCheck(currentCodeRef.current);
+    }
   };
 
   return (
@@ -217,10 +283,17 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
           <div className={styles.editorPanel}>
             <div className={styles.runButtonHeader}>
               <RunButton
-                disabled={outputClass === "error"}
+                disabled={!canRun}
                 isRunning={isRunning}
                 onRun={handleRun}
               />
+              <button
+                className={styles.settingsButton}
+                onClick={() => setIsSettingsOpen(true)}
+                title="Settings"
+              >
+                ⚙️
+              </button>
               <button
                 className={styles.deleteButton}
                 onClick={handleDelete}
@@ -276,6 +349,41 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
           )}
         </Panel>
       </Group>
+
+      {isSettingsOpen && (
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setIsSettingsOpen(false)}
+        >
+          <div
+            className={styles.modalContent}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader}>
+              <h2>Settings</h2>
+              <button
+                className={styles.modalCloseButton}
+                onClick={() => setIsSettingsOpen(false)}
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <label className={styles.settingItem}>
+                <input
+                  type="checkbox"
+                  checked={compileAsYouType}
+                  onChange={(e) =>
+                    handleCompileAsYouTypeChange(e.target.checked)
+                  }
+                />
+                <span>Compile as you type</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
