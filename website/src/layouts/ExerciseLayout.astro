@@ -2,6 +2,7 @@
 import Layout from './Layout.astro';
 import InteractiveEditor from "../components/InteractiveEditor.astro";
 import ExerciseNav from "../components/ExerciseNav";
+import MarkCompleted from "../components/MarkCompleted";
 import '../styles/mdx-content.css';
 
 interface Props {
@@ -70,6 +71,7 @@ const {
             <slot />
           </div>
           <ExerciseNav prevExercise={prevExercise} nextExercise={nextExercise} client:load />
+          <MarkCompleted exerciseId={exerciseId} client:load />
         </div>
       </div>
       )}
