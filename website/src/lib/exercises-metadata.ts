@@ -4,7 +4,7 @@ export interface ExerciseMetadata {
   exerciseId: string;
   codeFile?: string;
   incomplete?: boolean;
-  layout?: 'ExerciseLayout';
+  layout?: "ExerciseLayout";
   contentPath: string;
 }
 
@@ -97,7 +97,7 @@ export const CONTENT_METADATA: ContentMetadata = {
         },
         {
           slug: "read-file-password",
-          title: "Tracking operations through multiple syscalls",
+          title: "Cross-syscall state tracking",
           exerciseId: "read-file-password",
           codeFile: "2_read_file_password.c",
           contentPath: "chapter-2/read-file-password",
@@ -137,7 +137,7 @@ export const CONTENT_METADATA: ContentMetadata = {
 };
 
 export function getChapterBySlug(slug: string): ChapterMetadata | undefined {
-  return CONTENT_METADATA.chapters.find(c => c.slug === slug);
+  return CONTENT_METADATA.chapters.find((c) => c.slug === slug);
 }
 
 export function getExerciseByParams(
@@ -147,7 +147,7 @@ export function getExerciseByParams(
   const chapter = getChapterBySlug(chapterSlug);
   if (!chapter) return undefined;
 
-  const exercise = chapter.exercises.find(e => e.slug === exerciseSlug);
+  const exercise = chapter.exercises.find((e) => e.slug === exerciseSlug);
   if (!exercise) return undefined;
 
   return { chapter, exercise };
@@ -158,8 +158,8 @@ export function getAllExercisesFlat(): Array<{
   exercise: ExerciseMetadata;
   url: string;
 }> {
-  return CONTENT_METADATA.chapters.flatMap(chapter =>
-    chapter.exercises.map(exercise => ({
+  return CONTENT_METADATA.chapters.flatMap((chapter) =>
+    chapter.exercises.map((exercise) => ({
       chapter,
       exercise,
       url: `/exercises/${chapter.slug}/${exercise.slug}`,
@@ -167,10 +167,13 @@ export function getAllExercisesFlat(): Array<{
   );
 }
 
-export function getNavigationContext(chapterSlug: string, exerciseSlug: string) {
+export function getNavigationContext(
+  chapterSlug: string,
+  exerciseSlug: string
+) {
   const allExercises = getAllExercisesFlat();
   const currentIndex = allExercises.findIndex(
-    e => e.chapter.slug === chapterSlug && e.exercise.slug === exerciseSlug
+    (e) => e.chapter.slug === chapterSlug && e.exercise.slug === exerciseSlug
   );
 
   if (currentIndex === -1) return null;
@@ -178,6 +181,9 @@ export function getNavigationContext(chapterSlug: string, exerciseSlug: string) 
   return {
     current: allExercises[currentIndex],
     prev: currentIndex > 0 ? allExercises[currentIndex - 1] : null,
-    next: currentIndex < allExercises.length - 1 ? allExercises[currentIndex + 1] : null,
+    next:
+      currentIndex < allExercises.length - 1
+        ? allExercises[currentIndex + 1]
+        : null,
   };
 }
