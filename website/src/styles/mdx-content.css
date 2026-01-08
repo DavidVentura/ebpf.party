@@ -19,3 +19,42 @@
   min-width: 1.5em;
   text-align: center;
 }
+
+/* 0.1em more compact*/
+.prose li {
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+}
+
+.prose {
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  code {
+    font-weight: normal;
+  }
+}
+
+.prose pre {
+  line-height: 1.4;
+}
+
+.prose h2 {
+  margin-top: 1.65em;
+}
+
+.prose h3 {
+  margin-top: 1.25em;
+}
+
+.prose ul {
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+.prose code {
+  padding: 3px;
+  border-radius: 4px;
+}
+.prose code::before, .prose code::after {
+  content: "";
+}

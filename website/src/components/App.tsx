@@ -7,6 +7,7 @@ import CompilerOutput from "./CompilerOutput";
 import RunButton from "./RunButton";
 import EventViewer from "./EventViewer";
 import StructViewer from "./StructViewer";
+import ControlButton from "./ControlButton";
 import { Panel, Group, Separator } from "react-resizable-panels";
 import type { TypeInfo } from "../types/typeinfo";
 import type { DebTypeInfo } from "../types/debtypeinfo";
@@ -291,20 +292,21 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
           <div className={styles.editorPanel}>
             <div className={styles.runButtonHeader}>
               <div className={styles.controlsGroup}>
-                <button
-                  className={`${styles.controlButton} ${compileAsYouType ? styles.pressed : ''}`}
-                  onClick={() => handleCompileAsYouTypeChange(!compileAsYouType)}
-                  title="Auto compile as you type"
+                <ControlButton
+                  pressed={compileAsYouType}
+                  onClick={() =>
+                    handleCompileAsYouTypeChange(!compileAsYouType)
+                  }
+                  title="Type-check as you type"
                 >
                   <Braces size={18} />
-                </button>
-                <button
-                  className={styles.controlButton}
+                </ControlButton>
+                <ControlButton
                   onClick={() => setShowResetConfirm(true)}
                   title="Reset code to defaults"
                 >
                   <RotateCcw size={18} />
-                </button>
+                </ControlButton>
               </div>
               <RunButton
                 disabled={!canRun}
@@ -376,7 +378,10 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
         <div className={styles.confirmDialog}>
           <div className={styles.confirmDialogContent}>
             <h3>Reset Code to Defaults?</h3>
-            <p>This will clear your changes and restore the original starter code.</p>
+            <p>
+              This will clear your changes and restore the original starter
+              code.
+            </p>
             <div className={styles.confirmButtons}>
               <button
                 className={styles.cancelButton}

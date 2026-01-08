@@ -69,36 +69,6 @@
   gap: 1rem;
 }
 
-.controlButton {
-  background: var(--color-code-bg);
-  color: #d4d4d4;
-  border: 1px solid #444;
-  padding: 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  min-height: 36px;
-}
-
-.controlButton:hover {
-  background: #333;
-  border-color: #666;
-}
-
-.controlButton.pressed {
-  background: var(--color-accent);
-  border-color: var(--color-accent);
-  color: white;
-}
-
-.controlButton.pressed:hover {
-  filter: brightness(0.9);
-}
-
 .confirmDialog {
   position: fixed;
   top: 0;
