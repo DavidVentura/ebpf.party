@@ -131,11 +131,12 @@ const {
     flex-direction: column;
   }
   @media (max-width: 1280px) {
-    .exercise-container {
-      flex-direction: column;
+    .exercise-container:has(#tab-instructions:checked) {
       height: auto;
     }
-
+    .exercise-container:has(#tab-code:checked) {
+      height: 100%;
+    }
     .tab-content {
       display: none;
     }
