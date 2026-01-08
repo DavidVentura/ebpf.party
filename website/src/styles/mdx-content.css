@@ -1,54 +1,8 @@
-.mdx-content p,
-.mdx-content h1,
-.mdx-content h2,
-.mdx-content h3,
-.mdx-content h4,
-.mdx-content code,
-.mdx-content a,
-.mdx-content li {
-  color: var(--color-text-primary);
-}
-
-.mdx-content * {
-  box-sizing: border-box;
-}
-
-.mdx-content h2 {
-  margin: 0.5em 0px;
-}
-
-.mdx-content p,
-.mdx-content pre:has(code) {
-  margin: 8px 0px;
-}
-
-.mdx-content pre {
-  padding: 10px;
-  border-radius: 4px;
-  overflow-x: auto;
-}
-
-.mdx-content :not(pre) > code {
+.prose :not(pre) > code {
   background-color: var(--color-code-bg);
-  border-radius: 4px;
-  padding: 4px;
 }
 
-.mdx-content details[open]::details-content {
-  padding: 0.5rem;
-  border: 1px dotted black;
-}
-
-.mdx-content p ~ ol,
-.mdx-content p ~ ul {
-  margin: 8px 0px;
-}
-
-.mdx-content ul {
-  padding-left: 20px;
-}
-
-.mdx-content kbd {
+.prose kbd {
   background: #2d2d2d;
   border-radius: 4px;
   border: 1px solid #3a3a3a;
