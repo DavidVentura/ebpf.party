@@ -1,10 +1,10 @@
-In the previous exercise, we cheated a little bit by using a helper to ask "Who is running?".
+In the previous exercise, we used a helper to ask "Who is running?".
 
-Let's now try to answer questions about the running process, by querying the data available to the tracepoint.
+Now let's answer questions about the running process by querying the data available to the tracepoint.
 
 For `sched_process_exec`, the kernel provides a structure with specific event data, like the Process ID (PID) and the filename.
 
-We can find the format of the context that the kernel provides on any Linux computer, by running:
+You can find the format of the context that the kernel provides on any Linux computer, by running:
 ```bash
 $ cat /sys/kernel/debug/tracing/events/sched/sched_process_exec/format
 format:
@@ -17,7 +17,7 @@ format:
   pid_t old_pid;                        offset:16;  size:4;
 ```
 
-Alternatively, `Ctrl`+`click` on the `trace_event_raw_sched_process_exec` in the editor to see the definition.
+Alternatively, <kbd>Ctrl</kbd>+<kbd>Click</kbd> on the `trace_event_raw_sched_process_exec` in the editor to see the definition.
 
 ## The challenge
 Extract the **PID** and the **filename** of the program being executed, directly from the event data.
@@ -28,23 +28,22 @@ int pid = ctx->pid;
 DEBUG_NUM("PID", pid);
 ```
 
-Reading the filename, however, is a little bit more involved. If you look at the type declaration above,
+Reading the filename, however, is more involved. If you look at the type declaration above,
 it is `__data_loc char[]`.
 
-This is not a regular pointer; the `__data_loc` prefix means the field just contains
- the **location of the string**, not the string itself.
+This is not a regular pointer; the `__data_loc` prefix means the field just contains the **encoded location** of the string, not the string itself.
 
 Basically, the filename field contains a 32-bit integer that packs two pieces of information:
 
   - Lower 16 bits: The Offset (How far away the string is from the start of the structure)
   - Upper 16 bits: The Length (How long the string is)
 
-To get the actual string, we have to do a little work:
+To get the actual string, we need to decode its location:
 
   1. Read the `__data_loc_filename` field
-  1. Mask the lower 16 bits (`val & 0xFFFF`) to get the offset
-  1. Right shift the upper bits (`val >> 16`) to get the length 
-  1. Add that offset to the `ctx` pointer
+  2. Mask the lower 16 bits (`val & 0xFFFF`) to get the offset
+  3. Right shift the upper bits (`val >> 16`) to get the length 
+  4. Add that offset to the `ctx` pointer
 
 However, we can't really read the data directly from the calculated address:
 
@@ -55,9 +54,9 @@ DEBUG_STR("Filename", fname);
 
 Why not?
 
-eBPF programs run in a sandbox, and calculated addresses like this one (`ctx + off`) point to Kernel memory (not the program's stack).
+As we saw in the intro, eBPF programs run in a sandbox. Calculated addresses like this one (`ctx + off`) point to Kernel memory (not the program's stack).
 
-When we call `DEBUG_STR` with a non-local address, the Kernel helpers that are used will refuse to read from that memory range, leaving the "DEBUG" memory uninitialized.
+When we call `DEBUG_STR` with a non-local address, the kernel helpers will refuse to read from that memory range, leaving the "DEBUG" memory uninitialized.
 
 You can try it though! It will not crash the kernel, instead, it will return something like: `�����`.
 
@@ -68,13 +67,11 @@ char fname[32];
 bpf_probe_read_kernel_str(fname, sizeof(fname), (void *)ctx + off);
 ```
 
-after which, the `fname` buffer will be populated, and we can call `DEBUG_STR` on it.
+After this, the `fname` buffer will be populated, and we can call `DEBUG_STR` on it.
 
 ### Your task
 
-If you added `DEBUG_STR`/`DEBUG_PID` as explained above, you should see multiple standard programs, but there's one suspicious filename that stands out.
+If you added `DEBUG_STR`/`DEBUG_NUM` as explained above, you should see multiple standard programs, but there's one that stands out. Use `SUBMIT_STR_LEN(buff, len)` to submit it.
 
-**Submit the suspicious filename** using `SUBMIT_STR_LEN(buff, len)`.
-
-Remember to filter out unwanted programs using `bpf_strncmp`, like we did in the previous exercise.
+Remember to filter out unwanted programs using `bpf_strncmp` like we did in the previous exercise.
 

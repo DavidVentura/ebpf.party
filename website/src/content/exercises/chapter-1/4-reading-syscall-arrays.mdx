@@ -2,7 +2,7 @@ import ExecveArgs from '../../../components/ExecveArgs.tsx';
 
 In the previous exercise, you learned how to read the `filename` argument from the `execve` system call using `ctx->args[0]`.
 
-Now let's explore the second argument: `argv`, when you run a command like:
+Now let's explore the second argument: `argv`. When you run a command like:
 ```bash
 ./secret_app --password hunter2
 ```
@@ -59,7 +59,7 @@ args={[
 
 As you can see in the diagram, `argv` and `envp` are terminated by a NULL pointer.
 
-When you read an entry from the `argv` array (e.g., `argv[i]`), you must check if the value is `NULL`. If it is, you must not continue reading past the end.
+When you read an entry from the `argv` array (e.g., `argv[i]`), check if it's `NULL` before using it, as this marks the end of the array.
 
 ## Reading the array of pointers
 
@@ -79,7 +79,7 @@ char **argv = (char **)ctx->args[1];
 // In a loop, read the next pointer from the array
 char *arg_ptr;
 bpf_probe_read_user(&arg_ptr, sizeof(arg_ptr), &argv[i]);
-// remember to check for the NULL terminator!
+// Remember to check for the NULL terminator!
 
 // Read the string that pointer points to
 char arg_buf[64];

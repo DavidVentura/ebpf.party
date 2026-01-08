@@ -14,8 +14,8 @@ On entry events, we receive a context with type `struct trace_event_raw_sys_ente
 
 ```c
 struct trace_event_raw_sys_enter {
-    long int id;               /* The Syscall Number */
-    long unsigned int args[6]; /* The Arguments */
+    long int id;               /* Syscall number */
+    long unsigned int args[6]; /* Arguments */
     /* ... */
 };
 ```
@@ -24,9 +24,9 @@ We don't get convenient fields like `name` or `pid` -- all we are getting is the
 
 Why 6? Because that's the maximum number of arguments that syscalls are allowed to take.
 
-We _also_ are not getting any types! All arguments are `long unsigned int` (`u64`), and it's up to us to interpret them properly (as pointers, structs, signed numbers, or even `u64`!).
+We _also_ don't get any types! All arguments are `long unsigned int` (`u64`), and it's up to us to interpret them properly (as pointers, structs, signed numbers, or even `u64`!).
 
-To know the type and meaning of each argument, we can consult the [manual page](https://man7.org/linux/man-pages/man2/execve.2.html), which shows the signature:
+To know the type and meaning of each argument, you can consult the [manual page](https://man7.org/linux/man-pages/man2/execve.2.html), which shows the signature:
 
 ```c
 int execve(const char *filename, char *const argv[], char *const envp[]);
@@ -77,7 +77,8 @@ The kernel enforces strict separation between user and kernel memory for securit
 1. Construct the filename pointer from `ctx->args[0]`.
 2. Read the string from **User Space** into a local buffer.
 
-If you use `DEBUG_STR` on the buffer, you should see multiple programs being executed, 
-remember that you can only submit _one_ answer with `SUBMIT_STR_LEN`, so you will need to filter them like we did in the previous exercises, with `bpf_strncmp(char* s1, u32 s1_size, const char* s2)`.
+If you use `DEBUG_STR` on the buffer, you should see multiple programs being executed.
 
-Where do you get `len`? Well, `bpf_probe_read_user_str` conveniently returns how many bytes it copied!
+Remember that you can only submit _one_ answer with `SUBMIT_STR_LEN`, so you will need to filter them like we did in the previous exercises, with `bpf_strncmp(char* s1, u32 s1_size, const char* s2)`.
+
+You can get `len` from the return value of `bpf_probe_read_user_str` -- it returns the number of bytes copied.
