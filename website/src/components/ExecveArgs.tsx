@@ -22,18 +22,18 @@ interface ExecveArgsProps {
 
 export default function ExecveArgs({ args }: ExecveArgsProps) {
   const hasL3 = args.filter((arg) => !arg.isSimplePointer).length > 0;
-  const argBoxWidth = hasL3 ? 100 : 150;
+  const argBoxWidth = hasL3 ? 95 : 150;
   const argBoxHeight = 50;
-  const argBoxGap = 5;
+  const argBoxGap = 4;
   const arrowHeight = 50;
-  const valueBoxWidth = argBoxWidth - 10;
+  const valueBoxWidth = argBoxWidth - 5;
   const valueBoxHeight = 40;
-  const valueBoxGap = 5;
+  const valueBoxGap = 4;
   const secondArrowHeight = 25;
   const finalBoxWidth = valueBoxWidth;
   const finalBoxHeight = 30;
   const padding = 1;
-  const subGroupGap = 30;
+  const subGroupGap = 20;
 
   const truncateText = (text: string, maxChars: number) => {
     if (text.length <= maxChars) return text;
@@ -200,7 +200,6 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                           width={valueBoxWidth}
                           height={valueBoxHeight}
                           fill="var(--color-code-bg)"
-                          // stroke={val.isNull ? "#9ca3af" : "#3b82f6"}
                           strokeWidth="2"
                           strokeDasharray={val.isNull ? "5,5" : "0"}
                           opacity={val.isNull ? 0.7 : 1}

@@ -1,13 +1,11 @@
 .container {
-  padding: 1rem;
-  border-radius: 0.5rem;
+  padding: 0.5rem;
   overflow-x: auto;
   max-width: 55rem;
   width: 100%;
+}
+.container > svg {
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
 }
 
 .typeLabel {

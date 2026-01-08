@@ -70,7 +70,7 @@ bpf_probe_read_kernel_str(fname, sizeof(fname), (void *)ctx + off);
 
 after which, the `fname` buffer will be populated, and we can call `DEBUG_STR` on it.
 
-## Your task
+### Your task
 
 If you added `DEBUG_STR`/`DEBUG_PID` as explained above, you should see multiple standard programs, but there's one suspicious filename that stands out.
 
