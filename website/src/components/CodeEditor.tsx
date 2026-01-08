@@ -2,8 +2,14 @@ import CodeMirror from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { EditorView, keymap } from "@codemirror/view";
 import { Prec } from "@codemirror/state";
-import { indentUnit, syntaxTree } from "@codemirror/language";
-import { oneDark } from "@codemirror/theme-one-dark";
+import {
+  HighlightStyle,
+  indentUnit,
+  syntaxHighlighting,
+  syntaxTree,
+} from "@codemirror/language";
+import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
+import { tags as t } from "@lezer/highlight";
 
 interface CodeEditorProps {
   code: string;
@@ -58,13 +64,20 @@ export default function CodeEditor({
     ctrlClickHandler,
     indentUnit.of("    "),
     EditorView.lineWrapping,
+    syntaxHighlighting(
+      HighlightStyle.define([
+        { tag: t.keyword, color: "var(--astro-code-token-keyword)" },
+        { tag: t.angleBracket, color: "red" },
+      ])
+    ),
+    oneDark,
   ];
 
   return (
     <CodeMirror
       value={code}
       height="100%"
-      theme={oneDark}
+      // theme={oneDark}
       extensions={extensions}
       onChange={onChange}
       placeholder="Write your C code here..."

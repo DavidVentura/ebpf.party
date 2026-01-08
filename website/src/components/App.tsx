@@ -13,6 +13,7 @@ import type { DebTypeInfo } from "../types/debtypeinfo";
 import type { SSEEvent } from "../types/sse-events";
 import styles from "./App.module.css";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
+import Braces from "lucide-react/dist/esm/icons/braces";
 
 interface AppProps {
   starterCode: string;
@@ -48,9 +49,8 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   const [savedLayout, setSavedLayout] = useState<
     { [key: string]: number } | undefined
   >(undefined);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [compileAsYouType, setCompileAsYouType] = useState(true);
-  const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const workerRef = useRef<TccWorkerClient | null>(null);
   const hasOutputRef = useRef(false);
   const compilationOutputRef = useRef("");
@@ -272,22 +272,6 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   };
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        isSettingsOpen &&
-        settingsButtonRef.current &&
-        !settingsButtonRef.current.contains(event.target as Node) &&
-        !(event.target as Element).closest(`.${styles.settingsDropdown}`)
-      ) {
-        setIsSettingsOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [isSettingsOpen]);
-
-  useEffect(() => {
     const hasCorrectAnswer = events.some((e) => e.type === "correctAnswer");
     if (hasCorrectAnswer) {
       localStorage.setItem(`exercise-completed-${exerciseId}`, "true");
@@ -306,42 +290,27 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
         <Panel id="editor-panel" defaultSize="80%" minSize="33%" maxSize="80%">
           <div className={styles.editorPanel}>
             <div className={styles.runButtonHeader}>
-              <div className={styles.buttonGroup}>
-                <div className={styles.settingsContainer}>
-                  <RunButton
-                    disabled={!canRun}
-                    isRunning={isRunning}
-                    onRun={handleRun}
-                    onDropdownClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                    dropdownButtonRef={settingsButtonRef}
-                  />
-                  {isSettingsOpen && (
-                    <div className={styles.settingsDropdown}>
-                      <label className={styles.settingItem}>
-                        <input
-                          type="checkbox"
-                          checked={compileAsYouType}
-                          onChange={(e) =>
-                            handleCompileAsYouTypeChange(e.target.checked)
-                          }
-                        />
-                        <span>Compile as you type</span>
-                      </label>
-                      <div className={styles.settingsSeparator} />
-                      <button
-                        className={styles.resetButton}
-                        onClick={() => {
-                          handleDelete();
-                          setIsSettingsOpen(false);
-                        }}
-                      >
-                        <RotateCcw size={14} />
-                        <span>Reset code to defaults</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+              <div className={styles.controlsGroup}>
+                <button
+                  className={`${styles.controlButton} ${compileAsYouType ? styles.pressed : ''}`}
+                  onClick={() => handleCompileAsYouTypeChange(!compileAsYouType)}
+                  title="Auto compile as you type"
+                >
+                  <Braces size={18} />
+                </button>
+                <button
+                  className={styles.controlButton}
+                  onClick={() => setShowResetConfirm(true)}
+                  title="Reset code to defaults"
+                >
+                  <RotateCcw size={18} />
+                </button>
               </div>
+              <RunButton
+                disabled={!canRun}
+                isRunning={isRunning}
+                onRun={handleRun}
+              />
             </div>
             <div className={styles.editorWrapper}>
               <noscript>
@@ -403,6 +372,31 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
           )}
         </Panel>
       </Group>
+      {showResetConfirm && (
+        <div className={styles.confirmDialog}>
+          <div className={styles.confirmDialogContent}>
+            <h3>Reset Code to Defaults?</h3>
+            <p>This will clear your changes and restore the original starter code.</p>
+            <div className={styles.confirmButtons}>
+              <button
+                className={styles.cancelButton}
+                onClick={() => setShowResetConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className={styles.confirmButton}
+                onClick={() => {
+                  handleDelete();
+                  setShowResetConfirm(false);
+                }}
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

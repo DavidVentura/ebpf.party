@@ -63,8 +63,8 @@ const {
       )}
 
       {!hasCode && (
-      <div class="content">
-        <div class="content-scroll mdx-content nocode">
+      <div class="content nocode">
+        <div class="content-scroll mdx-content">
           <div class="content-body">
             <h4>{chapterTitle}</h4>
             <h1>{exerciseTitle}</h1>
@@ -112,7 +112,11 @@ const {
     box-sizing: border-box;
   }
 
-  .content-scroll.nocode {
+  .exercise-container:has(.content.nocode) {
+    height: auto;
+  }
+  
+  .content.nocode {
     max-width: 100ch;
     margin: 0px auto;
   }

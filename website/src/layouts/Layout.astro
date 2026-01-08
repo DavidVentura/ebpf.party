@@ -27,6 +27,14 @@ const { hasCodeTabs = false } = Astro.props;
   --color-border: ${theme.border};
   --color-navbar-bg: hsl(224, 14%, 16%);
   --color-navbar-border: hsl(224, 10%, 10%);
+
+  --astro-code-background: var( --color-code-bg);
+  --astro-code-token-function: #61afef;
+  --astro-code-token-keyword: #e5c07b;
+  --astro-code-foreground: #e06c75;
+  --astro-code-token-constant: var(--astro-code-token-keyword);
+  --astro-code-token-string-expression: #98c379;
+  --astro-code-token-comment: #7d8799;
 }
 body {
   margin: 0;
