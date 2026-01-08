@@ -1,32 +1,33 @@
-The main goal of this platform is to give you both a configured environment and some exercises to get acquainted with eBPF.
+import Braces from "@lucide/astro/icons/braces";
+import ControlButton from "../../../components/ControlButton.tsx"
 
-The editor compiles your code locally as you type. Compilation errors are highlighted inline. You can change the auto-compile behavior in settings.
+This platform provides a configured environment and exercises to help you learn eBPF.
 
-Try typing a bunch into the code box and see how it reacts.
+The editor compiles your code locally as you type, but you can disable this by clicking the <ControlButton style={{display: "inline"}}><Braces size={18} /></ControlButton> button. Compilation errors are highlighted inline.
 
-Click 'Run' to execute your code on the server.
+Try typing into the editor and see how it reacts, then click 'Run' to execute your code on the server.
 
 ## Hotkeys
 
-- <kbd>Ctrl</kbd>+<kbd>Enter</kbd> will run the code.
-- <kbd>Ctrl</kbd>+<kbd>Click</kbd> on type definitions (`my_struct`, `trace_event_raw_sched_process_exec`) will show a type definition popup
+- <kbd>Ctrl</kbd>+<kbd>Enter</kbd> runs the code.
+- <kbd>Ctrl</kbd>+<kbd>Click</kbd> on type definitions (`my_struct`, `trace_event_raw_sched_process_exec`) shows a type definition popup
 
 ## Debugging utilities
 
 There are multiple `DEBUG_` macros to display data from your programs.
-All of these take a label (a string constant) as a first argument.
+Each macro takes a label (a string constant) as its first argument.
 
-- `DEBUG_STR(label, buf)` requires a fixed-size buf (eg: `char[64]`)
+- `DEBUG_NUM(label, num)` can take any number, like `u32` or `ssize_t`
+- `DEBUG_STR(label, buf)` requires a fixed-size buf, like `char[64]`
 - `DEBUG_STR_PTR(label, ptr, len)` can take any pointer, but `len` must be a constant
-- `DEBUG_NUM(label, num)` can take any number (eg: `u32`, `ssize_t`)
 - `DEBUG_STRUCT(label, struct)` can take any struct _by value_
 
 ## Submitting answers
 
-To solve the exercises, you will need to submit answers directly from your code. Multiple submissions invalidate all answers.
+To solve the exercises, you will need to submit answers directly from your code, using `SUBMIT_NUM(answer)`, `SUBMIT_STR(answer)` or `SUBMIT_STR_LEN(answer, len)`.
 
-Use `SUBMIT_NUM(answer)`, `SUBMIT_STR(answer)` or `SUBMIT_STR_LEN(answer, len)`.
+Your eBPF program triggers on multiple events, so you'll need to guard your `SUBMIT_X` calls, as multiple submissions invalidate all answers.
 
-Trailing null bytes are trimmed, use the `SUBMIT_STR_LEN` variant when you can't guarantee null termination. 
+When using `SUBMIT_STR`, trailing null bytes are trimmed, but trailing garbage is not. Use the `SUBMIT_STR_LEN` variant when you can't guarantee null termination. 
 
 Solve this exercise by uncommenting `SUBMIT_STR("the answer");`

@@ -2,7 +2,7 @@ When an eBPF program runs, it's executed in **kernel space**, but with access to
 process that triggered the event.
 
 For example, if `bash` triggers an event, your eBPF program can query details about that `bash` 
-process context: its name, process id, etc.
+process context: its name, process ID, and more.
 
 The kernel defines a [large set of helper functions](https://docs.ebpf.io/linux/helper-function/)
 to retrieve this information about the triggering process.
@@ -11,7 +11,7 @@ to retrieve this information about the triggering process.
 
 We want to extract the name of every program that executes in the system.
 
-To do this, we need to attach our code to an event that fires whenever a new process is scheduled to run.
+To do this, we need to attach our code to an event that fires whenever a program executes.
 This event is called `sched_process_exec`.
 
 In the preloaded snippet, you will see a specific "section" definition just above our function:
@@ -29,7 +29,7 @@ Now, whenever the scheduler runs a new process, our code runs too!
 
 The example code works, but it prints a static string. We want the actual program name for every execution.
 
-Since our code has access to information about the new process, we can ask the kernel: "Who am I?"
+Since our code has access to information about the new process, we can ask the kernel for the triggering process' name.
 
 We will use [bpf_get_current_comm(&buf, size)](https://docs.ebpf.io/linux/helper-function/bpf_get_current_comm/)
 which writes the current process name into a buffer you provide.
@@ -51,21 +51,25 @@ Then call `DEBUG_STR` to see the results:
 DEBUG_STR("Command", buffer);
 ```
 
-**Try this now**, you'll see some normal programs like `ls`, and one that stands out.
+**Try this now**. You'll see some normal programs like `ls`, and one that stands out.
+
+### Comparing strings
+
+To filter out the unwanted entries, you'll need to compare strings.
+
+We'll use [bpf_strncmp(s1, s1_sz, s2)](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/)
+which compares a variable string to a constant string.
+
+For example, to check if the buffer contains `"ls"`:
+
+```c
+if (bpf_strncmp(buffer, sizeof(buffer), "ls") == 0) {
+    // buffer contains "ls"
+}
+```
+
+It returns **0** when the strings **match**.
 
 ### Your task
 
-Your task is to **submit the name of the program that stands out**.
-
-To do this, you'll need to filter out the common programs. Use the
-[bpf_strncmp(s1, s1_sz, s2)](https://docs.ebpf.io/linux/helper-function/bpf_strncmp/) helper
-to compare strings:
-
-- `s1` is your buffer
-- `s1_sz` is the size of your buffer
-- `s2` must be a string literal (like `"ls"`)
-- Returns **0 if they match**
-
-Filter out `"ls"` and `"sudo"`, then use `SUBMIT_STR(buffer)` to submit the suspicious command name.
-
-**Remember:** You can only call `SUBMIT_STR` once in your program. Multiple submissions will invalidate your answer.
+Submit the name of the program that stands out, using `SUBMIT_STR(buffer)`.
