@@ -77,7 +77,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
             refY="2"
             orient="auto"
           >
-            <polygon points="0 0, 4 2, 0 4" fill="#3b82f6" />
+            <polygon points="0 0, 4 2, 0 4" fill="var(--color-accent)" />
           </marker>
         </defs>
 
@@ -93,9 +93,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                 y={padding}
                 width={argBoxWidth}
                 height={argBoxHeight}
-                fill="white"
-                stroke="#3b82f6"
-                strokeWidth="2"
+                fill="var(--color-code-bg)"
               />
 
               <text
@@ -105,7 +103,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                 alignmentBaseline="central"
                 fontSize="14"
                 fontWeight="bold"
-                fill="#374151"
+                fill="var(--color-text-primary)"
               >
                 {arg.name}
               </text>
@@ -117,7 +115,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                   textAnchor="middle"
                   alignmentBaseline="central"
                   fontSize="11"
-                  fill="#6b7280"
+                  fill="var(--color-text-secondary)"
                 >
                   {arg.subtitle}
                 </text>
@@ -149,7 +147,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                 y1={argBoxHeight + padding}
                 x2={firstElementX}
                 y2={argBoxHeight + arrowHeight + padding}
-                stroke="#3b82f6"
+                stroke="var(--color-accent)"
                 strokeWidth="2"
                 markerEnd="url(#arrowhead-execve)"
               />
@@ -162,9 +160,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                     y={argBoxHeight + arrowHeight + padding}
                     width={subGroupWidth}
                     height={finalBoxHeight}
-                    fill="white"
-                    stroke="#d1d5db"
-                    strokeWidth="1"
+                    fill="var(--color-code-bg)"
                     rx="3"
                   />
 
@@ -180,7 +176,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                     textAnchor="middle"
                     fontSize="13"
                     fontFamily="monospace"
-                    fill="#374151"
+                    fill="var(--color-text-primary)"
                   >
                     {truncateText(arg.simpleValue, hasL3 ? 11 : 16)}
                   </text>
@@ -203,8 +199,8 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                           y={valY}
                           width={valueBoxWidth}
                           height={valueBoxHeight}
-                          fill="white"
-                          stroke={val.isNull ? "#9ca3af" : "#3b82f6"}
+                          fill="var(--color-code-bg)"
+                          // stroke={val.isNull ? "#9ca3af" : "#3b82f6"}
                           strokeWidth="2"
                           strokeDasharray={val.isNull ? "5,5" : "0"}
                           opacity={val.isNull ? 0.7 : 1}
@@ -217,7 +213,9 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                           alignmentBaseline="central"
                           fontSize="12"
                           fontWeight="bold"
-                          fill={val.isNull ? "#6b7280" : "#374151"}
+                          fill={
+                            val.isNull ? "#6b7280" : "var(--color-text-primary)"
+                          }
                         >
                           {val.name}
                         </text>
@@ -230,7 +228,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                               y1={valY + valueBoxHeight}
                               x2={valCenterX}
                               y2={valY + valueBoxHeight + secondArrowHeight}
-                              stroke="#3b82f6"
+                              stroke="var(--color-accent)"
                               strokeWidth="2"
                               markerEnd="url(#arrowhead-execve)"
                             />
@@ -240,9 +238,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                               y={valY + valueBoxHeight + secondArrowHeight}
                               width={finalBoxWidth}
                               height={finalBoxHeight}
-                              fill="white"
-                              stroke="#d1d5db"
-                              strokeWidth="1"
+                              fill="var(--color-code-bg)"
                               rx="3"
                             />
 
@@ -258,7 +254,7 @@ export default function ExecveArgs({ args }: ExecveArgsProps) {
                               textAnchor="middle"
                               fontSize="11"
                               fontFamily="monospace"
-                              fill="#374151"
+                              fill="var(--color-text-primary)"
                             >
                               {truncateText(val.pointsTo, 12)}
                             </text>
