@@ -288,9 +288,9 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
   }, [isSettingsOpen]);
 
   useEffect(() => {
-    const hasCorrectAnswer = events.some(e => e.type === 'correctAnswer');
+    const hasCorrectAnswer = events.some((e) => e.type === "correctAnswer");
     if (hasCorrectAnswer) {
-      localStorage.setItem(`exercise-completed-${exerciseId}`, 'true');
+      localStorage.setItem(`exercise-completed-${exerciseId}`, "true");
     }
   }, [events, exerciseId]);
 
@@ -344,6 +344,19 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
               </div>
             </div>
             <div className={styles.editorWrapper}>
+              <noscript>
+                <div class="noscript-content">
+                  <p>
+                    The interactive code editor requires JavaScript to function.
+                  </p>
+                  <p>You can use your own editor locally if you prefer.</p>
+                  <p>The API is:</p>
+                  <pre>
+                    {`POST /run_code/${exerciseId}
+  - Body: your code`}
+                  </pre>
+                </div>
+              </noscript>
               <CodeEditor
                 code={code}
                 onChange={handleCodeChange}

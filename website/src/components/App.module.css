@@ -158,7 +158,7 @@
 
 .resizeHandle {
   height: 8px;
-  background: var(--color-code-bg);
+  background: color-mix(in srgb, var(--color-code-bg), var(--color-bg-primary) 30%);
   cursor: row-resize;
   position: relative;
   transition: background 0.1s;
@@ -166,7 +166,7 @@
 
 .resizeHandle:hover,
 .resizeHandle[data-resize-handle-state="drag"] {
-  background: color-mix(in srgb, var(--color-code-bg), var(--color-bg-primary) 30%);
+  background: color-mix(in srgb, var(--color-code-bg), var(--color-bg-primary) 50%);
 }
 
 .resizeHandle::before {

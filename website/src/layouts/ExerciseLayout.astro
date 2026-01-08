@@ -100,6 +100,8 @@ const {
     overflow-y: auto;
     background-color: var(--color-bg-primary);
     color: var(--color-text-primary);
+    max-width: 100ch;
+    margin: 0px auto;
   }
   .content-scroll {
     padding: 0.5rem 2rem 0rem 2rem;
@@ -127,6 +129,7 @@ const {
   @media (max-width: 1280px) {
     .exercise-container {
       flex-direction: column;
+      height: auto;
     }
 
     .tab-content {
