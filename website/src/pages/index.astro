@@ -6,12 +6,14 @@ import ExerciseList from "../components/ExerciseList";
 
 <Layout>
   <div class="home">
-    <h1>eBPF Exercises</h1>
     <p>
       Learn eBPF through hands-on exercises. Write, compile, and run programs
       directly in your browser.
     </p>
-    <p>Curious about how it works? <a href="/how-it-works">Here's an explanation.</a></p>
+    <p>
+      Curious about how it works? <a href="/how-it-works"
+        >Here's an explanation.</a>
+    </p>
     <ExerciseList client:load metadata={CONTENT_METADATA} />
   </div>
 </Layout>

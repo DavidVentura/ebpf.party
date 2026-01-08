@@ -5,18 +5,30 @@ title: How this site works
 
 # How this platform works
 
-When you send a request to the backend (after clicking `Run`), a fresh VM is created to handle your request.
+As you write code, [TCC (Tiny C Compiler)](https://bellard.org/tcc/) runs in your browser via WASM to provide instant typechecking without server roundtrips.
 
-The VM you get has:
+When you you click `Run` your code is saved in local storage and sent to the backend.
 
-  - 0.5vCPU
-  - 64MB RAM
-  - 8MB, read only, rootfs
+The backend will compile your code to a BPF object using `clang` and spin up a fresh VM to execute it..
+
+
+## The VM
+
+Each submission gets an ephemeral VM with:
+
+  - 0.5vCPU, 64MB RAM
+  - Kernel 6.18.2 (latest LTS)
   - No network
   - A 500ms self-destruct timer
-  - Kernel version 6.18.2
 
-It is quite limited, but this is plenty for the exercises we run.
+Boot time is 40~50ms thanks to [Firecracker](https://github.com/firecracker-microvm/firecracker) (with some unholy patches), and a very minimal kernel.
 
-the code will be compiled into a BPF object file, then a new VM will be created, and your object file will be loaded.
-Source -> Clang -> VM -> Loader -> Execute -> Frontend
+The VM boots into a [custom `/init`](https://github.com/DavidVentura/ebpf.party/blob/master/userspace/src/main.rs) process, that does the bare minimum setup (mount `/sys`, set up a loopback interface, ...), loads your BPF object and starts streaming events.
+
+## Getting events out of the vm
+
+Your code must `#include` [`ep_platform.h`](https://github.com/DavidVentura/ebpf.party/blob/master/backend/includes/ep_platform.h), which creates a BPF ringbuf map for all output.
+
+The `DEBUG_` and `SUBMIT_` macros write events to this map.
+
+Inside the VM, the init process polls this ringbuf and forwards events to the host via [vsock](https://man7.org/linux/man-pages/man7/vsock.7.html). The backend streams these events via SSE your browser.
