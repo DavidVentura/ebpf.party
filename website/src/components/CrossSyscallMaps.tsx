@@ -1,9 +1,116 @@
 import React from "react";
 
+interface SyscallBlockProps {
+  title: string;
+  translateX: number;
+  translateY: number;
+}
+
+const SyscallBlock: React.FC<SyscallBlockProps> = ({
+  title,
+  translateX,
+  translateY,
+}) => {
+  return (
+    <g transform={`translate(${translateX}, ${translateY})`}>
+      {/* Main Block */}
+      <rect
+        width="250"
+        height="150"
+        rx="4"
+        className="stroke-slate-500 stroke-1"
+        style={{ fill: "var(--color-code-bg)" }}
+      />
+      <text
+        x="35"
+        y="-15"
+        textAnchor="middle"
+        className="fill-slate-100 font-bold text-lg uppercase tracking-widest"
+      >
+        {title}
+      </text>
+
+      {/* Internal TPs (Dotted Lines) */}
+      <line
+        x1="10"
+        y1="50"
+        x2="240"
+        y2="50"
+        className="stroke-slate-700 stroke-2"
+        strokeDasharray="4 4"
+      />
+      <line
+        x1="10"
+        y1="100"
+        x2="240"
+        y2="100"
+        className="stroke-slate-700 stroke-2"
+        strokeDasharray="4 4"
+      />
+
+      {/* Section Labels */}
+      <text
+        x="125"
+        y="25"
+        textAnchor="middle"
+        className="fill-slate-300 text-[12px] uppercase font-bold"
+      >
+        Enter TP
+      </text>
+      <text
+        x="125"
+        y="75"
+        textAnchor="middle"
+        className="fill-slate-300 text-[12px] uppercase font-bold "
+      >
+        Syscall
+      </text>
+      <text
+        x="125"
+        y="125"
+        textAnchor="middle"
+        className="fill-slate-300 text-[12px] uppercase font-bold "
+      >
+        Exit TP
+      </text>
+
+      {/* Arrows to Tmp Map */}
+      <path
+        d="M 30 25 L -58 25"
+        className="stroke-emerald-500/50 stroke-1"
+        fill="none"
+        markerEnd="url(#v-arrow-emerald)"
+      />
+      <text
+        x="-25"
+        y="20"
+        textAnchor="middle"
+        className="fill-emerald-500 font-mono text-[12px]"
+      >
+        store
+      </text>
+      <path
+        d="M 30 125 L -58 125"
+        className="stroke-emerald-500/50 stroke-1"
+        fill="none"
+        markerEnd="url(#v-arrow-emerald)"
+      />
+      <text
+        x="-25"
+        y="120"
+        textAnchor="middle"
+        className="fill-emerald-500 font-mono text-[12px]"
+      >
+        check
+      </text>
+    </g>
+  );
+};
+
 const VerticalFlowDiagram: React.FC = () => {
   return (
     <div className="">
-      <svg viewBox="0 20 700 700" className="w-full">
+      <svg viewBox="0 20 700 540" className="w-full">
         <defs>
           <marker
             id="v-arrow"
@@ -41,102 +148,28 @@ const VerticalFlowDiagram: React.FC = () => {
         </defs>
 
         {/* --- OPEN SYSCALL SECTION --- */}
-        <g transform="translate(200, 50)">
-          {/* Main Block */}
-          <rect
-            width="250"
-            height="210"
-            rx="4"
-            className="fill-slate-900/80 stroke-slate-500 stroke-1"
-          />
-          <text
-            x="35"
-            y="-15"
-            textAnchor="middle"
-            className="fill-slate-100 font-bold text-lg uppercase tracking-widest"
-          >
-            Open
-          </text>
-
-          {/* Internal TPs (Dotted Lines) */}
-          <line
-            x1="10"
-            y1="70"
-            x2="240"
-            y2="70"
-            className="stroke-slate-700 stroke-2"
-            strokeDasharray="4 4"
-          />
-          <line
-            x1="10"
-            y1="140"
-            x2="240"
-            y2="140"
-            className="stroke-slate-700 stroke-2"
-            strokeDasharray="4 4"
-          />
-
-          {/* Section Labels */}
-          <text
-            x="125"
-            y="45"
-            textAnchor="middle"
-            className="fill-slate-600 text-[9px] uppercase font-bold tracking-tighter"
-          >
-            Enter TP
-          </text>
-          <text
-            x="125"
-            y="115"
-            textAnchor="middle"
-            className="fill-slate-600 text-[9px] uppercase font-bold tracking-tighter"
-          >
-            Syscall
-          </text>
-          <text
-            x="125"
-            y="185"
-            textAnchor="middle"
-            className="fill-slate-600 text-[9px] uppercase font-bold tracking-tighter"
-          >
-            Exit TP
-          </text>
-
-          {/* Arrows to Tmp Map */}
-          <path
-            d="M 30 45 L -60 45"
-            className="stroke-emerald-500/50 stroke-1"
-            fill="none"
-            markerEnd="url(#v-arrow-emerald)"
-          />
-          <path
-            d="M 30 185 L -60 185"
-            className="stroke-emerald-500/50 stroke-1"
-            fill="none"
-            markerEnd="url(#v-arrow-emerald)"
-          />
-        </g>
+        <SyscallBlock title="Open" translateX={200} translateY={50} />
 
         {/* TMP MAP (Open) */}
-        <g transform="translate(50, 50)">
+        <g transform="translate(40, 50)">
           <rect
-            width="90"
-            height="210"
+            width="100"
+            height="150"
             rx="2"
             className="fill-emerald-500/5 stroke-emerald-500/40 stroke-1"
           />
           <text
-            x="45"
+            x="50"
             y="20"
             textAnchor="middle"
-            className="fill-emerald-500/60 font-mono text-[9px]"
+            className="fill-emerald-500/90 font-mono text-[12px]"
           >
             open_curr_fd
           </text>
         </g>
 
         {/* --- USERSPACE SECTION --- */}
-        <g transform="translate(200, 320)">
+        <g transform="translate(200, 260)">
           <rect
             width="250"
             height="80"
@@ -165,68 +198,10 @@ const VerticalFlowDiagram: React.FC = () => {
         </g>
 
         {/* --- READ SYSCALL SECTION --- */}
-        <g transform="translate(200, 460)">
-          {/* Main Block */}
-          <rect
-            width="250"
-            height="210"
-            rx="4"
-            className="fill-slate-900/80 stroke-slate-500 stroke-1"
-          />
-          <text
-            x="35"
-            y="-15"
-            textAnchor="middle"
-            className="fill-slate-100 font-bold text-lg uppercase tracking-widest"
-          >
-            Read
-          </text>
+        <SyscallBlock title="Read" translateX={200} translateY={400} />
 
-          {/* Internal TPs (Dotted Lines) */}
-          <line
-            x1="10"
-            y1="70"
-            x2="240"
-            y2="70"
-            className="stroke-slate-700 stroke-2"
-            strokeDasharray="4 4"
-          />
-          <line
-            x1="10"
-            y1="140"
-            x2="240"
-            y2="140"
-            className="stroke-slate-700 stroke-2"
-            strokeDasharray="4 4"
-          />
-
-          {/* Section Labels */}
-          <text
-            x="125"
-            y="45"
-            textAnchor="middle"
-            className="fill-slate-600 text-[9px] uppercase font-bold tracking-tighter"
-          >
-            Enter TP
-          </text>
-          <text
-            x="125"
-            y="115"
-            textAnchor="middle"
-            className="fill-slate-600 text-[9px] uppercase font-bold tracking-tighter"
-          >
-            Syscall
-          </text>
-          <text
-            x="125"
-            y="185"
-            textAnchor="middle"
-            className="fill-slate-600 text-[9px] uppercase font-bold tracking-tighter"
-          >
-            Exit TP
-          </text>
-
-          {/* Connector from Userspace */}
+        {/* Connector from Userspace to Read */}
+        <g transform="translate(200, 400)">
           <path
             d="M 125 -60 L 125 -10"
             className="stroke-emerald-400 stroke-2"
@@ -240,47 +215,33 @@ const VerticalFlowDiagram: React.FC = () => {
           >
             FD, buf
           </text>
-
-          {/* Arrows to Tmp Map */}
-          <path
-            d="M 30 45 L -60 45"
-            className="stroke-emerald-500/50 stroke-1"
-            fill="none"
-            markerEnd="url(#v-arrow-emerald)"
-          />
-          <path
-            d="M 30 185 L -60 185"
-            className="stroke-emerald-500/50 stroke-1"
-            fill="none"
-            markerEnd="url(#v-arrow-emerald)"
-          />
         </g>
 
         {/* TMP MAP (Read) */}
-        <g transform="translate(50, 460)">
+        <g transform="translate(40, 400)">
           <rect
-            width="90"
-            height="210"
+            width="100"
+            height="150"
             rx="2"
             className="fill-emerald-500/5 stroke-emerald-500/40 stroke-1"
           />
           <text
-            x="45"
+            x="50"
             y="20"
             textAnchor="middle"
-            className="fill-emerald-500/60 font-mono text-[9px]"
+            className="fill-emerald-500/90 font-mono text-[12px]"
           >
             read_curr_fd
           </text>
         </g>
 
         {/* --- PERSISTENT MAP --- */}
-        <g transform="translate(500, 190)">
+        <g transform="translate(500, 140)">
           <rect
             width="100"
-            height="340"
+            height="290"
             rx="4"
-            className="fill-blue-500/10 stroke-blue-400 stroke-2 stroke-dashed"
+            className="fill-blue-500/10 stroke-blue-400 stroke-1 stroke-dashed"
           />
           <text
             x="50"
@@ -293,36 +254,34 @@ const VerticalFlowDiagram: React.FC = () => {
 
           {/* Write from Open Exit */}
           <path
-            d="M -50 50 L -10 50"
+            d="M -50 40 L -5 40"
             className="stroke-blue-400/60 stroke-1"
             fill="none"
             markerEnd="url(#v-arrow-blue)"
           />
+          <text
+            x="-28"
+            y="35"
+            textAnchor="middle"
+            className="fill-blue-400 font-mono text-[12px]"
+          >
+            store
+          </text>
 
           {/* Read into Read Entry */}
           <path
-            d="M -10 315 L -50 315"
+            d="M 0 285 L -48 285"
             className="stroke-blue-400/60 stroke-1"
             fill="none"
             markerEnd="url(#v-arrow-blue)"
           />
-        </g>
-
-        {/* LEAK (Visual Extra) */}
-        <g transform="translate(450, 750)">
-          <path
-            d="M 0 -100 Q 50 -100, 50 -50"
-            className="stroke-red-500 stroke-1"
-            strokeDasharray="3 3"
-            fill="none"
-            markerEnd="url(#v-arrow)"
-          />
           <text
-            x="55"
-            y="-45"
-            className="fill-red-400 font-bold text-[10px] italic"
+            x="-24"
+            y="280"
+            textAnchor="middle"
+            className="fill-blue-400 font-mono text-[12px]"
           >
-            LEAK
+            check
           </text>
         </g>
       </svg>
