@@ -6,7 +6,7 @@ For example: When a process **starts**, we know its name. When it **exits**, we 
 
 You can define **multiple programs in one file**, each hooking into different events.
 
-Each program is independent and runs at its own event.
+Each program is independent and runs when its own event triggers.
 
 A common case that requires multiple programs is the `entry`+`exit` event pair.
 
@@ -15,7 +15,7 @@ At **entry**, we have the input (arguments, process info).
 ```c
 SEC("tracepoint/sched/sched_process_exec")
 int on_process_start(struct trace_event_raw_sched_process_exec *ctx) {
-    // Before the process is scheduled
+    // When the process starts execution
 }
 ```
 
@@ -29,7 +29,7 @@ int on_process_exit(struct trace_event_raw_sys_enter *ctx) {
 }
 ```
 
-To correlate both events, we need to persist data between the executions.
+To correlate both events, we need to persist data between program invocations.
 
 ## Persisting state
 
@@ -37,10 +37,7 @@ To correlate both events, we need to persist data between the executions.
 
 In eBPF, there are [many kinds](https://docs.ebpf.io/linux/map-type/) of maps. For this exercise, we'll use hash maps (key-value store).
 
-Let's speed-run map usage.
-
-
-To define a map, you declare a struct with these `__uint`/`__type` macros.
+Map usage is straightforward. First, declare a struct with these `__uint`/`__type` macros.
 
 ```c
 struct {
@@ -51,16 +48,14 @@ struct {
 } my_map SEC(".maps");
 ```
 
-To store, retrieve, or delete a value, call the appropriate helper.
-
-To store:
+To store, you pass a pointer to the data, which will be copied:
 ```c
 u64 key = 12345;
 char value[16] = "hello";
 bpf_map_update_elem(&my_map, &key, value, BPF_ANY);
 ```
 
-To retrieve a value:
+To retrieve a pointer to the value:
 ```c
 char *stored = bpf_map_lookup_elem(&my_map, &key);
 if (!stored) { // Key not found
@@ -69,7 +64,7 @@ if (!stored) { // Key not found
 // Use `stored` (it's a pointer to the char[16] array)
 ```
 
-To delete:
+To delete an entry from the map:
 ```c
 bpf_map_delete_elem(&my_map, &key);
 ```
@@ -84,4 +79,4 @@ The starter code has most of the logic already, this is an introduction chapter 
 
 Check if the process name matches `"exit_with_code"`, and if so, submit the exit code.
 
-Use `bpf_strncmp(comm, 16, "exit_with_code")` for comparison (returns **0 on match**).
+Use `bpf_strncmp(char* buf, u32 buf_sz, "exit_with_code")` for comparison (returns **0 on match**).

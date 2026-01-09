@@ -1,6 +1,6 @@
 In the previous exercise, we learned how to use maps to share data between multiple eBPF programs.
 
-Now let's apply this to capturing data from syscall buffers. Syscalls have two tracepoint types: `enter` (before it starts) and `exit` (after it finishes). We'll need to correlate data between both.
+Now let's apply this to capturing data from syscall buffers. Syscalls have two tracepoint events: `enter` (before it starts) and `exit` (after it finishes). We'll need to correlate data between both.
 
 ## The read syscall
 
@@ -17,31 +17,53 @@ If we hook into `sys_enter_read` and `sys_exit_read`:
 
 To correlate both, we capture the buffer pointer at entry using a map, then read the filled buffer at exit.
 
-The entry program is already written for you, which saves the buffer pointer in a map, keyed by PID.
+## Storing the buffer address at entry
+
+First, we need to save the buffer pointer when the syscall starts. The buffer address is in `ctx->args[1]`.
+
+We'll store this address in a map, using the PID as the key so we can look it up later:
+
+```c
+u64 buf_addr = ctx->args[1];
+bpf_map_update_elem(&read_buffers, &pid, &buf_addr, BPF_ANY);
+```
+
+Note that we're storing the address of the buffer as a `u64` value.
+
+## Reading the buffer at exit
+
+Now in the exit program, we need to retrieve and read the buffer that was filled by the syscall.
+
+First, check if the read succeeded:
+
+```c
+size_t count = ctx->ret;
+if (count <= 0) return 0;
+```
+The return value `ctx->ret` tells you how many bytes were read.
+
+Next, look up the saved buffer address using the PID as the key:
+```c
+u64 *buf_ptr = bpf_map_lookup_elem(&read_buffers, &pid);
+if (!buf_ptr) return 0;
+```
+This returns a pointer to the stored value (`u64*`).
+
+To read the buffer, create a local buffer and use `bpf_probe_read_user`. You'll need to dereference buf_ptr to get the actual buffer address:
+
+```c
+char local_buf[64];
+if (count > 64) count = 64;
+bpf_probe_read_user(local_buf, count, (void *)*buf_ptr);
+```
+Notice the `*buf_ptr` - we're dereferencing the pointer to get the buffer address we stored earlier.
 
 
 ## The challenge
 
 A program reads a file containing a password. Submit the contents of the entire file with `SUBMIT_STR_LEN`.
 
+
 ### Your task
 
-Write the `exit` program to capture the buffer contents.
-
-You will need to:
-1. Check if the read succeeded (`ctx->ret > 0`)
-   - The return value indicates how many bytes were read
-2. Look up the buffer pointer we stored with `bpf_map_lookup_elem` and the PID as key
-    - Check if you get a value or NULL
-3. Create a local buffer on the stack
-4. Read the now-filled buffer from user space
-   - Limit count to your buffer size (e.g., `if (count > 64) count = 64`)
-
-
-Remember that we are storing the address of the buffer in the map (as `u64`), so `bpf_map_lookup_elem` returns a pointer to the value (`u64*`). You'll need to de-reference the pointer in your call to `bpf_probe_read_user`:
-
-```c
-u64 *buf_ptr = bpf_map_lookup_elem(&read_buffers, &pid);
-// ...
-bpf_probe_read_user(local_buf, count, (void *)*buf_ptr)
-```
+Complete both the entry and exit programs to capture and submit the buffer contents.

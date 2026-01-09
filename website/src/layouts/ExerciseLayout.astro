@@ -130,9 +130,9 @@ const {
     display: flex;
     flex-direction: column;
   }
-  @media (max-width: 1280px) {
+  @media (max-width: 1366px) {
     .exercise-container:has(#tab-instructions:checked) {
-      height: auto;
+      height: 100%;
     }
     .exercise-container:has(#tab-code:checked) {
       height: 100%;
@@ -144,7 +144,6 @@ const {
     #tab-instructions:checked ~ .content.tab-content {
       display: block;
       flex: 1;
-      overflow-y: auto;
     }
 
     #tab-code:checked ~ .editor-wrapper.tab-content {

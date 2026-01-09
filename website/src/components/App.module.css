@@ -198,7 +198,7 @@
   background: var(--color-code-bg);
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1366px) {
   .resizeHandle {
     height: 12px;
   }

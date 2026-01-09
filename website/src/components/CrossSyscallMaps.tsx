@@ -76,7 +76,7 @@ const SyscallBlock: React.FC<SyscallBlockProps> = ({
 
       {/* Arrows to Tmp Map */}
       <path
-        d="M 30 25 L -58 25"
+        d="M 0 25 L -58 25"
         className="stroke-emerald-500/50 stroke-1"
         fill="none"
         markerEnd="url(#v-arrow-emerald)"
@@ -90,7 +90,7 @@ const SyscallBlock: React.FC<SyscallBlockProps> = ({
         store
       </text>
       <path
-        d="M 30 125 L -58 125"
+        d="M -58 125 L -3 125"
         className="stroke-emerald-500/50 stroke-1"
         fill="none"
         markerEnd="url(#v-arrow-emerald)"
@@ -109,8 +109,8 @@ const SyscallBlock: React.FC<SyscallBlockProps> = ({
 
 const VerticalFlowDiagram: React.FC = () => {
   return (
-    <div className="">
-      <svg viewBox="0 20 700 540" className="w-full">
+    <div className="p-1" style={{ maxWidth: "45rem", margin: "0px auto" }}>
+      <svg viewBox="35 20 570 540">
         <defs>
           <marker
             id="v-arrow"
@@ -147,10 +147,8 @@ const VerticalFlowDiagram: React.FC = () => {
           </marker>
         </defs>
 
-        {/* --- OPEN SYSCALL SECTION --- */}
         <SyscallBlock title="Open" translateX={200} translateY={50} />
 
-        {/* TMP MAP (Open) */}
         <g transform="translate(40, 50)">
           <rect
             width="100"
@@ -165,6 +163,22 @@ const VerticalFlowDiagram: React.FC = () => {
             className="fill-emerald-500/90 font-mono text-[12px]"
           >
             open_curr_fd
+          </text>
+          <text
+            x="50"
+            y="70"
+            textAnchor="middle"
+            className="fill-emerald-500/70 font-mono text-[12px]"
+          >
+            <tspan x="50" dy="0">
+              pid
+            </tspan>
+            <tspan x="50" dy="15">
+              ⇊
+            </tspan>
+            <tspan x="50" dy="15">
+              void
+            </tspan>
           </text>
         </g>
 
@@ -233,6 +247,22 @@ const VerticalFlowDiagram: React.FC = () => {
           >
             read_curr_fd
           </text>
+          <text
+            x="50"
+            y="70"
+            textAnchor="middle"
+            className="fill-emerald-500/70 font-mono text-[12px]"
+          >
+            <tspan x="50" dy="0">
+              pid
+            </tspan>
+            <tspan x="50" dy="15">
+              ⇊
+            </tspan>
+            <tspan x="50" dy="15">
+              buf addr
+            </tspan>
+          </text>
         </g>
 
         {/* --- PERSISTENT MAP --- */}
@@ -250,6 +280,22 @@ const VerticalFlowDiagram: React.FC = () => {
             className="fill-blue-400 text-[10px] tracking-widest"
           >
             interesting_fds
+          </text>
+          <text
+            x="50"
+            y="135"
+            textAnchor="middle"
+            className="fill-blue-400/70 font-mono text-[12px]"
+          >
+            <tspan x="50" dy="0">
+              {"{pid, fd}"}
+            </tspan>
+            <tspan x="50" dy="15">
+              ⇊
+            </tspan>
+            <tspan x="50" dy="15">
+              void
+            </tspan>
           </text>
 
           {/* Write from Open Exit */}
