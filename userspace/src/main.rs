@@ -73,6 +73,11 @@ fn run_exercise(hm: HostMessage, tx: Sender<GuestMessage>) {
         0
     };
 
+    // run setup phase before linking the
+    // eBPF program to prevent spurious
+    // activity from registering there
+    exercise.setup(&answer);
+
     let e = match EbpfLoader::load_program(&program, r_closure) {
         Ok(p) => p,
         Err(e) => {
@@ -81,7 +86,6 @@ fn run_exercise(hm: HostMessage, tx: Sender<GuestMessage>) {
         }
     };
 
-    exercise.setup(&answer);
     for pd in &e.program_details {
         let _ = tx.send(GuestMessage::FoundProgram {
             name: pd.name.clone(),
