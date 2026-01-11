@@ -1,0 +1,63 @@
+
+.function {
+  margin-bottom: 1.5rem;
+  margin-left: 1rem;
+  
+}
+
+.function:last-child {
+  margin-bottom: 0;
+}
+
+.signature {
+  color: var(--color-accent);
+  font-family: monospace;
+}
+
+.description {
+  margin: 0.5rem 0;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+}
+
+.args {
+  margin: 0;
+  padding-left: 1rem;
+}
+
+.args dt {
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.args dt:first-child {
+  margin-top: 0;
+}
+
+.args dd {
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  margin: 0;
+  padding-inline-start: 0.625em;
+}
+
+.args dd code {
+  color: var(--color-accent);
+  font-family: monospace;
+  font-size: 0.85rem;
+  background-color: var(--color-background-secondary);
+  padding: 0rem 0.3rem;
+  border-radius: 3px;
+}
+
+.type {
+  color: var(--color-text-secondary);
+  font-size: 0.85rem;
+}
+
+.docsLink {
+  font-size: 0.85rem;
+}

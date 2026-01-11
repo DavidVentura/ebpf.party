@@ -79,6 +79,10 @@ The kernel enforces strict separation between user and kernel memory for securit
 
 If you use `DEBUG_STR` on the buffer, you should see multiple programs being executed.
 
-Remember that you can only submit _one_ answer with `SUBMIT_STR_LEN`, so you will need to filter them like we did in the previous exercises, with `bpf_strncmp(char* s1, u32 s1_size, const char* s2)`.
+Remember that you can only submit _one_ answer with `SUBMIT_STR_LEN`, so you will need to filter them like we did in the previous exercises.
 
 You can get `len` from the return value of `bpf_probe_read_user_str` -- it returns the number of bytes copied.
+
+import QuickReference from '../../../components/QuickReference.tsx';
+
+<QuickReference stringMatching={true} />

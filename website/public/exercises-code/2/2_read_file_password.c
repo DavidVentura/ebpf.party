@@ -68,7 +68,7 @@ int trace_read_entry(struct trace_event_raw_sys_enter *ctx)
     u64 fd = ctx->args[0];
     u64 buf_addr = ctx->args[1];
     // Check if (pid, fd) exists in open_interesting_fds
-    // If yes, store buffer address in read_curr_fd_buf
+    // If yes, store buffer address, keyed by pid, in read_curr_fd_buf
 
     return 0;
 }

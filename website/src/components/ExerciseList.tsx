@@ -38,9 +38,7 @@ export default function ExerciseList({ metadata }: ExerciseListProps) {
           </h2>
           <div className={styles.chapterBox}>
             {chapter.exercises
-              .filter(
-                (exercise) => !!exercise.incomplete || import.meta.env.DEV
-              )
+              .filter((exercise) => !exercise.incomplete || import.meta.env.DEV)
               .map((exercise, index) => {
                 const url = `/exercises/${chapter.slug}/${exercise.slug}`;
                 const isCompleted = completedExercises.has(exercise.exerciseId);

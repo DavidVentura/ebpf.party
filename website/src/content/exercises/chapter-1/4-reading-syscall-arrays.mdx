@@ -1,4 +1,5 @@
 import ExecveArgs from '../../../components/ExecveArgs.tsx';
+import QuickReference from '../../../components/QuickReference.tsx';
 
 In the previous exercise, you learned how to read the `filename` argument from the `execve` system call using `ctx->args[0]`.
 
@@ -99,4 +100,7 @@ You will need to:
 3. Read the **next** argument, which contains the actual password
 4. Submit it using `SUBMIT_STR_LEN`
 
-As we've done before, you can use `bpf_strncmp(char* s1, u32 s1_sz, const char* s2)` to check for string matches.
+
+<QuickReference stringMatching={true}
+  userSpaceReading = {true}
+/>

@@ -3,7 +3,7 @@
 #include "ep_sock.h"
 #include <bpf/bpf_endian.h>
 
-// Map 1: TEMPORARY - Track port during connect (PID → port)
+// Map 1: Track port during connect (PID → port)
 // Lifetime: connect entry → exit only
 struct {
     __uint(type, BPF_MAP_TYPE_HASH);

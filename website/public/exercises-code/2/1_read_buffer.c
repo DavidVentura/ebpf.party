@@ -12,7 +12,6 @@ SEC("tracepoint/syscalls/sys_enter_read")
 int trace_read_entry(struct trace_event_raw_sys_enter *ctx)
 {
     u64 pid = bpf_get_current_pid_tgid();
-    if ((pid & 0xFFFF) == 1) return 0;
 
     return 0;
 }

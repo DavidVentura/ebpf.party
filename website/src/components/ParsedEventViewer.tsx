@@ -141,6 +141,49 @@ function ParsedFieldComponent({
   }
 
   if (field.value.kind === "struct") {
+    if (field.type == "in_addr") {
+      const s_addr_field = field.value.fields.find((f) => f.name === "s_addr");
+      if (!s_addr_field || s_addr_field.value.kind !== "scalar") {
+        return <div className={styles.field}>Invalid in_addr structure</div>;
+      }
+
+      const value = s_addr_field.value.value;
+      const numValue = typeof value === "bigint" ? Number(value) : value;
+
+      const byte1 = (numValue >>> 0) & 0xff;
+      const byte2 = (numValue >>> 8) & 0xff;
+      const byte3 = (numValue >>> 16) & 0xff;
+      const byte4 = (numValue >>> 24) & 0xff;
+
+      const mode = numberModes[path] || "decimal";
+      let displayValue: string;
+
+      if (mode === "decimal") {
+        displayValue = `${byte1}.${byte2}.${byte3}.${byte4}`;
+      } else {
+        displayValue = "0x" + numValue.toString(16).padStart(8, "0");
+      }
+
+      return (
+        <div className={styles.field}>
+          <span className={styles.fieldName} style={indentStyle}>
+            {field.name}
+          </span>
+          <button
+            className={styles.toggleButton}
+            onClick={() => onToggleNumber(path)}
+          >
+            [
+            <span className={mode === "decimal" ? styles.activeMode : ""}>
+              IP
+            </span>
+            |<span className={mode === "hex" ? styles.activeMode : ""}>0x</span>
+            ]
+          </button>
+          <span className={styles.fieldValue}>{displayValue}</span>
+        </div>
+      );
+    }
     return (
       <>
         <div className={styles.field}>

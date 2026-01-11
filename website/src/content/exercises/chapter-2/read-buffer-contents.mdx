@@ -52,8 +52,8 @@ This returns a pointer to the stored value (`u64*`).
 To read the buffer, create a local buffer and use `bpf_probe_read_user`. You'll need to dereference buf_ptr to get the actual buffer address:
 
 ```c
-char local_buf[64];
-if (count > 64) count = 64;
+char local_buf[32];
+if (count > 32) count = 32;
 bpf_probe_read_user(local_buf, count, (void *)*buf_ptr);
 ```
 Notice the `*buf_ptr` - we're dereferencing the pointer to get the buffer address we stored earlier.
@@ -67,3 +67,9 @@ A program reads a file containing a password. Submit the contents of the entire 
 ### Your task
 
 Complete both the entry and exit programs to capture and submit the buffer contents.
+
+import QuickReference from '../../../components/QuickReference.tsx';
+
+<QuickReference stringMatching={true}
+  userSpaceReading = {true}
+/>

@@ -1,0 +1,19 @@
+.reference {
+  padding-top: 1em;
+  border-top: 1px solid var(--color-border);
+}
+
+.reference details:open {
+  margin-bottom: 1em;
+}
+summary {
+  background-color: var(--color-bg-primary);
+  cursor: pointer;
+}
+.functions {
+  padding: 1rem;
+}
+.title {
+  padding-bottom: 1em;
+  display: block;
+}
