@@ -4,6 +4,7 @@ import styles from "./ExerciseNav.module.css";
 
 interface Exercise {
   url?: string;
+  incomplete?: boolean;
   frontmatter: {
     title: string;
   };
@@ -36,7 +37,7 @@ export default function ExerciseNav({
           </div>
         </a>
       )}
-      {nextExercise && (
+      {nextExercise && !nextExercise.incomplete && (
         <a
           href={nextExercise.url}
           className={`${styles.navLink} ${styles.next}`}

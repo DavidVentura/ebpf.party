@@ -122,6 +122,7 @@ export const CONTENT_METADATA: ContentMetadata = {
           exerciseId: "read-dns",
           codeFile: "1_dns.c",
           contentPath: "chapter-3/read-dns",
+          incomplete: true,
         },
         {
           slug: "read-http-password",
@@ -153,11 +154,12 @@ export function getExerciseByParams(
   return { chapter, exercise };
 }
 
-export function getAllExercisesFlat(): Array<{
+export type FullExMeta = {
   chapter: ChapterMetadata;
   exercise: ExerciseMetadata;
   url: string;
-}> {
+};
+export function getAllExercisesFlat(): Array<FullExMeta> {
   return CONTENT_METADATA.chapters.flatMap((chapter) =>
     chapter.exercises.map((exercise) => ({
       chapter,
