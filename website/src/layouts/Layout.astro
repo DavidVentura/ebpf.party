@@ -33,7 +33,7 @@ const { hasCodeTabs = false } = Astro.props;
   --astro-code-background: var(--color-code-bg);
   --astro-code-token-function: #61afef;
   --astro-code-token-keyword: #e5c07b;
-  --astro-code-foreground: #e06c75;
+  --astro-code-foreground: var(--color-text-primary);
   --astro-code-token-constant: var(--astro-code-token-keyword);
   --astro-code-token-string-expression: #98c379;
   --astro-code-token-comment: #7d8799;
@@ -60,6 +60,9 @@ body {
   color: var(--astro-code-token-constant);
 }
 .token-punctuation {
+  color: var(--color-text-primary);
+}
+.token-unknown {
   color: var(--color-text-primary);
 }`}
     ></style>
