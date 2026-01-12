@@ -11,6 +11,7 @@ ctrlc = "3.4"
 libc = "0.2"
 shared = { path = "../shared" }
 bincode = "2.0.1"
+dns-protocol = "0.1.2"
 
 [patch.crates-io]
 libbpf-sys = { path = "/home/david/git/libbpf-sys" }

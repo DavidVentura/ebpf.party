@@ -117,6 +117,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dns-protocol"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96e95919581371ae96cbf05b0aeec65cdc20bd3a2dca282ab6af808fbddaddb4"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -154,6 +163,12 @@ name = "libc"
 version = "0.2.178"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091"
+
+[[package]]
+name = "memchr"
+version = "2.7.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "memoffset"
@@ -312,6 +327,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "ctrlc",
+ "dns-protocol",
  "libbpf-rs",
  "libbpf-sys",
  "libc",

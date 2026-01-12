@@ -1,5 +1,5 @@
 use std::fs;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream, UdpSocket};
 use std::panic::RefUnwindSafe;
 use std::process::Command;
 use std::sync::mpsc;
@@ -223,10 +223,48 @@ impl Exercise for TrackSocketAndConnect {
 pub struct ReadDns;
 
 impl Exercise for ReadDns {
-    fn setup(&self, _answer: &[u8]) {}
+    fn setup(&self, _answer: &[u8]) {
+        println!("setup dns");
+    }
 
     fn run(&self, _answer: &[u8]) {
-        todo!("Implement DNS exercise")
+        println!("start running dns");
+
+        let sl = UdpSocket::bind("127.0.0.1:53").unwrap();
+        sl.set_read_timeout(Some(Duration::from_millis(100)))
+            .unwrap();
+        let j = std::thread::spawn(move || {
+            let mut buf = vec![0; 128];
+            sl.recv(&mut buf).unwrap();
+        });
+        let s = UdpSocket::bind("127.0.0.1:0").unwrap();
+        s.connect("127.0.0.1:53").unwrap();
+
+        let mut buf = vec![0u8; 1024];
+
+        // Create a message. This is a query for the A record of example.com.
+        let mut questions = [dns_protocol::Question::new(
+            "ebpf.party",
+            dns_protocol::ResourceType::A,
+            0,
+        )];
+        let mut answers = [dns_protocol::ResourceRecord::default()];
+        let message = dns_protocol::Message::new(
+            0x42,
+            dns_protocol::Flags::default(),
+            &mut questions,
+            &mut answers,
+            &mut [],
+            &mut [],
+        );
+
+        // Serialize the message into the buffer
+        assert!(message.space_needed() <= buf.len());
+        let len = message.write(&mut buf).unwrap();
+
+        s.send(&buf[..len]).unwrap();
+        println!("done running dns, len {len}");
+        j.join().unwrap();
     }
 }
 

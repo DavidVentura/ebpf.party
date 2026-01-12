@@ -77,6 +77,8 @@ fn run_exercise(hm: HostMessage, tx: Sender<GuestMessage>) {
     // eBPF program to prevent spurious
     // activity from registering there
     exercise.setup(&answer);
+    std::io::stdout().flush().unwrap();
+    std::io::stderr().flush().unwrap();
 
     let e = match EbpfLoader::load_program(&program, r_closure) {
         Ok(p) => p,
