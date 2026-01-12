@@ -3,15 +3,14 @@ import { defineConfig } from 'astro/config';
 import mdx from '@astrojs/mdx';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
+import rehypeLezerHighlight from './src/lib/rehype-lezer-highlight.js';
 
 // https://astro.build/config
 export default defineConfig({
   integrations: [mdx(), react(), tailwind()],
   markdown: {
-    shikiConfig: {
-      theme: 'css-variables',
-      defaultColor: false, 
-    }
+    syntaxHighlight: false,
+    rehypePlugins: [rehypeLezerHighlight],
   },
   vite: {
     worker: {

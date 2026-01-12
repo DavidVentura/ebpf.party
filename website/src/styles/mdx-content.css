@@ -2,6 +2,10 @@
   background-color: var(--color-code-bg);
 }
 
+.prose pre {
+  color: var(--astro-code-foreground);
+  background-color: var(--astro-code-background);
+}
 .prose kbd {
   background: #2d2d2d;
   border-radius: 4px;
@@ -56,5 +60,5 @@
   border-radius: 4px;
 }
 .prose code::before, .prose code::after {
-  content: "";
+  content: unset;
 }

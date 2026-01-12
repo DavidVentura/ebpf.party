@@ -62,9 +62,6 @@ importers:
       react-resizable-panels:
         specifier: ^4.1.0
         version: 4.1.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      shiki:
-        specifier: ^3.21.0
-        version: 3.21.0
     devDependencies:
       '@astrojs/tailwind':
         specifier: ^6.0.2
@@ -75,6 +72,9 @@ importers:
       tailwindcss:
         specifier: ^3.4.19
         version: 3.4.19
+      unist-util-visit:
+        specifier: ^5.0.0
+        version: 5.0.0
       vitest:
         specifier: ^4.0.16
         version: 4.0.16(@types/node@25.0.3)(jiti@1.21.7)(yaml@2.8.2)

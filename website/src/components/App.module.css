@@ -20,11 +20,8 @@
 
 .app :global(.cm-content) {
   min-height: auto;
+  font-size: 14px;
 }
-/* .app :global() {
-  #B392F0
-} */
-
 .output {
   background: var(--color-code-bg);
   color: #d4d4d4;

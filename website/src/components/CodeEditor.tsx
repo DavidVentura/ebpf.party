@@ -67,7 +67,13 @@ export default function CodeEditor({
     syntaxHighlighting(
       HighlightStyle.define([
         { tag: t.keyword, color: "var(--astro-code-token-keyword)" },
-        { tag: t.angleBracket, color: "red" },
+        { tag: t.controlKeyword, color: "var(--astro-code-token-keyword)" },
+        { tag: t.operatorKeyword, color: "var(--astro-code-token-keyword)" },
+        { tag: t.variableName, color: "var(--astro-code-token-function)" },
+        { tag: t.string, color: "var(--astro-code-token-string-expression)" },
+        { tag: t.comment, color: "var(--astro-code-token-comment)" },
+        { tag: t.number, color: "var(--astro-code-token-constant)" },
+        { tag: t.typeName, color: "var(--astro-code-token-constant)" },
       ])
     ),
     oneDark,
