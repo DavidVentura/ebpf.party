@@ -92,6 +92,7 @@ fn main() {
     ));
 
     println!("Server running on {}", config.listen_address);
+    let c = compile::pre_compile(&config);
 
     let _ = Server::bind(&config.listen_address).make_service(move |conn: &touche::Connection| {
         conn.set_nodelay(true).ok();
