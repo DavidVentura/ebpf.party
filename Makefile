@@ -2,10 +2,15 @@
 
 CFLAGS = -static -fno-ident -fno-asynchronous-unwind-tables -fno-unwind-tables -s -Os -nostdlib -I/home/david/git/linux-6.18.2/tools/include/nolibc -include nolibc.h
 
-all: website_bindings backend/includes/task.h.pch rootfs.ext4
+all: website_bindings backend/includes/task.h.pch rootfs.ext4 backend/includes/kfuncs.h
 	:
 website_bindings: website/src/wasm/syntax_check.mjs website/public/tcc/syntax_check.data website/public/tcc/syntax_check.wasm
 	:
+
+backend/includes/kfuncs.h:
+	# generating this automatically requires a new pahole & bpftool
+	# for now, grep works
+	grep ^__bpf_kfunc ~/git/linux-6.18.2/kernel/bpf/helpers.c | grep bpf_str | sed -e 's/^__bpf_kfunc/extern/' -e 's/$$/ __ksym __weak;/' > $@
 
 backend/includes/task.h.pch: backend/includes/task.h
 	cd ./backend/includes && ../clang -g -fpch-debuginfo -O2 -target bpf -x c-header task.h -o task.h.pch
