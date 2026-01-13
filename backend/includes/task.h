@@ -546,6 +546,7 @@ struct tracepoint_func;
 struct tracer;
 struct tracer_flags;
 struct tracer_opt;
+struct ubuf_info;
 struct ucounts;
 struct udp_hslot;
 struct udp_mib;
@@ -6793,6 +6794,23 @@ struct merkle_tree_params {
 	long unsigned int tree_pages;
 	long unsigned int level_start[8];
 };
+struct msghdr {
+	void *msg_name;
+	int msg_namelen;
+	int msg_inq;
+	struct iov_iter msg_iter;
+	union {
+		void *msg_control;
+		void *msg_control_user;
+	};
+	bool msg_control_is_user: 1;
+	bool msg_get_inq: 1;
+	unsigned int msg_flags;
+	__kernel_size_t msg_controllen;
+	struct kiocb *msg_iocb;
+	struct ubuf_info *msg_ubuf;
+	int (*sg_from_iter)(void *, struct sk_buff *, struct iov_iter *, size_t);
+};
 struct napi_struct {
 	struct list_head poll_list;
 	long unsigned int state;
@@ -8678,6 +8696,11 @@ struct nf_loginfo {
 			u_int8_t logflags;
 		} log;
 	} u;
+};
+struct ubuf_info {
+	void (*callback)(struct sk_buff *, struct ubuf_info *, bool);
+	refcount_t refcnt;
+	u8 flags;
 };
 struct uclamp_bucket {
 	long unsigned int value: 11;

@@ -131,10 +131,10 @@
 
 #else /* __i386__ */
 
-#define __PT_PARM1_REG rdi
-#define __PT_PARM2_REG rsi
-#define __PT_PARM3_REG rdx
-#define __PT_PARM4_REG rcx
+#define __PT_PARM1_REG di
+#define __PT_PARM2_REG si
+#define __PT_PARM3_REG dx
+#define __PT_PARM4_REG cx
 #define __PT_PARM5_REG r8
 #define __PT_PARM6_REG r9
 
