@@ -83,6 +83,7 @@ fn run_exercise(hm: HostMessage, tx: Sender<GuestMessage>) {
     let e = match EbpfLoader::load_program(&program, r_closure) {
         Ok(p) => p,
         Err(e) => {
+            SHOULD_STOP.store(true, Ordering::Relaxed);
             let _ = tx.send(e).unwrap();
             return;
         }
