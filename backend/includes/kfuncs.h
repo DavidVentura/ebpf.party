@@ -1,0 +1,12 @@
+extern int bpf_strcmp(const char *s1__ign, const char *s2__ign) __ksym __weak;
+extern int bpf_strcasecmp(const char *s1__ign, const char *s2__ign) __ksym __weak;
+extern int bpf_strnchr(const char *s__ign, size_t count, char c) __ksym __weak;
+extern int bpf_strchr(const char *s__ign, char c) __ksym __weak;
+extern int bpf_strchrnul(const char *s__ign, char c) __ksym __weak;
+extern int bpf_strrchr(const char *s__ign, int c) __ksym __weak;
+extern int bpf_strnlen(const char *s__ign, size_t count) __ksym __weak;
+extern int bpf_strlen(const char *s__ign) __ksym __weak;
+extern int bpf_strspn(const char *s__ign, const char *accept__ign) __ksym __weak;
+extern int bpf_strcspn(const char *s__ign, const char *reject__ign) __ksym __weak;
+extern int bpf_strnstr(const char *s1__ign, const char *s2__ign, size_t len) __ksym __weak;
+extern int bpf_strstr(const char *s1__ign, const char *s2__ign) __ksym __weak;
