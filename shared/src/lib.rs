@@ -51,8 +51,10 @@ pub enum ExerciseId {
     ReadFilePassword,
     TrackSocketAndConnect,
     // Chapter 3
-    ReadDns,
+    TCPConnect,
     ReadHttpPassword,
+    // TODO?
+    ReadDns,
 }
 
 impl ExerciseId {
@@ -74,8 +76,10 @@ impl ExerciseId {
             "socket-and-connect" => Some(Self::TrackSocketAndConnect),
 
             // Chapter 3
-            "read-dns" => Some(Self::ReadDns),
             "read-http-password" => Some(Self::ReadHttpPassword),
+            "tcp-connect" => Some(Self::TCPConnect),
+            // TODO
+            "read-dns" => Some(Self::ReadDns),
             _ => None,
         }
     }
@@ -96,6 +100,7 @@ impl ExerciseId {
 
             Self::ReadDns => "read-dns",
             Self::ReadHttpPassword => "read-http-password",
+            Self::TCPConnect => "tcp-connect",
         }
     }
 }
@@ -115,13 +120,15 @@ impl Label for ExerciseId {
 pub fn get_answer(exercise_id: ExerciseId, user_key: u64) -> Vec<u8> {
     use ExerciseId::*;
 
+    let a_port = ((user_key % 65000u64) + 10).to_le_bytes().to_vec();
+    let a_path = format!("/bin/secret_{:0>6}", user_key % 1_000_000).into_bytes();
     match exercise_id {
         PlatformOverview => "the answer".to_string().into_bytes(),
         // keep it under 16 chars to fit in COMM
         ConceptIntro => format!("secret_{:0>6}", user_key % 1_000_000).into_bytes(),
         // this one fits entirely in ctx->filename
-        ReadingEventData => format!("/bin/secret_{:0>6}", user_key % 1_000_000).into_bytes(),
-        ReadingSyscalls => format!("/bin/secret_{:0>6}", user_key % 1_000_000).into_bytes(),
+        ReadingEventData => a_path,
+        ReadingSyscalls => a_path,
         ReadArgvPassword => user_key.to_string().into_bytes(),
 
         // numbers always require u64, simplifies the macro
@@ -129,11 +136,13 @@ pub fn get_answer(exercise_id: ExerciseId, user_key: u64) -> Vec<u8> {
         ReadBufferContents => "for sure there's a lot of content in this file"
             .to_string()
             .into_bytes(),
-        TrackSocketAndConnect => ((user_key % 65000u64) + 10).to_le_bytes().to_vec(),
+        TrackSocketAndConnect => a_port,
         ReadFilePassword => format!("banana-{:0>6}", user_key % 1_000_000).into_bytes(),
 
-        ReadDns => vec![255, 254, 253, 252],
         ReadHttpPassword => format!("this-is-my-token-{user_key}").into_bytes(),
+        TCPConnect => a_port,
+
+        ReadDns => vec![255, 254, 253, 252],
     }
 }
 
