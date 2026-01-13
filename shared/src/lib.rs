@@ -14,6 +14,7 @@ pub enum GuestMessage {
     VerifierFail(String),
     DebugMapNotFound,
     NoProgramsFound,
+    CantAttachProgram(String),
     FoundProgram { name: String, section: String },
     FoundMap { name: String },
     Event(Vec<u8>),
@@ -131,8 +132,8 @@ pub fn get_answer(exercise_id: ExerciseId, user_key: u64) -> Vec<u8> {
         TrackSocketAndConnect => ((user_key % 65000u64) + 10).to_le_bytes().to_vec(),
         ReadFilePassword => format!("banana-{:0>6}", user_key % 1_000_000).into_bytes(),
 
-        ReadDns => todo!("Implement answer generation for ex-3-1"),
-        ReadHttpPassword => todo!("Implement answer generation for ex-3-2"),
+        ReadDns => vec![255, 254, 253, 252],
+        ReadHttpPassword => format!("this-is-my-token-{user_key}").into_bytes(),
     }
 }
 
