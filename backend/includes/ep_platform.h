@@ -27,17 +27,19 @@ struct {
     __debug_struct(label_str, __COUNTER__, &struct_val, sizeof(struct_val), 0); \
 } while (0)
 
-// only doing _Static_assert here because the verifier
-// requires `len` to be a constant
-//_Static_assert((len) < 256, "Max string length is 255");
-//
-#define DEBUG_STR_PTR(label_str, str_ptr, len) do { \
-    __debug_str(label_str, __COUNTER__, str_ptr, 255, len, 0); \
+#define __CLAMP_LEN(len) \
+    (__builtin_constant_p(len) ? \
+        ((len) < 256 ? (len) : 255) : \
+        255)
+
+#define DEBUG_STR_LEN(label_str, str_ptr, len) do { \
+    __debug_str(label_str, __COUNTER__, str_ptr, __CLAMP_LEN(len), len, 0); \
 } while (0)
 
 #define IS_ARRAY(x) (!__builtin_types_compatible_p(typeof(x), typeof(&(x)[0])))
+
 #define DEBUG_STR(label_str, str_val) do { \
-    _Static_assert(IS_ARRAY(str_val), "Use DEBUG_STR_PTR for pointers"); \
+    _Static_assert(IS_ARRAY(str_val), "Use DEBUG_STR_LEN for dynamic length strings"); \
     _Static_assert(sizeof(str_val) < 256, "Max string length is 255"); \
     __debug_str(label_str, __COUNTER__, &str_val, sizeof(str_val), sizeof(str_val), 0); \
 } while (0)
@@ -53,16 +55,8 @@ struct {
     __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), sizeof(str_val), 1); \
 } while (0)
 
-// This is doing sizeof() so can't take a ptr
-#define SUBMIT_STR_LEN(str_val, len) do { \
-    _Static_assert(IS_ARRAY(str_val), "Use SUBMIT_STR_PTR for pointers"); \
-    _Static_assert(sizeof(str_val) < 256, "Max string length is 255"); \
-    __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), len, 1); \
-} while (0)
-
-#define SUBMIT_STR_PTR(str_ptr, len) do { \
-    _Static_assert(!IS_ARRAY(str_ptr), "Use SUBMIT_STR_LEN for arrays"); \
-    __debug_str("answer", __COUNTER__, str_ptr, 255, len, 1); \
+#define SUBMIT_STR_LEN(str_ptr, len) do { \
+    __debug_str("answer", __COUNTER__, str_ptr, __CLAMP_LEN(len), len, 1); \
 } while (0)
 
 #define SUBMIT_NUM(num_val) do { \
