@@ -33,7 +33,7 @@ rootfs/%: bins/%.c rootfs
 	gcc $(CFLAGS) $< -o $@
 
 
-rootfs/main: userspace/src/*.rs
+rootfs/main: userspace/src/*.rs userspace/src/setup/*.rs
 	cd userspace && LIBBPF_SYS_EXTRA_CFLAGS="-idirafter /usr/include/x86_64-linux-gnu -idirafter /usr/include" cargo build --release --target x86_64-unknown-linux-musl
 	strip userspace/target/x86_64-unknown-linux-musl/release/userspace
 	cp userspace/target/x86_64-unknown-linux-musl/release/userspace $@
