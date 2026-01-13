@@ -29,9 +29,10 @@ struct {
 
 // only doing _Static_assert here because the verifier
 // requires `len` to be a constant
+//_Static_assert((len) < 256, "Max string length is 255");
+//
 #define DEBUG_STR_PTR(label_str, str_ptr, len) do { \
-    _Static_assert((len) < 256, "Max string length is 255"); \
-    __debug_str(label_str, __COUNTER__, str_ptr, len, len, 0); \
+    __debug_str(label_str, __COUNTER__, str_ptr, 255, len, 0); \
 } while (0)
 
 #define IS_ARRAY(x) (!__builtin_types_compatible_p(typeof(x), typeof(&(x)[0])))
@@ -52,9 +53,16 @@ struct {
     __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), sizeof(str_val), 1); \
 } while (0)
 
+// This is doing sizeof() so can't take a ptr
 #define SUBMIT_STR_LEN(str_val, len) do { \
+    _Static_assert(IS_ARRAY(str_val), "Use SUBMIT_STR_PTR for pointers"); \
     _Static_assert(sizeof(str_val) < 256, "Max string length is 255"); \
     __debug_str("answer", __COUNTER__, &str_val, sizeof(str_val), len, 1); \
+} while (0)
+
+#define SUBMIT_STR_PTR(str_ptr, len) do { \
+    _Static_assert(!IS_ARRAY(str_ptr), "Use SUBMIT_STR_LEN for arrays"); \
+    __debug_str("answer", __COUNTER__, str_ptr, 255, len, 1); \
 } while (0)
 
 #define SUBMIT_NUM(num_val) do { \
@@ -68,16 +76,18 @@ struct {
 #define STRUCT_ID   0x04
 #define ANSWER_FLAG 0x80
 
-static __always_inline void __ep_debug_val(const char *label, __u8 counter, void *ptr, size_t size, u8 valid_size, __u8 type) {
-    if (size > 255) return;
-    unsigned char* buf = bpf_ringbuf_reserve(&_ep_debug_events, size+3, 0);
+// rsv size needs to be known at compile time.
+// for dynamic-length data, we call this with rsv_size=255
+static __always_inline void __ep_debug_val(const char *label, __u8 counter, void *ptr, size_t rsv_size, u8 valid_size, __u8 type) {
+    if (rsv_size > 255) return;
+    unsigned char* buf = bpf_ringbuf_reserve(&_ep_debug_events, rsv_size+3, 0);
     if (!buf)
         return;
 
     buf[0] = type;
     buf[1] = counter;
     buf[2] = valid_size;
-    bpf_probe_read_kernel(buf + 3, size, ptr);
+    bpf_probe_read_kernel(buf + 3, valid_size, ptr);
     bpf_ringbuf_submit(buf, 0);
 }
 
@@ -88,11 +98,11 @@ static __always_inline void __debug_struct(const char *label, __u8 counter, void
     __ep_debug_val(label, counter, ptr, size, size, type);
 }
 
-static __always_inline void __debug_str(const char *label, __u8 counter, void *ptr, size_t size, u8 valid_size, bool is_answer) {
+static __always_inline void __debug_str(const char *label, __u8 counter, void *ptr, size_t rsv_size, u8 valid_size, bool is_answer) {
     u8 type = STR_ID;
     if (is_answer)
             type |= ANSWER_FLAG;
-    __ep_debug_val(label, counter, ptr, size, valid_size, type);
+    __ep_debug_val(label, counter, ptr, rsv_size, valid_size, type);
 }
 
 static __always_inline void __debug_num(const char *label, __u8 counter, void* num, size_t size, bool is_answer) {
