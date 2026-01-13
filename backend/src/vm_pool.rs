@@ -85,7 +85,8 @@ impl VmPermit {
             mem_size_mib: 64,
             kernel,
             kernel_cmdline: "quiet ro panic=-1 reboot=t init=/main".to_string(),
-            //kernel_cmdline: "quiet ro panic=-1 reboot=t init=/strace -- /main".to_string(),
+            //kernel_cmdline: "quiet ro panic=-1 reboot=t init=/main".to_string(),
+            //kernel_cmdline: "quiet ro panic=-1 reboot=t init=/strace -- -f /main".to_string(),
             rootfs: Some(Disk {
                 path: self.config.rootfs_path.clone(),
                 read_only: true,
@@ -131,7 +132,7 @@ impl VmPermit {
                 duration_secs: execution_duration.as_secs_f64(),
             });
         });
-        let vm = v.make(Box::new(io::stdout())).unwrap();
+        let vm = v.make(Box::new(std::io::stderr())).unwrap();
         // dropping takes ~30ms, do it in a thread
         // only release the permit after the vm is done
         thread::spawn(move || {

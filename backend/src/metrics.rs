@@ -39,12 +39,13 @@ pub enum ExerciseResult {
     Fail,
     NoAnswer,
     MultipleAnswer,
-    VerifierFail,
-    DebugMapNotFound,
     CompileError,
     NoCapacityLeft,
     // guest
     Crashed,
+    VerifierFail,
+    DebugMapNotFound,
+    CantAttachProgram(String),
 }
 
 impl fmt::Display for ExerciseResult {
@@ -59,6 +60,7 @@ impl fmt::Display for ExerciseResult {
             ExerciseResult::DebugMapNotFound => write!(f, "debug_map_not_found"),
             ExerciseResult::CompileError => write!(f, "clang_compile_error"),
             ExerciseResult::NoCapacityLeft => write!(f, "no_capacity_left"),
+            ExerciseResult::CantAttachProgram(..) => write!(f, "cant_attach_program"),
         }
     }
 }

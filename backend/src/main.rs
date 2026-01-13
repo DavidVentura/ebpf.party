@@ -92,7 +92,7 @@ fn main() {
     ));
 
     println!("Server running on {}", config.listen_address);
-    let c = compile::pre_compile(&config);
+    compile::pre_compile(&config).unwrap();
 
     let _ = Server::bind(&config.listen_address).make_service(move |conn: &touche::Connection| {
         conn.set_nodelay(true).ok();
@@ -312,7 +312,6 @@ fn handle_guest_events(
         0 => PlatformMessage::NoAnswer,
         1 => {
             let expected_answer = shared::get_answer(exercise_id, user_key);
-            // println!("E {expected_answer:?}");
             let is_correct = match answer.as_ref().unwrap() {
                 UserAnswer::String(submitted) => {
                     let trimmed = submitted
