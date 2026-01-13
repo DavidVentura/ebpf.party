@@ -11,11 +11,17 @@ This makes eBPF powerful for observability, security monitoring, and network fil
 
 ## Program types
 
-eBPF programs are categorized by where they attach in the kernel. We will focus on two types:
+eBPF programs are categorized by where they attach in the kernel. These are the most common:
 
 ### Tracepoints
 
 Tracepoints are hook points defined throughout the kernel code. They expose almost all kernel events, such as process scheduling, file operations, network operations and system calls.
+
+### Kprobes
+
+Kprobes attach to any kernel function by name. Unlike tracepoints, they're not part of the kernel's stable API - function names and signatures can change between versions.
+
+Kprobes provide access to kernel internals that aren't exposed through tracepoints, allowing deeper inspection of kernel behavior.
 
 ### XDP
 

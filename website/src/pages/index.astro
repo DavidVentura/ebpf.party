@@ -6,23 +6,41 @@ import ExerciseList from "../components/ExerciseList";
 
 <Layout>
   <div class="home">
-    <p>
-      Learn eBPF through hands-on exercises. Write, compile, and run programs
-      directly in your browser.
-    </p>
-    <p>
-      Curious about how it works? <a href="/how-it-works"
-        >Here's an explanation.</a>
-    </p>
-    <ExerciseList client:load metadata={CONTENT_METADATA} />
+    <div class="content">
+      <p>
+        Learn eBPF through hands-on exercises. Write, compile, and run programs
+        directly in your browser.
+      </p>
+
+      <ExerciseList client:load metadata={CONTENT_METADATA} />
+    </div>
+    <div class="footer">
+      <hr />
+      <p>
+        Did you find an issue, or have an idea for a new exercise? Create an
+        issue in <a href="https://github.com/DavidVentura/ebpf.party"
+          >the repository</a
+        >.
+      </p>
+      <p>
+        Curious about how it works? <a href="/how-it-works"
+          >Here's an explanation.</a
+        >
+      </p>
+    </div>
   </div>
 </Layout>
 
 <style>
   .home {
     padding: 2rem;
-    max-width: 800px;
+    padding-bottom: 0rem;
+    max-width: 90ch;
     margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    justify-content: space-between;
   }
 
   .home h1 {
@@ -31,9 +49,14 @@ import ExerciseList from "../components/ExerciseList";
   }
 
   .home p {
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
   }
   a {
     color: var(--color-text-primary);
+    text-decoration: underline;
+  }
+  hr {
+    border-color: var(--color-text-primary);
+    margin-bottom: 1em;
   }
 </style>

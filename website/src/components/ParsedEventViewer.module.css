@@ -87,6 +87,7 @@
 
 .fieldValue {
   color: #ce9178;
+  word-break: break-all;
 }
 
 .activeMode {

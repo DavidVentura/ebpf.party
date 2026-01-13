@@ -55,6 +55,13 @@
   padding: 3px;
   border-radius: 4px;
 }
+.prose pre code {
+  padding: 0px;
+}
 .prose code::before, .prose code::after {
-  content: "";
+  content: unset;
+}
+
+.prose svg {
+  font-family: sans-serif;
 }

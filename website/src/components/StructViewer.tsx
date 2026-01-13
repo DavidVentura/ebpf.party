@@ -1,11 +1,13 @@
 import type { TypeInfo, TypeMember } from "../types/typeinfo";
 import styles from "./StructViewer.module.css";
+import X from "lucide-react/dist/esm/icons/x";
 
 function StructMember({ member }: { member: TypeMember }) {
   const signIndicator = member.kind === "scalar" && !member.unsigned ? "±" : "";
-  const fieldName = member.kind === "array"
-    ? `${member.name}[${member.element_count}]`
-    : member.name;
+  const fieldName =
+    member.kind === "array"
+      ? `${member.name}[${member.element_count}]`
+      : member.name;
 
   return (
     <div className={styles.member}>
@@ -59,7 +61,7 @@ export default function StructViewer({ typeInfo, onClose }: StructViewerProps) {
       <div className={styles.header}>
         <h3>Type Information</h3>
         <button className={styles.closeButton} onClick={onClose}>
-          ×
+          <X></X>
         </button>
       </div>
       <div>

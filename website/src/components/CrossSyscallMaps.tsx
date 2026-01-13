@@ -290,8 +290,8 @@ const VerticalFlowDiagram: React.FC = () => {
             <tspan x="50" dy="0">
               {"{pid, fd}"}
             </tspan>
-            <tspan x="50" dy="15">
-              ⇊
+            <tspan x="50" dy="15" className="font-bold">
+              &darr;
             </tspan>
             <tspan x="50" dy="15">
               void

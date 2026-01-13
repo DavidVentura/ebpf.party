@@ -2,6 +2,7 @@ import type { SSEEvent } from "../types/sse-events";
 import type { TypeInfo } from "../types/typeinfo";
 import ParsedEventViewer from "./ParsedEventViewer";
 import styles from "./EventViewer.module.css";
+import X from "lucide-react/dist/esm/icons/x";
 
 interface EventViewerProps {
   events: SSEEvent[];
@@ -76,7 +77,7 @@ export default function EventViewer({
           {isRunning && <span className={styles.loading}>Loading...</span>}
         </div>
         <button className={styles.closeButton} onClick={onClear}>
-          ×
+          <X></X>
         </button>
       </div>
       <div className={styles.events}>

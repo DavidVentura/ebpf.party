@@ -1,0 +1,68 @@
+
+We've used tracepoints to hook into syscalls. Now let's learn **kprobes** - attaching to internal kernel functions.
+
+## Kprobes vs tracepoints
+
+**Tracepoints** are stable, documented hooks at specific kernel events (syscall entry/exit, scheduling, etc.). They provide structured context:
+```c
+SEC("tracepoint/syscalls/sys_enter_connect")
+int trace(struct trace_event_raw_sys_enter *ctx) {
+    u32 fd = ctx->args[0];  // Predefined fields
+}
+```
+
+**Kprobes** attach to any kernel function by name. They're more flexible but:
+- Function names/signatures can change between kernel versions
+- No structured context - must extract arguments from CPU registers
+
+## Why kprobes?
+
+Tracepoints expose specific events. Kprobes let us hook deeper into kernel internals. For example, `connect()` syscall returns immediately for non-blocking sockets, but `tcp_finish_connect()` fires when the TCP handshake actually completes.
+
+## Accessing function arguments
+
+Kprobes receive `struct pt_regs *ctx` - raw CPU registers. Use macros to extract the arguments:
+
+```c
+PT_REGS_PARM1(ctx)  // First parameter
+PT_REGS_PARM2(ctx)  // Second parameter
+PT_REGS_PARM3(ctx)  // Third parameter
+// up to 8
+```
+
+We can find the signature for `tcp_finish_connect` in `net/ipv4/tcp_input.c`, which is
+```c
+void tcp_finish_connect(struct sock *sk, struct sk_buff *skb);
+```
+
+And so, we need to cast the first argument back to a `struct sock*`:
+```c
+struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+```
+
+## Socket properties
+
+You can read the socket's properties with `bpf_probe_read_kernel`, a 
+small subset of the struct is described below:
+
+```c
+struct sock {
+    struct sock_common __sk_common;  // Common socket info
+    // ...
+};
+
+struct sock_common {
+    u16 skc_dport;   // Destination port
+    u32 skc_daddr;   // Destination IPv4 address
+    // ...
+};
+```
+
+Remember that ports are in big endian, so you'll need to use `bpf_ntohs` to convert it.
+
+
+## The challenge
+
+A program connects to a remote server. The `connect()` syscall returns `-EINPROGRESS` (non-blocking), but the connection completes successfully.
+
+Submit the destination port.

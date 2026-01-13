@@ -19,7 +19,7 @@ Each macro takes a label (a string constant) as its first argument.
 
 - `DEBUG_NUM(label, num)` can take any number, like `u32` or `ssize_t`
 - `DEBUG_STR(label, buf)` requires a fixed-size buf, like `char[64]`
-- `DEBUG_STR_PTR(label, ptr, len)` can take any pointer, but `len` must be a constant
+- `DEBUG_STR_LEN(label, ptr, len)` can take any pointer, will debug `len` bytes
 - `DEBUG_STRUCT(label, struct)` can take any struct _by value_
 
 ## Submitting answers

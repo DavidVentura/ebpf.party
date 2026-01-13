@@ -114,22 +114,20 @@ export const CONTENT_METADATA: ContentMetadata = {
     {
       number: 3,
       slug: "chapter-3",
-      title: "Traffic analysis",
+      title: "Kernel probes",
       exercises: [
         {
-          slug: "read-dns",
-          title: "Reading DNS responses",
-          exerciseId: "read-dns",
-          codeFile: "1_dns.c",
-          contentPath: "chapter-3/read-dns",
-          incomplete: true,
+          slug: "tcp-connect",
+          title: "TCP connections",
+          exerciseId: "tcp-connect",
+          codeFile: "0_tcp_connect.c",
+          contentPath: "chapter-3/tcp-connect",
         },
         {
           slug: "read-http-password",
           title: "Reading TCP packets",
           exerciseId: "read-http-password",
           codeFile: "2_tcp.c",
-          incomplete: true,
           contentPath: "chapter-3/read-http-password",
         },
       ],

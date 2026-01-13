@@ -316,7 +316,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
             </div>
             <div className={styles.editorWrapper}>
               <noscript>
-                <div class="noscript-content">
+                <div className="noscript-content">
                   <p>
                     The interactive code editor requires JavaScript to function.
                   </p>
@@ -341,11 +341,6 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
             )}
             {Object.keys(typeInfo).length > 0 && selectedStructName && (
               <>
-                {/* <StructSelector
-                  structs={typeInfo}
-                  selectedName={selectedStructName}
-                  onSelect={handleSelectStruct}
-                /> TODO delete me*/}
                 {selectedStructName && (
                   <StructViewer
                     typeInfo={typeInfo[selectedStructName]}

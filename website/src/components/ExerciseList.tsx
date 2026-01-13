@@ -27,7 +27,7 @@ export default function ExerciseList({ metadata }: ExerciseListProps) {
   }, []);
 
   return (
-    <>
+    <div className="chaptersList">
       {metadata.chapters.map((chapter) => (
         <section key={chapter.slug} className={styles.chapter}>
           <h2 className={styles.chapterHeader}>
@@ -63,6 +63,6 @@ export default function ExerciseList({ metadata }: ExerciseListProps) {
           </div>
         </section>
       ))}
-    </>
+    </div>
   );
 }
