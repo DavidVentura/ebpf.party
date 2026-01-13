@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream, UdpSocket};
 use std::panic::RefUnwindSafe;
 use std::process::Command;
@@ -271,10 +272,40 @@ impl Exercise for ReadDns {
 pub struct ReadHttpPassword;
 
 impl Exercise for ReadHttpPassword {
-    fn setup(&self, _answer: &[u8]) {}
+    fn setup(&self, _answer: &[u8]) {
+        let addr = format!("127.0.0.1:80");
 
-    fn run(&self, _answer: &[u8]) {
-        todo!("Implement HTTP exercise")
+        let (tx, rx) = mpsc::channel();
+
+        std::thread::spawn(move || {
+            let listener = TcpListener::bind(addr).unwrap();
+            tx.send(()).unwrap();
+            while !crate::SHOULD_STOP.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            drop(listener);
+        });
+
+        // wait til the listener is up before confirming setup
+        rx.recv().unwrap();
+        std::thread::sleep(Duration::from_millis(10));
+        println!("http setup complete");
+    }
+
+    fn run(&self, answer: &[u8]) {
+        let token = String::from_utf8(answer.to_vec()).unwrap();
+        let sa = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 80));
+        let mut s = TcpStream::connect(&sa).unwrap();
+        println!("http run connected");
+        let buf = format!(
+            r#"POST /api/users HTTP/1.1
+Host: ebpf.party
+Authorization: Bearer {token}
+
+some type of body"#
+        )
+        .replace("\n", "\r\n");
+        s.write_all(buf.as_bytes()).unwrap();
     }
 }
 
