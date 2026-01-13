@@ -70,11 +70,18 @@ impl<'a> EbpfLoader<'a> {
         let mut program_details: Vec<_> = Vec::new();
 
         for p in obj.progs_mut() {
+            let section = p.section().to_string_lossy().to_string();
             program_details.push(ProgramDetails {
                 name: p.name().to_string_lossy().to_string(),
-                section: p.section().to_string_lossy().to_string(),
+                section: section.clone(),
             });
-            let link = p.attach().unwrap(); // TODO
+
+            let link = match p.attach() {
+                Ok(l) => l,
+                Err(_e) => {
+                    return Err(GuestMessage::CantAttachProgram(section));
+                }
+            };
             links.push(link);
         }
         if links.len() == 0 {
