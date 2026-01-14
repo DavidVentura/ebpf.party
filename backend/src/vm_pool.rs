@@ -132,7 +132,16 @@ impl VmPermit {
                 duration_secs: execution_duration.as_secs_f64(),
             });
         });
-        let vm = v.make(Box::new(std::io::stderr())).unwrap();
+        let vm = v.make(
+            Box::new(std::io::stderr()),
+            Some(Duration::from_millis(500)),
+        );
+        let vm = if let Ok(vm) = vm {
+            vm
+        } else {
+            println!("VM died");
+            return;
+        };
         // dropping takes ~30ms, do it in a thread
         // only release the permit after the vm is done
         thread::spawn(move || {
