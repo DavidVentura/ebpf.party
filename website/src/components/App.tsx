@@ -15,6 +15,7 @@ import type { SSEEvent } from "../types/sse-events";
 import styles from "./App.module.css";
 import RotateCcw from "lucide-react/dist/esm/icons/rotate-ccw";
 import Braces from "lucide-react/dist/esm/icons/braces";
+import Keyboard from "lucide-react/dist/esm/icons/keyboard";
 
 interface AppProps {
   starterCode: string;
@@ -51,6 +52,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     { [key: string]: number } | undefined
   >(undefined);
   const [compileAsYouType, setCompileAsYouType] = useState(true);
+  const [vimMode, setVimMode] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const workerRef = useRef<TccWorkerClient | null>(null);
   const hasOutputRef = useRef(false);
@@ -145,6 +147,11 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
     const savedCompileSetting = localStorage.getItem(compileSettingKey);
     if (savedCompileSetting !== null) {
       setCompileAsYouType(savedCompileSetting === "true");
+    }
+
+    const savedVimMode = localStorage.getItem("ebpf-party-vim-mode");
+    if (savedVimMode !== null) {
+      setVimMode(savedVimMode === "true");
     }
   }, []);
 
@@ -302,6 +309,20 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
                   <Braces size={18} />
                 </ControlButton>
                 <ControlButton
+                  pressed={vimMode}
+                  onClick={() => {
+                    const newValue = !vimMode;
+                    setVimMode(newValue);
+                    localStorage.setItem(
+                      "ebpf-party-vim-mode",
+                      String(newValue)
+                    );
+                  }}
+                  title="Vim mode"
+                >
+                  <Keyboard size={18} />
+                </ControlButton>
+                <ControlButton
                   onClick={() => setShowResetConfirm(true)}
                   title="Reset code to defaults"
                 >
@@ -334,6 +355,7 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
                 onRun={handleRun}
                 canRun={canRun}
                 onSelectStruct={handleSelectStruct}
+                vimMode={vimMode}
               />
             </div>
             {outputClass && (

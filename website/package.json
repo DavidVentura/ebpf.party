@@ -19,6 +19,7 @@
     "@codemirror/view": "^6.39.7",
     "@lezer/highlight": "^1.2.3",
     "@lucide/astro": "^0.562.0",
+    "@replit/codemirror-vim": "^6.3.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@uiw/react-codemirror": "^4.25.4",

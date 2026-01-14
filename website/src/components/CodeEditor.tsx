@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { cpp } from "@codemirror/lang-cpp";
 import { EditorView, keymap } from "@codemirror/view";
@@ -10,6 +11,7 @@ import {
 } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { tags as t } from "@lezer/highlight";
+import { vim } from "@replit/codemirror-vim";
 
 interface CodeEditorProps {
   code: string;
@@ -17,6 +19,7 @@ interface CodeEditorProps {
   onRun: () => void;
   canRun: boolean;
   onSelectStruct: (name: string) => void;
+  vimMode: boolean;
 }
 
 export default function CodeEditor({
@@ -25,6 +28,7 @@ export default function CodeEditor({
   onRun,
   canRun,
   onSelectStruct,
+  vimMode,
 }: CodeEditorProps) {
   const ctrlClickHandler = EditorView.domEventHandlers({
     mousedown: (event, view) => {
@@ -58,7 +62,8 @@ export default function CodeEditor({
     ])
   );
 
-  const extensions = [
+  const extensions = useMemo(() => [
+    ...(vimMode ? [vim()] : []),
     cpp(),
     ctrlEnterHandler,
     ctrlClickHandler,
@@ -71,7 +76,7 @@ export default function CodeEditor({
       ])
     ),
     oneDark,
-  ];
+  ], [vimMode, ctrlEnterHandler, ctrlClickHandler]);
 
   return (
     <CodeMirror

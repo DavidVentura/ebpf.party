@@ -6,7 +6,7 @@ For `sched_process_exec`, the kernel provides a structure with specific event da
 
 You can find the format of the context that the kernel provides on any Linux computer, by running:
 ```bash
-$ cat /sys/kernel/debug/tracing/events/sched/sched_process_exec/format
+$ cat /sys/kernel/tracing/events/sched/sched_process_exec/format
 format:
   unsigned short common_type;           offset:0;   size:2;
   unsigned char common_flags;           offset:2;   size:1;
