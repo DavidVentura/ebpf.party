@@ -98,9 +98,14 @@ impl VmPermit {
             vsock: Some(vsock_path.to_string()),
         };
 
+        let t_out = out_tx.clone();
         let handle = thread::spawn(move || {
             let listener = UnixListener::bind(vsock_listener).unwrap();
             let mut stream = listener.incoming().next().unwrap().unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_millis(500)))
+                .unwrap();
+
             let boot_duration = boot_start.elapsed();
             let _ = metrics_tx.send(MetricEvent::VmBootDuration {
                 exercise_id,
@@ -120,7 +125,7 @@ impl VmPermit {
             while let Ok(msg) =
                 bincode::decode_from_std_read::<GuestMessage, _, _>(&mut stream, config)
             {
-                let _ = out_tx.send(PlatformMessage::GuestMessage(msg.clone()));
+                let _ = t_out.send(PlatformMessage::GuestMessage(msg.clone()));
 
                 if let GuestMessage::Finished = msg {
                     break;
@@ -132,6 +137,7 @@ impl VmPermit {
                 duration_secs: execution_duration.as_secs_f64(),
             });
         });
+
         let vm = v.make(
             Box::new(std::io::stderr()),
             Some(Duration::from_millis(500)),
@@ -140,6 +146,7 @@ impl VmPermit {
             vm
         } else {
             println!("VM died");
+            let _ = out_tx.send(PlatformMessage::GuestMessage(GuestMessage::Finished));
             return;
         };
         // dropping takes ~30ms, do it in a thread
