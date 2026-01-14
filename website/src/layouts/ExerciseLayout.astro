@@ -79,6 +79,14 @@ const {
   </div>
 </Layout>
 
+<script>
+  const UA = window.navigator.userAgent;
+  const isMac = UA.includes("Apple") || UA.includes("Mac");
+  if (isMac) {
+    let ctrlKbd = [...document.querySelectorAll("kbd")].filter(x => x.innerText == "Ctrl");
+    ctrlKbd.forEach(x => x.innerText = "Cmd");
+  }
+</script>
 <style>
   h4 ~ h1,
   h4:has(~ h1) {

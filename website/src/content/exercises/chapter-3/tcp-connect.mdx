@@ -11,13 +11,13 @@ int trace(struct trace_event_raw_sys_enter *ctx) {
 }
 ```
 
-**Kprobes** attach to any kernel function by name. They're more flexible but:
-- Function names/signatures can change between kernel versions
-- No structured context - must extract arguments from CPU registers
+**Kprobes** attach to any kernel function by name.
+
+This mechanism is more flexible but kprobes are not part of the kernel's stable API, so they can change between kernel versions. On top of that, they do not provide a defined 'context', we need to get the argument types and order from the kernel sources.
 
 ## Why kprobes?
 
-Tracepoints expose specific events. Kprobes let us hook deeper into kernel internals. For example, `connect()` syscall returns immediately for non-blocking sockets, but `tcp_finish_connect()` fires when the TCP handshake actually completes.
+Tracepoints expose specific events. Kprobes let us hook deeper into kernel internals. For example, `connect()` syscall returns immediately for non-blocking sockets, but `tcp_finish_connect()` is called when the TCP handshake actually completes.
 
 ## Accessing function arguments
 
@@ -35,15 +35,19 @@ We can find the signature for `tcp_finish_connect` in `net/ipv4/tcp_input.c`, wh
 void tcp_finish_connect(struct sock *sk, struct sk_buff *skb);
 ```
 
-And so, we need to cast the first argument back to a `struct sock*`:
+And so, to get access to the `struct sock*` we need to cast the **first** argument:
 ```c
 struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
 ```
 
-## Socket properties
+## The challenge
 
-You can read the socket's properties with `bpf_probe_read_kernel`, a 
-small subset of the struct is described below:
+A program connects to a remote server. The `connect()` syscall returns `-EINPROGRESS` (non-blocking), but the connection completes successfully.
+
+### Socket properties
+
+You can read the socket's properties with `bpf_probe_read_kernel`. Here
+are the relevant fields:
 
 ```c
 struct sock {
@@ -61,8 +65,12 @@ struct sock_common {
 Remember that ports are in big endian, so you'll need to use `bpf_ntohs` to convert it.
 
 
-## The challenge
-
-A program connects to a remote server. The `connect()` syscall returns `-EINPROGRESS` (non-blocking), but the connection completes successfully.
+### Your task
 
 Submit the destination port.
+
+import QuickReference from '../../../components/QuickReference.tsx';
+
+<QuickReference
+  kernelSpaceReading = {true}
+/>

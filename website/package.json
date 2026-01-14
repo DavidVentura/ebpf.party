@@ -4,10 +4,9 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
-    "build": "pnpm run build_tcc && astro build",
+    "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "build_tcc": "make -C .. website_bindings",
     "test": "vitest"
   },
   "dependencies": {

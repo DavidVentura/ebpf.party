@@ -118,7 +118,7 @@ export const CONTENT_METADATA: ContentMetadata = {
       exercises: [
         {
           slug: "tcp-connect",
-          title: "TCP connections",
+          title: "Introduction",
           exerciseId: "tcp-connect",
           codeFile: "0_tcp_connect.c",
           contentPath: "chapter-3/tcp-connect",

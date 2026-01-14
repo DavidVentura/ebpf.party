@@ -58,19 +58,38 @@ self.onmessage = (e: MessageEvent) => {
         const errors = [];
         if (result !== 0) {
           const errorCount = Module.ccall("get_error_count", "number", [], []);
-          console.log(`Syntax check failed with ${errorCount} error(s):`);
 
           for (let i = 0; i < errorCount; i++) {
-            const filenamePtr = Module.ccall("get_error_filename", "number", ["number"], [i]);
-            const lineNum = Module.ccall("get_error_line_num", "number", ["number"], [i]);
-            const isWarning = Module.ccall("get_error_is_warning", "number", ["number"], [i]);
-            const msgPtr = Module.ccall("get_error_msg", "number", ["number"], [i]);
+            const filenamePtr = Module.ccall(
+              "get_error_filename",
+              "number",
+              ["number"],
+              [i]
+            );
+            const lineNum = Module.ccall(
+              "get_error_line_num",
+              "number",
+              ["number"],
+              [i]
+            );
+            const isWarning = Module.ccall(
+              "get_error_is_warning",
+              "number",
+              ["number"],
+              [i]
+            );
+            const msgPtr = Module.ccall(
+              "get_error_msg",
+              "number",
+              ["number"],
+              [i]
+            );
 
-            const filename = filenamePtr ? Module.UTF8ToString(filenamePtr) : null;
+            const filename = filenamePtr
+              ? Module.UTF8ToString(filenamePtr)
+              : null;
             const msg = msgPtr ? Module.UTF8ToString(msgPtr) : "<no message>";
             const errorType = isWarning ? "Warning" : "Error";
-
-            console.log(`  [${i}] ${errorType} at ${filename || "<unknown>"}:${lineNum} - ${msg}`);
 
             errors.push({
               filename,
@@ -91,8 +110,18 @@ self.onmessage = (e: MessageEvent) => {
             typeInfo = Module.UTF8ToString(bufPtr, bufLen);
           }
 
-          const debBufPtr = Module.ccall("get_debug_calls_buffer", "number", [], []);
-          const debBufLen = Module.ccall("get_debug_calls_length", "number", [], []);
+          const debBufPtr = Module.ccall(
+            "get_debug_calls_buffer",
+            "number",
+            [],
+            []
+          );
+          const debBufLen = Module.ccall(
+            "get_debug_calls_length",
+            "number",
+            [],
+            []
+          );
 
           if (debBufPtr && debBufLen > 0) {
             debTypeInfo = Module.UTF8ToString(debBufPtr, debBufLen);

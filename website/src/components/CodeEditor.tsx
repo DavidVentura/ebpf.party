@@ -8,7 +8,7 @@ import {
   syntaxHighlighting,
   syntaxTree,
 } from "@codemirror/language";
-import { oneDark, oneDarkHighlightStyle } from "@codemirror/theme-one-dark";
+import { oneDark } from "@codemirror/theme-one-dark";
 import { tags as t } from "@lezer/highlight";
 
 interface CodeEditorProps {

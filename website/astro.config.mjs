@@ -28,7 +28,10 @@ export default defineConfig({
               if (id.includes('react') || id.includes('react-dom')) {
                 return 'vendor-react';
               }
-              if (id.includes('@codemirror') || id.includes('@uiw/react-codemirror')) {
+              if (id.includes('@uiw/react-codemirror')) {
+                return 'vendor-r-codemirror';
+	      }
+              if (id.includes('@codemirror')) {
                 return 'vendor-codemirror';
               }
               if (id.includes('react-resizable-panels')) {
