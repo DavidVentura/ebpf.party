@@ -221,7 +221,6 @@ impl Exercise for TrackSocketAndConnect {
         assert!(port_ < u16::MAX as u64);
         let port: u16 = port_ as u16;
         let addr = format!("127.0.0.1:{port}");
-        println!("Listening on {addr}");
 
         let (tx, rx) = mpsc::channel();
 
@@ -260,13 +259,9 @@ impl Exercise for TrackSocketAndConnect {
 pub struct ReadDns;
 
 impl Exercise for ReadDns {
-    fn setup(&self, _answer: &[u8]) {
-        println!("setup dns");
-    }
+    fn setup(&self, _answer: &[u8]) {}
 
     fn run(&self, _answer: &[u8]) {
-        println!("start running dns");
-
         let sl = UdpSocket::bind("127.0.0.1:53").unwrap();
         sl.set_read_timeout(Some(Duration::from_millis(100)))
             .unwrap();
