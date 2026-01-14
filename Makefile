@@ -1,4 +1,4 @@
-.PHONY: all website_bindings
+.PHONY: all website_bindings website
 
 CFLAGS = -static -fno-ident -fno-asynchronous-unwind-tables -fno-unwind-tables -s -Os -nostdlib -I/home/david/git/linux-6.18.2/tools/include/nolibc -include nolibc.h
 
@@ -6,6 +6,9 @@ all: website_bindings backend/includes/task.h.pch rootfs.ext4 backend/includes/k
 	:
 website_bindings: website/src/wasm/syntax_check.mjs website/public/tcc/syntax_check.data website/public/tcc/syntax_check.wasm
 	:
+
+website: website_bindings
+	cd website && pnpm run build
 
 backend/includes/kfuncs.h:
 	# generating this automatically requires a new pahole & bpftool
