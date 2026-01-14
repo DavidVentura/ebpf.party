@@ -300,7 +300,6 @@ impl Exercise for ReadDns {
         let len = message.write(&mut buf).unwrap();
 
         s.send(&buf[..len]).unwrap();
-        println!("done running dns, len {len}");
         j.join().unwrap();
     }
 }
@@ -325,14 +324,12 @@ impl Exercise for ReadHttpPassword {
         // wait til the listener is up before confirming setup
         rx.recv().unwrap();
         std::thread::sleep(Duration::from_millis(10));
-        println!("http setup complete");
     }
 
     fn run(&self, answer: &[u8]) {
         let token = String::from_utf8(answer.to_vec()).unwrap();
         let sa = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 80));
         let mut s = TcpStream::connect(&sa).unwrap();
-        println!("http run connected");
         let buf = format!(
             r#"POST /api/users HTTP/1.1
 Host: ebpf.party
