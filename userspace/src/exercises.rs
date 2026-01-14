@@ -177,6 +177,42 @@ impl Exercise for ReadFilePassword {
         std::fs::read_to_string("/tmp/password").unwrap();
     }
 }
+pub struct TCPConnect;
+
+impl Exercise for TCPConnect {
+    fn setup(&self, answer: &[u8]) {
+        let port_: u64 = u64::from_le_bytes(answer.try_into().unwrap());
+        assert!(port_ < u16::MAX as u64);
+        let port: u16 = port_ as u16;
+        let addr = format!("127.0.0.1:{port}");
+
+        let (tx, rx) = mpsc::channel();
+
+        std::thread::spawn(move || {
+            let listener = TcpListener::bind(addr).unwrap();
+            tx.send(()).unwrap();
+            while !crate::SHOULD_STOP.load(std::sync::atomic::Ordering::Relaxed) {
+                std::thread::sleep(Duration::from_millis(10));
+            }
+            drop(listener);
+        });
+
+        // wait til the listener is up before confirming setup
+        rx.recv().unwrap();
+        std::thread::sleep(Duration::from_millis(10));
+    }
+
+    fn run(&self, answer: &[u8]) {
+        let port_: u64 = u64::from_le_bytes(answer.try_into().unwrap());
+        assert!(port_ < u16::MAX as u64);
+        let port: u16 = port_ as u16;
+
+        let sa = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), port));
+        // it's fine to use a non-blocking socket, we track tcp_finish_connect
+        TcpStream::connect_timeout(&sa, Duration::from_millis(10)).unwrap();
+    }
+}
+
 pub struct TrackSocketAndConnect;
 
 impl Exercise for TrackSocketAndConnect {
@@ -320,7 +356,8 @@ pub fn get_exercise(exercise_id: shared::ExerciseId) -> Box<dyn Exercise> {
         shared::ExerciseId::ReadBufferContents => Box::new(ReadBufferContents),
         shared::ExerciseId::ReadFilePassword => Box::new(ReadFilePassword),
         shared::ExerciseId::TrackSocketAndConnect => Box::new(TrackSocketAndConnect),
-        shared::ExerciseId::ReadDns => Box::new(ReadDns),
         shared::ExerciseId::ReadHttpPassword => Box::new(ReadHttpPassword),
+        shared::ExerciseId::ReadDns => Box::new(ReadDns),
+        shared::ExerciseId::TCPConnect => Box::new(TCPConnect),
     }
 }
