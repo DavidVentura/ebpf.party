@@ -40,7 +40,7 @@ export default function ExerciseList({ metadata }: ExerciseListProps) {
             {chapter.exercises
               .filter((exercise) => !exercise.incomplete || import.meta.env.DEV)
               .map((exercise, index) => {
-                const url = `/exercises/${chapter.slug}/${exercise.slug}`;
+                const url = `/exercises/${chapter.slug}/${exercise.slug}/`;
                 const isCompleted = completedExercises.has(exercise.exerciseId);
                 const hexNum = `0x${index.toString(16).padStart(2, "0")}`;
 
@@ -52,7 +52,7 @@ export default function ExerciseList({ metadata }: ExerciseListProps) {
                   >
                     <span className={styles.exerciseHex}>{hexNum}</span>
                     <span className={styles.exerciseCompletion}>
-                      {isCompleted ? "✓" : ""}
+                      {isCompleted && "✓"}
                     </span>
                     <span className={styles.exerciseTitle}>
                       {exercise.title}

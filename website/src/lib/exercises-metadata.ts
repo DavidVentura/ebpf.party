@@ -162,7 +162,7 @@ export function getAllExercisesFlat(): Array<FullExMeta> {
     chapter.exercises.map((exercise) => ({
       chapter,
       exercise,
-      url: `/exercises/${chapter.slug}/${exercise.slug}`,
+      url: `/exercises/${chapter.slug}/${exercise.slug}/`,
     }))
   );
 }
