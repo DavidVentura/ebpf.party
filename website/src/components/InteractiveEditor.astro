@@ -1,7 +1,7 @@
 ---
 import App from "./App.tsx";
 
-const { starterCode, exerciseId, chapterId } = Astro.props;
+const { starterCode, exerciseId, chapterId, codeFile } = Astro.props;
 
 if (!exerciseId) {
   throw new Error("Missing exerciseId in frontmatter");
@@ -17,6 +17,7 @@ if (!starterCode) {
     starterCode={starterCode}
     exerciseId={exerciseId}
     chapterId={chapterId}
+    codeFile={codeFile}
   />
 </div>
 

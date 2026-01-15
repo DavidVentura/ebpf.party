@@ -10,6 +10,7 @@ interface Props {
   exerciseTitle: string;
   exerciseId: string;
   chapterId: number;
+  codeFile?: string;
   hasCode: boolean;
   starterCode: string | null;
   prevExercise: any;
@@ -21,6 +22,7 @@ const {
   exerciseTitle,
   exerciseId,
   chapterId,
+  codeFile,
   hasCode,
   starterCode,
   prevExercise,
@@ -58,6 +60,7 @@ const {
           starterCode={starterCode}
           exerciseId={exerciseId}
           chapterId={chapterId}
+          codeFile={codeFile}
         />
       </div>
       )}

@@ -21,9 +21,15 @@ interface AppProps {
   starterCode: string;
   exerciseId: string;
   chapterId?: number;
+  codeFile?: string;
 }
 
-export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
+export default function App({
+  starterCode,
+  exerciseId,
+  chapterId,
+  codeFile,
+}: AppProps) {
   if (!exerciseId) {
     throw new Error("Missing exerciseId");
   }
@@ -342,6 +348,14 @@ export default function App({ starterCode, exerciseId, chapterId }: AppProps) {
                     The interactive code editor requires JavaScript to function.
                   </p>
                   <p>You can use your own editor locally if you prefer.</p>
+                  {codeFile && chapterId !== undefined && (
+                    <p>
+                      Source file:{" "}
+                      <a href={`/exercises-code/${chapterId}/${codeFile}`}>
+                        {codeFile}
+                      </a>
+                    </p>
+                  )}
                   <p>The API is:</p>
                   <pre>
                     {`POST /run_code/${exerciseId}
