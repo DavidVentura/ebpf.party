@@ -3,13 +3,16 @@ import Layout from "./Layout.astro";
 import "../styles/mdx-content.css";
 
 interface Props {
-  title: string;
+  frontmatter: {
+    title: string;
+  };
 }
 
-const { title } = Astro.props;
+const { frontmatter } = Astro.props;
+const title = frontmatter.title;
 ---
 
-<Layout>
+<Layout title={title}>
   <div class="content-container">
     <div class="content-scroll prose prose-slate dark:prose-invert max-w-none">
       <div class="content-body">

@@ -30,8 +30,7 @@ const {
 } = Astro.props;
 ---
 
-<Layout hasCodeTabs={hasCode}>
-  <Fragment slot="title">{chapterTitle} - {exerciseTitle}</Fragment>
+<Layout hasCodeTabs={hasCode} title={exerciseTitle}>
 
   <div class="exercise-container">
       {hasCode &&

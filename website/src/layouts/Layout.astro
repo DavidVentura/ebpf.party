@@ -3,7 +3,7 @@ import { darkTheme, lightTheme } from "../styles/theme";
 import BookOpen from "@lucide/astro/icons/book-open";
 import Terminal from "@lucide/astro/icons/terminal";
 import Logo from "../../public/logo.svg";
-const { hasCodeTabs = false } = Astro.props;
+const { hasCodeTabs = false, title } = Astro.props;
 ---
 
 <!doctype html>
@@ -15,7 +15,7 @@ const { hasCodeTabs = false } = Astro.props;
     <meta name="generator" content={Astro.generator} />
     <meta name="color-scheme" content="dark" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>eBPF.party</title>
+    <title>{title ? `${title} - eBPF.party` : 'eBPF.party'}</title>
     <style
       is:global
       set:html={`
