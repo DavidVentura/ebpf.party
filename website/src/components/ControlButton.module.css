@@ -1,7 +1,7 @@
 .controlButton {
   background: var(--color-code-bg);
-  color: #d4d4d4;
-  border: 1px solid #444;
+  color: var(--color-code-fg);
+  border: 1px solid #66666666;
   padding: 0.5rem;
   border-radius: 6px;
   cursor: pointer;

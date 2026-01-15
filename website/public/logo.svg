@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 286 276">
-  <path fill="#d4d4d4" stroke="black" stroke-width="12" d="m175 0 43.7 25.3v50.5L175 101l-43.8-25.2V25.3L175 0Z"/>
-  <path fill="#d4d4d4" stroke="black" stroke-width="12" d="m218.7 75.8 43.7 25.2v50.5l-43.7 25.3-43.7-25.3V101l43.7-25.2Z"/>
-  <path fill="#d4d4d4" stroke="black" stroke-width="12" d="m175 151.5 43.7 25.3v50.5L175 252.5l-43.8-25.2v-50.5l43.8-25.3ZM87.5 0 43.7 25.3v50.5L87.5 101l43.7-25.2V25.3L87.5 0Z"/>
-  <path fill="#d4d4d4" stroke="black" stroke-width="12" d="M43.7 75.8 0 101v50.5l43.7 25.3 43.8-25.3V101L43.7 75.8Z"/>
-  <path fill="#d4d4d4" stroke="black" stroke-width="12" d="m87.5 151.5-43.8 25.3v50.5l43.8 25.2 43.7-25.2v-50.5l-43.7-25.3Z"/>
+  <path fill="currentcolor" stroke="black" stroke-width="12" d="m175 0 43.7 25.3v50.5L175 101l-43.8-25.2V25.3L175 0Z"/>
+  <path fill="currentcolor" stroke="black" stroke-width="12" d="m218.7 75.8 43.7 25.2v50.5l-43.7 25.3-43.7-25.3V101l43.7-25.2Z"/>
+  <path fill="currentcolor" stroke="black" stroke-width="12" d="m175 151.5 43.7 25.3v50.5L175 252.5l-43.8-25.2v-50.5l43.8-25.3ZM87.5 0 43.7 25.3v50.5L87.5 101l43.7-25.2V25.3L87.5 0Z"/>
+  <path fill="currentcolor" stroke="black" stroke-width="12" d="M43.7 75.8 0 101v50.5l43.7 25.3 43.8-25.3V101L43.7 75.8Z"/>
+  <path fill="currentcolor" stroke="black" stroke-width="12" d="m87.5 151.5-43.8 25.3v50.5l43.8 25.2 43.7-25.2v-50.5l-43.7-25.3Z"/>
 </svg>

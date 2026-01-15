@@ -23,8 +23,10 @@ const { hasCodeTabs = false } = Astro.props;
   --color-bg-primary: ${darkTheme.bgPrimary};
   --color-background-secondary: ${darkTheme.bgSecondary};
   --color-code-bg: ${darkTheme.codeBg};
+  --color-code-fg: ${darkTheme.codeFg};
   --color-text-primary: ${darkTheme.textPrimary};
   --color-text-secondary: ${darkTheme.textSecondary};
+  --color-text-highlight: ${darkTheme.textHighlight};
   --color-accent: ${darkTheme.accent};
   --color-alert-bg: ${darkTheme.alertBg};
   --color-border: ${darkTheme.border};
@@ -37,8 +39,10 @@ const { hasCodeTabs = false } = Astro.props;
     --color-bg-primary: ${lightTheme.bgPrimary};
     --color-background-secondary: ${lightTheme.bgSecondary};
     --color-code-bg: ${lightTheme.codeBg};
+    --color-code-fg: ${lightTheme.codeFg};
     --color-text-primary: ${lightTheme.textPrimary};
     --color-text-secondary: ${lightTheme.textSecondary};
+    --color-text-highlight: ${lightTheme.textHighlight};
     --color-accent: ${lightTheme.accent};
     --color-alert-bg: ${lightTheme.alertBg};
     --color-border: ${lightTheme.border};
@@ -114,7 +118,7 @@ body {
     align-items: center;
     gap: 0.5rem;
     text-decoration: none;
-    color: var(--color-text-primary);
+    color: var(--color-accent);
   }
 
   .logo {

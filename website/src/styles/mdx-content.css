@@ -2,13 +2,17 @@
   background-color: var(--color-code-bg);
 }
 
+.prose a, .prose h1, .prose h2, .prose h3, .prose h4, .prose strong {
+  color: var(--color-text-highlight);
+
+}
 .prose kbd {
-  background: #2d2d2d;
+  background: var(--color-code-bg);
   border-radius: 4px;
   border: 1px solid #3a3a3a;
   border-right: 3px solid #0a0a0a;
   border-bottom: 3px solid #0a0a0a;
-  color: #e8e8e8;
+  color: var(--color-code-fg);
   display: inline-block;
   font-size: 0.85em;
   font-family: monospace;
@@ -54,6 +58,7 @@
 .prose code {
   padding: 3px;
   border-radius: 4px;
+  color: var(--color-code-fg);
 }
 .prose pre code {
   padding: 0px;
