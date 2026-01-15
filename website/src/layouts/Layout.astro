@@ -1,5 +1,5 @@
 ---
-import { theme } from "../styles/theme";
+import { darkTheme, lightTheme } from "../styles/theme";
 import BookOpen from "@lucide/astro/icons/book-open";
 import Terminal from "@lucide/astro/icons/terminal";
 import Logo from "../../public/logo.svg";
@@ -18,26 +18,35 @@ const { hasCodeTabs = false } = Astro.props;
     <title>eBPF.party</title>
     <style
       is:global
-      set:html={`:root {
-  --color-bg-primary: ${theme.bgPrimary};
-  --color-background-secondary: ${theme.bgSecondary};
-  --color-code-bg: ${theme.codeBg};
-  --color-text-primary: ${theme.textPrimary};
-  --color-text-secondary: ${theme.textSecondary};
-  --color-accent: ${theme.accent};
-  --color-alert-bg: ${theme.alertBg};
-  --color-border: ${theme.border};
-  --color-navbar-bg: hsl(224, 14%, 16%);
-  --color-navbar-border: hsl(224, 10%, 10%);
-
-  --astro-code-background: var( --color-code-bg);
-  --astro-code-token-function: #61afef;
-  --astro-code-token-keyword: #e5c07b;
-  --astro-code-foreground: #e06c75;
-  --astro-code-token-constant: var(--astro-code-token-keyword);
-  --astro-code-token-string-expression: #98c379;
-  --astro-code-token-comment: #7d8799;
+      set:html={`
+:root {
+  --color-bg-primary: ${darkTheme.bgPrimary};
+  --color-background-secondary: ${darkTheme.bgSecondary};
+  --color-code-bg: ${darkTheme.codeBg};
+  --color-text-primary: ${darkTheme.textPrimary};
+  --color-text-secondary: ${darkTheme.textSecondary};
+  --color-accent: ${darkTheme.accent};
+  --color-alert-bg: ${darkTheme.alertBg};
+  --color-border: ${darkTheme.border};
+  --color-navbar-bg: ${darkTheme.navbarBg};
+  --color-navbar-border: ${darkTheme.navbarBorder};
 }
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg-primary: ${lightTheme.bgPrimary};
+    --color-background-secondary: ${lightTheme.bgSecondary};
+    --color-code-bg: ${lightTheme.codeBg};
+    --color-text-primary: ${lightTheme.textPrimary};
+    --color-text-secondary: ${lightTheme.textSecondary};
+    --color-accent: ${lightTheme.accent};
+    --color-alert-bg: ${lightTheme.alertBg};
+    --color-border: ${lightTheme.border};
+    --color-navbar-bg: ${lightTheme.navbarBg};
+    --color-navbar-border: ${lightTheme.navbarBorder};
+  }
+}
+
 body {
   margin: 0;
   background: var(--color-bg-primary);
