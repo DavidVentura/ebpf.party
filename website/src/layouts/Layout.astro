@@ -32,6 +32,15 @@ const { hasCodeTabs = false } = Astro.props;
   --color-border: ${darkTheme.border};
   --color-navbar-bg: ${darkTheme.navbarBg};
   --color-navbar-border: ${darkTheme.navbarBorder};
+
+  --astro-code-background: var(--color-code-bg);
+  --astro-code-token-function: #61afef;
+  --astro-code-token-keyword: #e5c07b;
+  --astro-code-foreground: #e06c75;
+  --astro-code-token-constant: var(--astro-code-token-keyword);
+  --astro-code-token-string-expression: #98c379;
+  --astro-code-token-comment: #7d8799;
+
 }
 
 @media (prefers-color-scheme: light) {
@@ -48,6 +57,14 @@ const { hasCodeTabs = false } = Astro.props;
     --color-border: ${lightTheme.border};
     --color-navbar-bg: ${lightTheme.navbarBg};
     --color-navbar-border: ${lightTheme.navbarBorder};
+    /* TODO */
+    --astro-code-background: var(--color-code-bg);
+    --astro-code-token-function: #61afef;
+    --astro-code-token-keyword: #e5c07b;
+    --astro-code-foreground: #e06c75;
+    --astro-code-token-constant: var(--astro-code-token-keyword);
+    --astro-code-token-string-expression: #98c379;
+    --astro-code-token-comment: #7d8799;
   }
 }
 
