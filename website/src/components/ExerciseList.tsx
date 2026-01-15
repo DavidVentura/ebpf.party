@@ -45,19 +45,20 @@ export default function ExerciseList({ metadata }: ExerciseListProps) {
                 const hexNum = `0x${index.toString(16).padStart(2, "0")}`;
 
                 return (
-                  <a
-                    key={exercise.slug}
-                    href={url}
-                    className={styles.exerciseRow}
-                  >
-                    <span className={styles.exerciseHex}>{hexNum}</span>
-                    <span className={styles.exerciseCompletion}>
-                      {isCompleted && "✓"}
-                    </span>
-                    <span className={styles.exerciseTitle}>
-                      {exercise.title}
-                    </span>
-                  </a>
+                  <div key={exercise.slug}>
+                    <a
+                      href={url}
+                      className={styles.exerciseRow}
+                    >
+                      <span className={styles.exerciseHex}>{hexNum}</span>{" "}
+                      <span className={styles.exerciseCompletion}>
+                        {isCompleted && "✓"}
+                      </span>{" "}
+                      <span className={styles.exerciseTitle}>
+                        {exercise.title}
+                      </span>
+                    </a>
+                  </div>
                 );
               })}
           </div>
