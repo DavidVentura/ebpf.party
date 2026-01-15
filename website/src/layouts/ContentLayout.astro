@@ -27,6 +27,9 @@ const { title } = Astro.props;
     background-color: var(--color-bg-primary);
     color: var(--color-text-primary);
   }
+  .content-container :global(*) {
+    color: var(--color-text-primary);
+  }
 
   .content-scroll {
     flex: 1;
