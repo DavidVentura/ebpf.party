@@ -9,7 +9,7 @@ int trace_tcp_send(struct pt_regs *ctx)
     // Read iov_iter from msg->msg_iter
     // Read iovec from iter 
     
-    // Read data from the usersspace buf at iov.iov_base
+    // Read data from the userspace buf at iov.iov_base
     // Find the token in the buf, submit it
 
     return 0;
