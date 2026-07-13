@@ -12,6 +12,11 @@ pub enum PlatformMessage {
     Stack(DwarfDebugInfo),
     Booting,
     GuestMessage(GuestMessage),
+    VerifierDiagnostic {
+        diag: crate::diag::VerifierDiagnostic,
+        enrichment: crate::diag::Enrichment,
+        rendered: String,
+    },
 
     MultipleAnswers,
     NoAnswer,
@@ -34,6 +39,7 @@ impl TryFrom<&PlatformMessage> for ExerciseResult {
             PlatformMessage::Booting => Err(()),
             PlatformMessage::Compiling => Err(()),
             PlatformMessage::Stack(..) => Err(()),
+            PlatformMessage::VerifierDiagnostic { .. } => Err(()),
 
             PlatformMessage::GuestMessage(gm) => match gm {
                 // not interested to track

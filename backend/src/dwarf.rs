@@ -22,6 +22,15 @@ pub struct StackVar {
     pub offset: u64,
     pub size: Option<u64>,
     pub is_parameter: bool,
+    pub decl_line: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemberHit {
+    pub name: String,
+    pub type_info: String,
+    pub decl_line: Option<u64>,
+    pub size: Option<u64>,
 }
 
 #[derive(Debug)]
@@ -42,6 +51,16 @@ pub fn parse_dwarf_debug_info(elf_data: &[u8]) -> Result<DwarfDebugInfo, String>
 
     let func_to_section = build_function_to_section_map(&elf_file);
 
+    let dwarf = load_dwarf(&elf_file)?;
+
+    let functions = parse_functions(&dwarf, &tp_sections, &func_to_section)?;
+
+    Ok(DwarfDebugInfo { functions })
+}
+
+fn load_dwarf(
+    elf_file: &object::File,
+) -> Result<gimli::Dwarf<EndianArcSlice<LittleEndian>>, String> {
     let load_section =
         |id: gimli::SectionId| -> Result<EndianArcSlice<LittleEndian>, gimli::Error> {
             let data = elf_file
@@ -51,12 +70,7 @@ pub fn parse_dwarf_debug_info(elf_data: &[u8]) -> Result<DwarfDebugInfo, String>
             Ok(EndianArcSlice::new(Arc::from(&*data), LittleEndian))
         };
 
-    let dwarf = gimli::Dwarf::load(load_section)
-        .map_err(|e| format!("Failed to load DWARF sections: {}", e))?;
-
-    let functions = parse_functions(&dwarf, &tp_sections, &func_to_section)?;
-
-    Ok(DwarfDebugInfo { functions })
+    gimli::Dwarf::load(load_section).map_err(|e| format!("Failed to load DWARF sections: {}", e))
 }
 
 fn build_section_map(elf: &object::File) -> Vec<SectionInfo> {
@@ -160,17 +174,36 @@ fn parse_variables(
 ) -> Result<Vec<StackVar>, String> {
     let mut variables = Vec::new();
     let mut depth = 0;
+    let mut inlined_depth: Option<isize> = None;
 
     while let Ok(Some((delta, entry))) = entries.next_dfs() {
         depth += delta;
         if depth <= 0 {
             break;
         }
+        // Variables of inlined callees describe themselves via
+        // DW_AT_abstract_origin and belong to another function's frame layout.
+        if let Some(d) = inlined_depth {
+            if depth > d {
+                continue;
+            }
+            inlined_depth = None;
+        }
+        if entry.tag() == gimli::DW_TAG_inlined_subroutine {
+            inlined_depth = Some(depth);
+            continue;
+        }
 
         let is_param = entry.tag() == gimli::DW_TAG_formal_parameter;
         let is_var = entry.tag() == gimli::DW_TAG_variable;
 
         if is_param || is_var {
+            if matches!(
+                entry.attr_value(gimli::DW_AT_abstract_origin),
+                Ok(Some(_))
+            ) {
+                continue;
+            }
             let name = get_attr_string(entry, gimli::DW_AT_name, dwarf, unit)
                 .unwrap_or_else(|_| "unnamed".to_string());
 
@@ -189,7 +222,7 @@ fn parse_variables(
 
             // Only include variables with stack locations
             let offset = if let Ok(Some(loc_attr)) = entry.attr_value(gimli::DW_AT_location) {
-                match extract_stack_offset(loc_attr, unit) {
+                match extract_stack_offset(dwarf, unit, loc_attr) {
                     Some(off) => off,
                     None => continue, // No stack offset (in register, etc.)
                 }
@@ -203,6 +236,7 @@ fn parse_variables(
                 offset,
                 size,
                 is_parameter: is_param,
+                decl_line: get_attr_uint(entry, gimli::DW_AT_decl_line),
             });
         }
     }
@@ -376,23 +410,53 @@ fn resolve_type(
     }
 }
 
-fn extract_stack_offset<R: Reader>(
-    location_attr: AttributeValue<R>,
-    unit: &gimli::Unit<R>,
-) -> Option<u64> {
-    match location_attr {
-        AttributeValue::Exprloc(expr) => {
-            let mut operations = expr.operations(unit.encoding());
-            while let Ok(Some(op)) = operations.next() {
-                match op {
-                    gimli::Operation::FrameOffset { offset } => {
-                        return Some(offset.unsigned_abs());
-                    }
-                    _ => continue,
-                }
-            }
-            None
+fn expr_frame_offset<R: Reader>(expr: gimli::Expression<R>, unit: &gimli::Unit<R>) -> Option<u64> {
+    let mut operations = expr.operations(unit.encoding());
+    while let Ok(Some(op)) = operations.next() {
+        match op {
+            gimli::Operation::FrameOffset { offset } => return Some(offset.unsigned_abs()),
+            // clang sometimes emits breg10 (the BPF frame pointer) instead of
+            // fbreg; both use the same frame-relative offset convention.
+            gimli::Operation::RegisterOffset {
+                register: gimli::Register(10),
+                offset,
+                ..
+            } => return Some(offset.unsigned_abs()),
+            _ => continue,
         }
+    }
+    None
+}
+
+fn extract_stack_offset<R: Reader>(
+    dwarf: &gimli::Dwarf<R>,
+    unit: &gimli::Unit<R>,
+    location_attr: AttributeValue<R>,
+) -> Option<u64> {
+    if let AttributeValue::Exprloc(expr) = location_attr {
+        return expr_frame_offset(expr, unit);
+    }
+    // A variable that lives in registers for part of its lifetime gets a
+    // location list; its stack home is the entry with a frame offset.
+    let mut locations = dwarf.attr_locations(unit, location_attr).ok()??;
+    while let Ok(Some(entry)) = locations.next() {
+        if let Some(off) = expr_frame_offset(entry.data, unit) {
+            return Some(off);
+        }
+    }
+    None
+}
+
+fn get_attr_uint<R: Reader>(
+    entry: &gimli::DebuggingInformationEntry<R>,
+    attr: gimli::DwAt,
+) -> Option<u64> {
+    match entry.attr_value(attr).ok()?? {
+        AttributeValue::Udata(n) => Some(n),
+        AttributeValue::Data1(n) => Some(n as u64),
+        AttributeValue::Data2(n) => Some(n as u64),
+        AttributeValue::Data4(n) => Some(n as u64),
+        AttributeValue::Data8(n) => Some(n),
         _ => None,
     }
 }
@@ -444,5 +508,180 @@ fn get_attr_ref<R: Reader>(
         Some(AttributeValue::UnitRef(offset)) => Ok(Some(offset)),
         None => Ok(None),
         _ => Ok(None),
+    }
+}
+
+type Slice = EndianArcSlice<LittleEndian>;
+
+/// Resolves the struct member a map-value access at `offset` lands in,
+/// e.g. offset 680 into `struct big { __u32 arr[170]; }` -> `arr`.
+/// Descends into nested structs; array elements resolve to the array
+/// member itself unless the element is a struct with named members.
+pub fn resolve_map_value_member(
+    elf_data: &[u8],
+    map_name: &str,
+    offset: u64,
+) -> Result<Option<MemberHit>, String> {
+    let elf_file =
+        object::File::parse(elf_data).map_err(|e| format!("Failed to parse ELF: {}", e))?;
+    let dwarf = load_dwarf(&elf_file)?;
+
+    let mut units = dwarf.units();
+    while let Ok(Some(header)) = units.next() {
+        let unit = dwarf
+            .unit(header)
+            .map_err(|e| format!("Failed to parse unit: {}", e))?;
+
+        let Some(map_def) = find_variable_type(&dwarf, &unit, map_name) else {
+            continue;
+        };
+        let Some(value_ptr) = find_member(&dwarf, &unit, map_def, "value") else {
+            continue;
+        };
+        let Some(value_ptr_type) = get_attr_ref_of(&unit, value_ptr) else {
+            continue;
+        };
+        let Some(value_type) = pointee(&unit, value_ptr_type) else {
+            continue;
+        };
+        return Ok(resolve_member_at(&dwarf, &unit, value_type, offset));
+    }
+    Ok(None)
+}
+
+fn find_variable_type(
+    dwarf: &gimli::Dwarf<Slice>,
+    unit: &gimli::Unit<Slice>,
+    name: &str,
+) -> Option<gimli::UnitOffset> {
+    let mut entries = unit.entries();
+    while let Ok(Some((_, entry))) = entries.next_dfs() {
+        if entry.tag() != gimli::DW_TAG_variable {
+            continue;
+        }
+        let Ok(var_name) = get_attr_string(entry, gimli::DW_AT_name, dwarf, unit) else {
+            continue;
+        };
+        // The kernel truncates map names to 15 chars.
+        let matches = var_name == name || (name.len() == 15 && var_name.starts_with(name));
+        if matches {
+            return get_attr_ref(entry, gimli::DW_AT_type).ok().flatten();
+        }
+    }
+    None
+}
+
+/// UnitOffset of the DW_TAG_member DIE with the given name.
+fn find_member(
+    dwarf: &gimli::Dwarf<Slice>,
+    unit: &gimli::Unit<Slice>,
+    struct_offset: gimli::UnitOffset,
+    name: &str,
+) -> Option<gimli::UnitOffset> {
+    let struct_offset = skip_wrappers(unit, struct_offset)?;
+    let mut entries = unit.entries_at_offset(struct_offset).ok()?;
+    entries.next_dfs().ok()??;
+    let mut depth = 0;
+    while let Ok(Some((delta, entry))) = entries.next_dfs() {
+        depth += delta;
+        if depth <= 0 {
+            break;
+        }
+        if depth == 1 && entry.tag() == gimli::DW_TAG_member {
+            if let Ok(n) = get_attr_string(entry, gimli::DW_AT_name, dwarf, unit) {
+                if n == name {
+                    return Some(entry.offset());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn get_attr_ref_of(unit: &gimli::Unit<Slice>, die: gimli::UnitOffset) -> Option<gimli::UnitOffset> {
+    let mut entries = unit.entries_at_offset(die).ok()?;
+    let (_, entry) = entries.next_dfs().ok()??;
+    get_attr_ref(entry, gimli::DW_AT_type).ok().flatten()
+}
+
+/// Follows typedef/const/volatile wrappers to the underlying type DIE.
+fn skip_wrappers(unit: &gimli::Unit<Slice>, mut offset: gimli::UnitOffset) -> Option<gimli::UnitOffset> {
+    loop {
+        let mut entries = unit.entries_at_offset(offset).ok()?;
+        let (_, entry) = entries.next_dfs().ok()??;
+        match entry.tag() {
+            gimli::DW_TAG_typedef | gimli::DW_TAG_const_type | gimli::DW_TAG_volatile_type => {
+                offset = get_attr_ref(entry, gimli::DW_AT_type).ok().flatten()?;
+            }
+            _ => return Some(offset),
+        }
+    }
+}
+
+fn pointee(unit: &gimli::Unit<Slice>, offset: gimli::UnitOffset) -> Option<gimli::UnitOffset> {
+    let offset = skip_wrappers(unit, offset)?;
+    let mut entries = unit.entries_at_offset(offset).ok()?;
+    let (_, entry) = entries.next_dfs().ok()??;
+    if entry.tag() != gimli::DW_TAG_pointer_type {
+        return None;
+    }
+    get_attr_ref(entry, gimli::DW_AT_type).ok().flatten()
+}
+
+fn resolve_member_at(
+    dwarf: &gimli::Dwarf<Slice>,
+    unit: &gimli::Unit<Slice>,
+    type_offset: gimli::UnitOffset,
+    offset: u64,
+) -> Option<MemberHit> {
+    let type_offset = skip_wrappers(unit, type_offset)?;
+    let mut entries = unit.entries_at_offset(type_offset).ok()?;
+    let (_, entry) = entries.next_dfs().ok()??;
+
+    match entry.tag() {
+        gimli::DW_TAG_structure_type => {
+            let mut best: Option<(u64, gimli::UnitOffset)> = None;
+            let mut depth = 0;
+            while let Ok(Some((delta, child))) = entries.next_dfs() {
+                depth += delta;
+                if depth <= 0 {
+                    break;
+                }
+                if depth != 1 || child.tag() != gimli::DW_TAG_member {
+                    continue;
+                }
+                let loc = get_attr_uint(child, gimli::DW_AT_data_member_location).unwrap_or(0);
+                if loc <= offset && best.map(|(l, _)| loc >= l).unwrap_or(true) {
+                    best = Some((loc, child.offset()));
+                }
+            }
+            let (member_loc, member_die) = best?;
+            let mut entries = unit.entries_at_offset(member_die).ok()?;
+            let (_, member) = entries.next_dfs().ok()??;
+            let name = get_attr_string(member, gimli::DW_AT_name, dwarf, unit).ok()?;
+            let decl_line = get_attr_uint(member, gimli::DW_AT_decl_line);
+            let member_type = get_attr_ref(member, gimli::DW_AT_type).ok().flatten()?;
+            let (type_info, size) =
+                resolve_type(dwarf, unit, member_type).unwrap_or(("unknown".to_string(), None));
+
+            if let Some(deeper) =
+                resolve_member_at(dwarf, unit, member_type, offset - member_loc)
+            {
+                return Some(deeper);
+            }
+            Some(MemberHit {
+                name,
+                type_info,
+                decl_line,
+                size,
+            })
+        }
+        gimli::DW_TAG_array_type => {
+            let element_type = get_attr_ref(entry, gimli::DW_AT_type).ok().flatten()?;
+            let (_, elem_size) = resolve_type(dwarf, unit, element_type).ok()?;
+            let elem_size = elem_size.filter(|s| *s > 0)?;
+            resolve_member_at(dwarf, unit, element_type, offset % elem_size)
+        }
+        _ => None,
     }
 }

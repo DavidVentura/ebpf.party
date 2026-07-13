@@ -1,0 +1,10 @@
+error: access to element 170 of a 170-element array (valid: 0..=169)
+  --> <stdin>:23:10
+   |
+ 4 |     __u32 arr[170];
+   |           --- declared here
+...
+22 |     for (int i = 0; i < 200; i++)
+   |     --- this condition lets the index reach 170 after 170 iterations; it must stop at 169
+23 |         sum += v->arr[i];
+   |                ^ fails when the index reaches 170

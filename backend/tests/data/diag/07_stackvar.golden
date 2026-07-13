@@ -1,0 +1,4 @@
+invalid variable-offset read from stack R2 var_off=(0x0; 0x7f) off=-20 size=1
+DIAG1 reg=2 umin=0 umax=100 off=-20 use=30 use_loc=<stdin>:27:9
+DIAG1E kind=origin_load insn=25 cnt=1 reg=r1 loc=<stdin>:24:15
+DIAG1E kind=check insn=26 cnt=1 reg=r1 op=jgt val=100 loc=<stdin>:25:6

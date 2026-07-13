@@ -20,6 +20,7 @@ object = { version = "0.36", default-features = false, features = ["elf", "read_
 rand = "0.8"
 aetos = "0.1.1"
 strum = { version = "0.27.2", features = ["derive"] }
+annotate-snippets = "0.12.16"
 
 [patch.crates-io]
 #kvm-bindings = { git = "https://github.com/firecracker-microvm/kvm-bindings", tag = "v0.7.0-2", features = ["fam-wrappers"] }

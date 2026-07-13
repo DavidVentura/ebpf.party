@@ -1,0 +1,11 @@
+error: access reaches byte 21 of a 20-byte value
+  --> <stdin>:25:9
+   |
+ 5 |     __u8 data[16];
+   |          ---- declared here
+...
+23 |     if (idx > 16)
+   |         --- your `> 16` allows 1 too many; the bound must stop at 15
+24 |         return 0;
+25 |     return v->data[idx];
+   |            ^ index can be up to 16 here; 15 is the largest safe value

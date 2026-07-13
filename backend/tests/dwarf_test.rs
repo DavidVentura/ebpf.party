@@ -36,18 +36,24 @@ fn test_simple_stack_parsing() {
     // Assert exact expected structure
     assert_eq!(handle_exec.function_name, "handle_exec");
     assert_eq!(handle_exec.section_name, "tp/sched/sched_process_exec");
+    // _tmp is a macro-internal temporary; its stack slot is described via a
+    // breg10 location list rather than fbreg, and is still a real frame slot.
     assert_eq!(
         handle_exec.stack_vars.len(),
-        1,
+        2,
         "Only variables with stack locations should be included"
     );
 
-    // Assert process_name variable (only one with stack location)
-    assert_eq!(handle_exec.stack_vars[0].name, "process_name");
-    assert_eq!(handle_exec.stack_vars[0].type_info, "char[16]");
-    assert_eq!(handle_exec.stack_vars[0].offset, 8);
-    assert_eq!(handle_exec.stack_vars[0].size, Some(16));
-    assert_eq!(handle_exec.stack_vars[0].is_parameter, false);
+    assert_eq!(handle_exec.stack_vars[0].name, "_tmp");
+    assert_eq!(handle_exec.stack_vars[0].type_info, "int");
+    assert_eq!(handle_exec.stack_vars[0].offset, 4);
+    assert_eq!(handle_exec.stack_vars[0].size, Some(4));
+
+    assert_eq!(handle_exec.stack_vars[1].name, "process_name");
+    assert_eq!(handle_exec.stack_vars[1].type_info, "char[16]");
+    assert_eq!(handle_exec.stack_vars[1].offset, 8);
+    assert_eq!(handle_exec.stack_vars[1].size, Some(16));
+    assert_eq!(handle_exec.stack_vars[1].is_parameter, false);
 }
 
 #[test]

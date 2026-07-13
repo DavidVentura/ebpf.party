@@ -1,0 +1,3 @@
+R0 invalid mem access 'map_value_or_null'
+DIAG1 reg=0 umin=0 umax=0 off=0 map=hvals use=7 use_loc=<stdin>:20:2
+DIAG1E kind=origin_call insn=6 cnt=1 reg=r0 loc=<stdin>:19:18

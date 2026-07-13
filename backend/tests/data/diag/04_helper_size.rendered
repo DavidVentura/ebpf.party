@@ -1,0 +1,10 @@
+error: value used as index/size can be as large as 4294967295, but the destination `buf` holds only 64 bytes and is never bounds-checked
+  --> <stdin>:24:2
+   |
+19 |     __u8 buf[64] = {};
+   |          --- declared here
+...
+24 |     bpf_probe_read_kernel(buf, sz, &vals);
+   |     ^^^^^^^^^^^^^^^^^^^^^ used here
+   |
+help: bound it before the call: `if (size > sizeof(buf)) return 0;`

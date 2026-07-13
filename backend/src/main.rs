@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 use std::fs;
 use std::sync::mpsc::{Receiver, Sender, channel};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -16,6 +16,7 @@ use crate::types::PlatformMessage;
 
 mod compile;
 mod config;
+mod diag;
 mod dwarf;
 mod guest_message;
 mod metrics;
@@ -208,8 +209,19 @@ fn handle_run_code(
 
     let user_key_clone = user_key;
     let mtx = metrics_tx.clone();
+    let source = program.clone();
+    let artifacts: Arc<OnceLock<CompiledArtifacts>> = Arc::new(OnceLock::new());
+    let artifacts_rx = artifacts.clone();
     thread::spawn(move || {
-        handle_guest_events(body_tx, rx, mtx, exercise_id, user_key_clone);
+        handle_guest_events(
+            body_tx,
+            rx,
+            mtx,
+            exercise_id,
+            user_key_clone,
+            source,
+            artifacts_rx,
+        );
     });
 
     let s = Instant::now();
@@ -233,9 +245,14 @@ fn handle_run_code(
     if let Some(compiled) = compiled {
         match vm_pool.acquire(Duration::from_millis(2_000)) {
             Ok(permit) => {
-                if let Ok(stack) = dwarf::parse_dwarf_debug_info(compiled.as_slice()) {
+                let dwarf_info = dwarf::parse_dwarf_debug_info(compiled.as_slice()).ok();
+                if let Some(stack) = dwarf_info.clone() {
                     let _ = tx.send(PlatformMessage::Stack(stack));
                 }
+                let _ = artifacts.set(CompiledArtifacts {
+                    elf: compiled.clone(),
+                    dwarf: dwarf_info,
+                });
                 let _ = tx.send(PlatformMessage::Booting).unwrap();
                 permit.run(tx, compiled, exercise_id, user_key, metrics_tx.clone());
             }
@@ -274,12 +291,19 @@ fn send_msg(
     Ok(())
 }
 
+struct CompiledArtifacts {
+    elf: Vec<u8>,
+    dwarf: Option<dwarf::DwarfDebugInfo>,
+}
+
 fn handle_guest_events(
     body_tx: touche::body::BodyChannel,
     rx: Receiver<PlatformMessage>,
     metrics_tx: Sender<MetricEvent>,
     exercise_id: shared::ExerciseId,
     user_key: u64,
+    source: Vec<u8>,
+    artifacts: Arc<OnceLock<CompiledArtifacts>>,
 ) {
     let mut answer = None::<UserAnswer>;
     let mut answer_count = 0u8;
@@ -305,6 +329,24 @@ fn handle_guest_events(
         // disconnected is not a big deal
         if send_msg(&body_tx, &msg).is_err() {
             break;
+        }
+
+        if let PlatformMessage::GuestMessage(shared::GuestMessage::VerifierFail(log)) = &msg {
+            if let Some(d) = diag::parse(log) {
+                let enrichment = match artifacts.get() {
+                    Some(a) => diag::enrich(&d, &a.elf, a.dwarf.as_ref()),
+                    None => diag::Enrichment::default(),
+                };
+                let rendered = diag::render(&d, &String::from_utf8_lossy(&source), &enrichment);
+                let diag_msg = PlatformMessage::VerifierDiagnostic {
+                    diag: d,
+                    enrichment,
+                    rendered,
+                };
+                if send_msg(&body_tx, &diag_msg).is_err() {
+                    break;
+                }
+            }
         }
     }
 
