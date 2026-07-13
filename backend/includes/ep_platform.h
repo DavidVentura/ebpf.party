@@ -72,7 +72,7 @@ struct {
 
 // rsv size needs to be known at compile time.
 // for dynamic-length data, we call this with rsv_size=255
-static __always_inline void __ep_debug_val(const char *label, __u8 counter, void *ptr, size_t rsv_size, u8 valid_size, __u8 type) {
+static __always_inline void __ep_debug_val(const char *label, __u8 counter, const void *ptr, size_t rsv_size, u8 valid_size, __u8 type) {
     if (rsv_size > 255) return;
     unsigned char* buf = bpf_ringbuf_reserve(&_ep_debug_events, rsv_size+3, 0);
     if (!buf)
@@ -85,21 +85,21 @@ static __always_inline void __ep_debug_val(const char *label, __u8 counter, void
     bpf_ringbuf_submit(buf, 0);
 }
 
-static __always_inline void __debug_struct(const char *label, __u8 counter, void *ptr, size_t size, bool is_answer) {
+static __always_inline void __debug_struct(const char *label, __u8 counter, const void *ptr, size_t size, bool is_answer) {
     u8 type = STRUCT_ID;
     if (is_answer)
             type |= ANSWER_FLAG;
     __ep_debug_val(label, counter, ptr, size, size, type);
 }
 
-static __always_inline void __debug_str(const char *label, __u8 counter, void *ptr, size_t rsv_size, u8 valid_size, bool is_answer) {
+static __always_inline void __debug_str(const char *label, __u8 counter, const void *ptr, size_t rsv_size, u8 valid_size, bool is_answer) {
     u8 type = STR_ID;
     if (is_answer)
             type |= ANSWER_FLAG;
     __ep_debug_val(label, counter, ptr, rsv_size, valid_size, type);
 }
 
-static __always_inline void __debug_num(const char *label, __u8 counter, void* num, size_t size, bool is_answer) {
+static __always_inline void __debug_num(const char *label, __u8 counter, const void* num, size_t size, bool is_answer) {
     if (size > 8) size = 8; // no u128 for you sorry
     unsigned char* buf = bpf_ringbuf_reserve(&_ep_debug_events, 8+3, 0);
     if (!buf)
