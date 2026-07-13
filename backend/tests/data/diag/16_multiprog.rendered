@@ -1,0 +1,8 @@
+error: possibly-NULL pointer is dereferenced without a check
+   |
+21 |     u64 *p = bpf_map_lookup_elem(&m, &pid);
+   |              ------------------- this lookup returns NULL when the key is absent
+22 |     return *p;
+   |            ^ dereferenced here
+   |
+help: check the result before use: `if (!v) return 0;`

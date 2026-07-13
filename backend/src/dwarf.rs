@@ -549,6 +549,28 @@ pub fn resolve_map_value_member(
     Ok(None)
 }
 
+/// Declaration line of a top-level function by name (global helpers live
+/// outside the tp/ sections that `parse_dwarf_debug_info` walks).
+pub fn function_decl_line(elf_data: &[u8], name: &str) -> Option<u32> {
+    let elf_file = object::File::parse(elf_data).ok()?;
+    let dwarf = load_dwarf(&elf_file).ok()?;
+    let mut units = dwarf.units();
+    while let Ok(Some(header)) = units.next() {
+        let unit = dwarf.unit(header).ok()?;
+        let mut entries = unit.entries();
+        while let Ok(Some((_, entry))) = entries.next_dfs() {
+            if entry.tag() != gimli::DW_TAG_subprogram {
+                continue;
+            }
+            if get_attr_string(entry, gimli::DW_AT_name, &dwarf, &unit).ok().as_deref() == Some(name)
+            {
+                return get_attr_uint(entry, gimli::DW_AT_decl_line).map(|n| n as u32);
+            }
+        }
+    }
+    None
+}
+
 fn find_variable_type(
     dwarf: &gimli::Dwarf<Slice>,
     unit: &gimli::Unit<Slice>,

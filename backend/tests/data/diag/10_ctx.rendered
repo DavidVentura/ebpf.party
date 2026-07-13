@@ -1,0 +1,6 @@
+error: access at offset 8 (size 8) is not a valid field of the program context
+   |
+11 |     ctx->args[0] = 0;
+   |     ^^^^^^^^^^^^^^^^^ invalid context access
+   |
+help: the context layout is fixed by the program type; access only its declared fields (e.g. `ctx->args[i]` within range for tracepoints)

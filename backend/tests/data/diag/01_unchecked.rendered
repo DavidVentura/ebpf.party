@@ -1,5 +1,4 @@
 error: value used as index/size can be as large as 4294967295 and is never bounds-checked
-  --> <stdin>:23:9
    |
 22 |     __u32 idx = v->idx;
    |                    --- loaded here, unchecked

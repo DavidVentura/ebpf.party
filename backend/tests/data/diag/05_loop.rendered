@@ -1,5 +1,4 @@
 error: access to element 170 of a 170-element array (valid: 0..=169)
-  --> <stdin>:23:10
    |
  4 |     __u32 arr[170];
    |           --- declared here

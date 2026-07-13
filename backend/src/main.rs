@@ -14,6 +14,7 @@ use crate::guest_message::UserAnswer;
 use crate::metrics::{ExerciseResult, MetricEvent, Metrics, SubmissionResult};
 use crate::types::PlatformMessage;
 
+mod btf;
 mod compile;
 mod config;
 mod diag;
@@ -296,6 +297,36 @@ struct CompiledArtifacts {
     dwarf: Option<dwarf::DwarfDebugInfo>,
 }
 
+fn save_missing_diagnostic(source: &[u8], log: &str) {
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis())
+        .unwrap_or(0);
+    let dir = std::path::Path::new("missing_diagnostic");
+    if std::fs::create_dir_all(dir).is_err() {
+        return;
+    }
+    // Source, then the verifier log as a trailing comment so the uncovered
+    // error string is triageable without recompiling.
+    let mut out = source.to_vec();
+    out.extend_from_slice(b"\n/* --- verifier log ---\n");
+    out.extend_from_slice(log.as_bytes());
+    out.extend_from_slice(b"\n*/\n");
+    let _ = std::fs::write(dir.join(format!("{ts}.txt")), out);
+}
+
+fn strip_diag_lines(log: &str) -> String {
+    let mut out: String = log
+        .lines()
+        .filter(|l| !l.starts_with("DIAG1"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    if log.ends_with('\n') {
+        out.push('\n');
+    }
+    out
+}
+
 fn handle_guest_events(
     body_tx: touche::body::BodyChannel,
     rx: Receiver<PlatformMessage>,
@@ -325,28 +356,40 @@ fn handle_guest_events(
             let _ = metrics_tx.send(r);
         }
 
-        // forward all messages
-        // disconnected is not a big deal
-        if send_msg(&body_tx, &msg).is_err() {
-            break;
-        }
-
+        // forward all messages (disconnected is not a big deal). Our DIAG1
+        // provenance lines are patch-only kernel output, meaningless to end
+        // users, so they never reach the frontend — only diagnose() sees them.
         if let PlatformMessage::GuestMessage(shared::GuestMessage::VerifierFail(log)) = &msg {
-            if let Some(d) = diag::parse(log) {
-                let enrichment = match artifacts.get() {
-                    Some(a) => diag::enrich(&d, &a.elf, a.dwarf.as_ref()),
-                    None => diag::Enrichment::default(),
-                };
-                let rendered = diag::render(&d, &String::from_utf8_lossy(&source), &enrichment);
-                let diag_msg = PlatformMessage::VerifierDiagnostic {
-                    diag: d,
-                    enrichment,
-                    rendered,
-                };
-                if send_msg(&body_tx, &diag_msg).is_err() {
-                    break;
-                }
+            let clean = strip_diag_lines(log);
+            let fwd = PlatformMessage::GuestMessage(shared::GuestMessage::VerifierFail(
+                clean.clone(),
+            ));
+            if send_msg(&body_tx, &fwd).is_err() {
+                break;
             }
+
+            let (elf, dwarf) = match artifacts.get() {
+                Some(a) => (a.elf.as_slice(), a.dwarf.as_ref()),
+                None => (&[][..], None),
+            };
+            match diag::diagnose(log, &String::from_utf8_lossy(&source), elf, dwarf) {
+                Some(d) => {
+                    let diag_msg = PlatformMessage::VerifierDiagnostic {
+                        diag: d.diag,
+                        enrichment: d.enrichment,
+                        rendered: d.rendered,
+                        raw: clean,
+                    };
+                    if send_msg(&body_tx, &diag_msg).is_err() {
+                        break;
+                    }
+                }
+                // Uncovered error class: keep the source so the failure can be
+                // turned into a fixture and a hook later.
+                None => save_missing_diagnostic(&source, &clean),
+            }
+        } else if send_msg(&body_tx, &msg).is_err() {
+            break;
         }
     }
 

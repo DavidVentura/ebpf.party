@@ -75,23 +75,18 @@ fn run_in_vm(vmlinux: &Path, rootfs: &Path, program: Vec<u8>, id: usize) -> Stri
     log
 }
 
-/// The error line and the DIAG1 trailer that follows it.
-fn extract_diag_section(log: &str) -> String {
+/// The error line and the DIAG1 trailer that follows it. None for failures
+/// with no kernel provenance (ctx-access, some global-fn cases).
+fn extract_diag_section(log: &str) -> Option<String> {
     let lines: Vec<&str> = log.lines().collect();
-    let start = lines
-        .iter()
-        .position(|l| l.starts_with("DIAG1 "))
-        .expect("no DIAG1 trailer in verifier log");
-    let end = lines
-        .iter()
-        .rposition(|l| l.starts_with("DIAG1"))
-        .expect("no DIAG1 trailer in verifier log");
+    let start = lines.iter().position(|l| l.starts_with("DIAG1 "))?;
+    let end = lines.iter().rposition(|l| l.starts_with("DIAG1"))?;
     let mut section: Vec<&str> = Vec::new();
     if start > 0 {
         section.push(lines[start - 1]);
     }
     section.extend(&lines[start..=end]);
-    section.join("\n")
+    Some(section.join("\n"))
 }
 
 /// Kernel pointers (map addresses in ld_imm64 dumps) differ per boot, and
@@ -165,20 +160,20 @@ fn diag_golden() {
         let obj = compile::compile(&source, &config)
             .unwrap_or_else(|e| panic!("clang failed on {}:\n{}", fixture.display(), e));
         let log = run_in_vm(&vmlinux, &config.rootfs_path, obj.clone(), i);
-        let got = normalize(&extract_diag_section(&log));
         let path = fixture.to_str().unwrap();
-        check_golden(path.replace(".bpf.c", ".golden"), &got);
+        if let Some(section) = extract_diag_section(&log) {
+            check_golden(path.replace(".bpf.c", ".golden"), &normalize(&section));
+        }
 
-        let diag = backend::diag::parse(&log)
-            .unwrap_or_else(|| panic!("no parseable DIAG1 trailer for {}", fixture.display()));
         let dwarf_info = backend::dwarf::parse_dwarf_debug_info(&obj).ok();
-        let enrichment = backend::diag::enrich(&diag, &obj, dwarf_info.as_ref());
-        let rendered = backend::diag::render(
-            &diag,
+        let diagnosis = backend::diag::diagnose(
+            &log,
             std::str::from_utf8(&source).unwrap(),
-            &enrichment,
-        );
-        check_golden(path.replace(".bpf.c", ".rendered"), &rendered);
+            &obj,
+            dwarf_info.as_ref(),
+        )
+        .unwrap_or_else(|| panic!("no diagnosis for {}", fixture.display()));
+        check_golden(path.replace(".bpf.c", ".rendered"), &diagnosis.rendered);
     }
     assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }

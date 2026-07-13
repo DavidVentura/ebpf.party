@@ -1,5 +1,4 @@
 error: stack buffer access can reach index 100, past the end of `buf` (16 bytes)
-  --> <stdin>:27:9
    |
 19 |     __u8 buf[16] = {};
    |          --- declared here

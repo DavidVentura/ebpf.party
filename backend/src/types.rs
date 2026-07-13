@@ -13,9 +13,10 @@ pub enum PlatformMessage {
     Booting,
     GuestMessage(GuestMessage),
     VerifierDiagnostic {
-        diag: crate::diag::VerifierDiagnostic,
+        diag: Option<crate::diag::VerifierDiagnostic>,
         enrichment: crate::diag::Enrichment,
         rendered: String,
+        raw: String,
     },
 
     MultipleAnswers,

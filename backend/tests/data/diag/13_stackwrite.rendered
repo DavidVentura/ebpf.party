@@ -1,0 +1,8 @@
+error: this access writes 17 bytes into `buffer`, which holds only 16
+  |
+6 |     char buffer[16];
+  |          ------ declared here
+7 |     bpf_get_current_comm(&buffer, 17);
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ writes 17 bytes here
+  |
+help: pass a size that fits: `sizeof(buffer)` is 16

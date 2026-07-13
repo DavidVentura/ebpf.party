@@ -4,3 +4,4 @@ vmlinux
 *ext4
 *.o
 sync.sh
+missing_diagnostic/

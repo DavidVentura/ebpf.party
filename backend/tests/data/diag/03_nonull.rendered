@@ -1,5 +1,4 @@
 error: possibly-NULL pointer is dereferenced without a check
-  --> <stdin>:20:2
    |
 19 |     struct val *v = bpf_map_lookup_elem(&hvals, &k);
    |                     ------------------- this lookup returns NULL when the key is absent

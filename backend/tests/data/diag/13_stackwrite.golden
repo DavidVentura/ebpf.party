@@ -1,0 +1,2 @@
+invalid write to stack R1 off=-16 size=17
+DIAG1 reg=1 umin=0 umax=0 off=-16 use=3 use_loc=?

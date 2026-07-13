@@ -1,0 +1,8 @@
+error: dereferencing a value the verifier treats as a plain integer, not a pointer
+   |
+ 9 |     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+   |                                      ------------- the address comes from here
+10 |     u16 port = sk->__sk_common.skc_dport;
+   |                                ^^^^^^^^^ not a valid pointer here
+   |
+help: a raw kernel address (e.g. from `PT_REGS_PARM*`) is untrusted — read through it with `bpf_probe_read_kernel()` or `BPF_CORE_READ()`

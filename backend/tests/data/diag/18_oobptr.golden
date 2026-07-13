@@ -1,0 +1,3 @@
+value -2147483648 makes fp pointer be out of bounds
+DIAG1 reg=0 umin=0 umax=18446744073709551615 off=0 use=25 use_loc=<stdin>:10:12
+DIAG1E kind=origin_call insn=22 cnt=1 reg=r0 loc=<stdin>:9:15

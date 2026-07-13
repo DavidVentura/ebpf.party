@@ -1,5 +1,4 @@
 error: value used as index/size can be as large as 20; no check in this function bounds it
-  --> <stdin>:17:9
    |
 17 |     return v->data[idx];
    |            ^ used here

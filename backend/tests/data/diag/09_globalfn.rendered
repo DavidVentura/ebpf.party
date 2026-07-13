@@ -1,0 +1,6 @@
+error: `read_at` is a global (non-static) function, verified on its own
+   |
+15 | __attribute__((noinline)) int read_at(struct val *v, __u32 idx)
+   |                               ^^^^^^^ verified in isolation
+   |
+help: the verifier checks global functions with unconstrained arguments, so a check in the caller does not apply here — mark `read_at` `static` (it is then verified together with its caller), or validate its arguments inside the body
