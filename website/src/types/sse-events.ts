@@ -5,10 +5,22 @@ export type SSEEvent =
   | { type: "requestError"; data: string }
   | { type: "guestMessage"; data: GuestMessage }
   | { type: "stack"; data: { functions: DwarfFunction[] } }
+  | { type: "verifierDiagnostic"; data: VerifierDiagnostic }
   | { type: "correctAnswer" }
   | { type: "wrongAnswer" }
   | { type: "multipleAnswers" }
   | { type: "noAnswer" };
+
+// Structured verifier diagnostic. `rendered` is the ready-to-display,
+// rustc-style annotated snippet; `raw` is the original verifier log kept as a
+// fallback when the diagnosis is wrong. `diag` carries the structured spans
+// for future editor integration.
+export type VerifierDiagnostic = {
+  rendered: string;
+  raw: string;
+  diag: unknown;
+  enrichment: unknown;
+};
 
 export type DwarfFunction = {
   function_name: string;

@@ -1,6 +1,7 @@
 import type { SSEEvent } from "../types/sse-events";
 import type { TypeInfo } from "../types/typeinfo";
 import ParsedEventViewer from "./ParsedEventViewer";
+import VerifierDiagnosticView from "./VerifierDiagnosticView";
 import styles from "./EventViewer.module.css";
 import X from "lucide-react/dist/esm/icons/x";
 
@@ -69,6 +70,10 @@ export default function EventViewer({
     return event.type;
   };
 
+  // When a structured diagnostic is present, the raw verifierFail row is
+  // redundant: the diagnostic component shows the raw log under its own tab.
+  const hasDiagnostic = events.some((e) => e.type === "verifierDiagnostic");
+
   return (
     <div className={styles.eventViewer}>
       <div className={styles.header}>
@@ -91,7 +96,16 @@ export default function EventViewer({
               ["booted", "foundProgram", "finished"].indexOf(event.data.type) ==
                 -1
           )
+          .filter(
+            (event) =>
+              !hasDiagnostic ||
+              event.type !== "guestMessage" ||
+              event.data.type !== "verifierFail"
+          )
           .map((event, i) => {
+            if (event.type === "verifierDiagnostic") {
+              return <VerifierDiagnosticView key={i} data={event.data} />;
+            }
             if (event.type === "guestMessage" && event.data.type === "event") {
               return (
                 <ParsedEventViewer

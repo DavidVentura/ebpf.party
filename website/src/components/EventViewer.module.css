@@ -108,3 +108,49 @@
   margin: 0;
   font-style: italic;
 }
+
+.diagnostic {
+  margin: 0;
+  background: #2e1e1e;
+  border-left: 2px solid #f44336;
+  border-radius: 2px;
+  overflow-x: hidden;
+}
+
+.diagnosticTabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #3a2a2a;
+}
+
+.tab,
+.tabActive {
+  background: none;
+  border: none;
+  color: #b58a8a;
+  font-family: monospace;
+  font-size: 11px;
+  padding: 0.35rem 0.75rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.tab:hover {
+  color: #ffcccc;
+}
+
+.tabActive {
+  color: #ffcccc;
+  border-bottom: 2px solid #f44336;
+}
+
+.diagnosticBody {
+  color: #ffcccc;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  white-space: pre;
+}
