@@ -268,7 +268,7 @@ pub fn diagnose(
             rendered,
         });
     }
-    if let Some(rendered) = render_ctx_access(log, source) {
+    if let Some(rendered) = render_ctx_access(log, source, elf) {
         return Some(Diagnosis {
             diag: None,
             enrichment: Enrichment::default(),
@@ -353,9 +353,12 @@ fn render_global_fn(name: &str, source: &str, elf: &[u8]) -> String {
 }
 
 /// Context-access failures are offset-shaped, not value-shaped, so they have
-/// no DIAG1. The raw log carries the source line via the verifier's own
-/// linfo annotation immediately above the error.
-fn render_ctx_access(log: &str, source: &str) -> Option<String> {
+/// no DIAG1. The source line comes from the verifier's own linfo annotation
+/// when present, else host-side from `.BTF.ext` (libbpf drops line_info for
+/// programs whose ctx pulls PCH types under `-gmodules`, so the annotation is
+/// often absent). The failing instruction's opcode distinguishes a rejected
+/// write (the context is read-only) from an out-of-layout read.
+fn render_ctx_access(log: &str, source: &str, elf: &[u8]) -> Option<String> {
     let lines: Vec<&str> = log.lines().collect();
     let err_idx = lines
         .iter()
@@ -373,36 +376,69 @@ fn render_ctx_access(log: &str, source: &str) -> Option<String> {
         }
         (off?, size)
     };
-    // The nearest preceding "; ... @ file:line" annotation locates the access.
-    let loc = lines[..err_idx].iter().rev().find_map(|l| {
-        let at = l.rfind(" @ ")?;
-        let tail = &l[at + 3..];
-        let (_file, lc) = tail.rsplit_once(':')?;
-        lc.parse::<u32>().ok().map(|line| line)
-    })?;
+    // The failing instruction is the last disassembly line before the error
+    // (`N: (hex) ...`); its opcode class gives read vs write (BPF_ST=0x02,
+    // BPF_STX=0x03 are stores) and its index locates the source line.
+    let failing = lines[..err_idx].iter().rev().find_map(|l| {
+        let (idx, rest) = l.split_once(": (")?;
+        let insn: u32 = idx.trim().parse().ok()?;
+        let opcode = u8::from_str_radix(rest.split_once(')')?.0, 16).ok()?;
+        Some((insn, opcode))
+    });
+    let write = failing.is_some_and(|(_, op)| matches!(op & 0x07, 0x02 | 0x03));
 
-    let title = match size {
-        Some(sz) => format!(
-            "access at offset {} (size {}) is not a valid field of the program context",
-            off, sz
-        ),
-        None => format!(
-            "access at offset {} is not a valid field of the program context",
-            off
-        ),
+    let loc = lines[..err_idx]
+        .iter()
+        .rev()
+        .find_map(|l| {
+            let at = l.rfind(" @ ")?;
+            let (_file, lc) = l[at + 3..].rsplit_once(':')?;
+            lc.parse::<u32>().ok()
+        })
+        .or_else(|| {
+            let insn = failing?.0;
+            let btf = crate::btf::BtfLines::parse(elf)?;
+            let cands: Vec<String> = btf.section_names().cloned().collect();
+            let section = crate::btf::identify_section(elf, log, &cands)?;
+            btf.resolve(&section, insn).map(|(line, _col)| line)
+        })?;
+
+    let (title, label, help): (String, &str, Option<&str>) = if write {
+        (
+            "the program context is read-only and cannot be written to".to_string(),
+            "cannot write to the context here",
+            None,
+        )
+    } else {
+        let title = match size {
+            Some(sz) => format!(
+                "access at offset {} (size {}) is not a valid field of the program context",
+                off, sz
+            ),
+            None => format!(
+                "access at offset {} is not a valid field of the program context",
+                off
+            ),
+        };
+        (
+            title,
+            "invalid context access",
+            Some(
+                "the context layout is fixed by the program type; access only its declared fields \
+                 (e.g. `ctx->args[i]` within range for tracepoints)",
+            ),
+        )
     };
-    let help = "the context layout is fixed by the program type; access only its \
-                declared fields (e.g. `ctx->args[i]` within range for tracepoints)";
 
     let snippet = Snippet::source(source).fold(true).line_start(1).annotation(
         AnnotationKind::Primary
             .span(line_span(source, loc))
-            .label("invalid context access"),
+            .label(label),
     );
-    let report = vec![
-        Level::ERROR.primary_title(&title).element(snippet),
-        Group::with_title(Level::HELP.secondary_title(help)),
-    ];
+    let mut report = vec![Level::ERROR.primary_title(&title).element(snippet)];
+    if let Some(help) = help {
+        report.push(Group::with_title(Level::HELP.secondary_title(help)));
+    }
     Some(Renderer::plain().render(&report).to_string())
 }
 
