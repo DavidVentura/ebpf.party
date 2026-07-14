@@ -1,0 +1,525 @@
+--- /tmp/claude-1000/-home-david-git-ebpf-party/19e37631-820a-4d4c-8036-20d4cdb25092/scratchpad/verifier.c.orig	2026-07-12 23:21:04.686153254 +0200
++++ /home/david/git/linux-6.18.2/kernel/bpf/verifier.c	2026-07-13 19:14:53.116316804 +0200
+@@ -4008,6 +4008,380 @@
+ 	print_bpf_insn(&cbs, insn, env->allow_ptr_leaks);
+ }
+ 
++/* ebpf.party provenance diagnostics.
++ *
++ * On a verification failure that names a register, walk the recorded insn
++ * history backwards from the failing instruction, tracking which earlier
++ * instructions defined or constrained that register's value. This is a
++ * simplified sibling of backtrack_insn(): it does not need to be complete
++ * for correctness, only informative; when it cannot follow the data flow
++ * it stops and reports what it has.
++ */
++
++enum diag_kind {
++	DIAG_ORIGIN_CONST,
++	DIAG_ORIGIN_LOAD,
++	DIAG_ORIGIN_CALL,
++	DIAG_CHECK,
++	DIAG_CHECK_NULL,
++	DIAG_NARROW,
++	DIAG_WALK_END,
++};
++
++static const char *diag_kind_str(enum diag_kind kind)
++{
++	switch (kind) {
++	case DIAG_ORIGIN_CONST: return "origin_const";
++	case DIAG_ORIGIN_LOAD: return "origin_load";
++	case DIAG_ORIGIN_CALL: return "origin_call";
++	case DIAG_CHECK: return "check";
++	case DIAG_CHECK_NULL: return "null_check";
++	case DIAG_NARROW: return "narrow";
++	case DIAG_WALK_END: return "walk_end";
++	}
++	return "?";
++}
++
++#define DIAG_MAX_EVENTS 16
++#define DIAG_NO_REG 0xff
++
++struct diag_event {
++	int insn_idx;
++	enum diag_kind kind;
++	u8 reg;
++	u8 op;		/* BPF_OP of the jmp/alu insn, for check/narrow */
++	bool has_val;
++	bool val_is_reg;
++	s32 val;
++	u32 cnt;
++};
++
++struct diag_walk {
++	u32 reg_mask;
++	u64 stack_mask;
++	int nr_events;
++	struct diag_event events[DIAG_MAX_EVENTS];
++};
++
++static struct diag_event *diag_record(struct diag_walk *dw, int insn_idx,
++				      enum diag_kind kind, u8 reg)
++{
++	struct diag_event *e;
++	int i;
++
++	for (i = 0; i < dw->nr_events; i++) {
++		e = &dw->events[i];
++		if (e->insn_idx == insn_idx && e->kind == kind) {
++			e->cnt++;
++			return NULL;
++		}
++	}
++	if (dw->nr_events >= DIAG_MAX_EVENTS)
++		return NULL;
++	e = &dw->events[dw->nr_events++];
++	*e = (struct diag_event) {
++		.insn_idx = insn_idx,
++		.kind = kind,
++		.reg = reg,
++		.cnt = 1,
++	};
++	return e;
++}
++
++static void diag_set_val(struct diag_event *e, u8 op, bool val_is_reg, s32 val)
++{
++	if (!e)
++		return;
++	e->op = op;
++	e->has_val = true;
++	e->val_is_reg = val_is_reg;
++	e->val = val;
++}
++
++/* BPF_OP values overlap between ALU and JMP classes, so resolution
++ * depends on the event kind.
++ */
++static const char *diag_op_str(const struct diag_event *e)
++{
++	if (e->kind == DIAG_NARROW) {
++		switch (e->op) {
++		case BPF_AND: return "and";
++		case BPF_MOD: return "mod";
++		}
++		return "alu";
++	}
++	switch (e->op) {
++	case BPF_JEQ: return "jeq";
++	case BPF_JNE: return "jne";
++	case BPF_JGT: return "jgt";
++	case BPF_JGE: return "jge";
++	case BPF_JLT: return "jlt";
++	case BPF_JLE: return "jle";
++	case BPF_JSGT: return "jsgt";
++	case BPF_JSGE: return "jsge";
++	case BPF_JSLT: return "jslt";
++	case BPF_JSLE: return "jsle";
++	case BPF_JSET: return "jset";
++	}
++	return "jmp";
++}
++
++/* If any register recorded as gaining range at this insn is tracked,
++ * track all of its linked registers too (mirrors bt_sync_linked_regs).
++ */
++static void diag_sync_linked_regs(struct diag_walk *dw, struct bpf_jmp_history_entry *hist)
++{
++	struct linked_regs linked_regs;
++	bool some_linked = false;
++	int i;
++
++	if (!hist || hist->linked_regs == 0)
++		return;
++	linked_regs_unpack(hist->linked_regs, &linked_regs);
++	for (i = 0; i < linked_regs.cnt; ++i) {
++		struct linked_reg *e = &linked_regs.entries[i];
++
++		if (e->is_reg && (dw->reg_mask & (1u << e->regno)))
++			some_linked = true;
++	}
++	if (!some_linked)
++		return;
++	for (i = 0; i < linked_regs.cnt; ++i) {
++		struct linked_reg *e = &linked_regs.entries[i];
++
++		if (e->is_reg)
++			dw->reg_mask |= 1u << e->regno;
++		else
++			dw->stack_mask |= 1ull << e->spi;
++	}
++}
++
++/* Process one instruction of the backward walk; returns false to stop. */
++static bool diag_step(struct bpf_verifier_env *env, int idx,
++		      struct bpf_jmp_history_entry *hist, struct diag_walk *dw)
++{
++	struct bpf_insn *insn = env->prog->insnsi + idx;
++	u8 class = BPF_CLASS(insn->code);
++	u8 opcode = BPF_OP(insn->code);
++	u32 dreg = insn->dst_reg;
++	u32 sreg = insn->src_reg;
++	u32 spi;
++
++	if (insn->code == 0)
++		return true;
++
++	diag_sync_linked_regs(dw, hist);
++
++	if (class == BPF_ALU || class == BPF_ALU64) {
++		if (!(dw->reg_mask & (1u << dreg)))
++			return true;
++		if (opcode == BPF_END || opcode == BPF_NEG)
++			return true;
++		if (opcode == BPF_MOV) {
++			dw->reg_mask &= ~(1u << dreg);
++			if (BPF_SRC(insn->code) == BPF_X) {
++				if (sreg != BPF_REG_FP)
++					dw->reg_mask |= 1u << sreg;
++			} else {
++				diag_set_val(diag_record(dw, idx, DIAG_ORIGIN_CONST, dreg),
++					     opcode, false, insn->imm);
++			}
++		} else {
++			if (BPF_SRC(insn->code) == BPF_X && sreg != BPF_REG_FP)
++				dw->reg_mask |= 1u << sreg;
++			if (opcode == BPF_AND || opcode == BPF_MOD)
++				diag_set_val(diag_record(dw, idx, DIAG_NARROW, dreg),
++					     opcode, BPF_SRC(insn->code) == BPF_X,
++					     BPF_SRC(insn->code) == BPF_X ? sreg : insn->imm);
++		}
++	} else if (class == BPF_LDX || is_atomic_load_insn(insn)) {
++		if (!(dw->reg_mask & (1u << dreg)))
++			return true;
++		dw->reg_mask &= ~(1u << dreg);
++		if (hist && (hist->flags & INSN_F_STACK_ACCESS))
++			dw->stack_mask |= 1ull << insn_stack_access_spi(hist->flags);
++		else
++			diag_record(dw, idx, DIAG_ORIGIN_LOAD, dreg);
++	} else if (class == BPF_STX || class == BPF_ST) {
++		if (!hist || !(hist->flags & INSN_F_STACK_ACCESS))
++			return true;
++		spi = insn_stack_access_spi(hist->flags);
++		if (!(dw->stack_mask & (1ull << spi)))
++			return true;
++		dw->stack_mask &= ~(1ull << spi);
++		if (class == BPF_STX)
++			dw->reg_mask |= 1u << sreg;
++		else
++			diag_set_val(diag_record(dw, idx, DIAG_ORIGIN_CONST, DIAG_NO_REG),
++				     0, false, insn->imm);
++	} else if (class == BPF_JMP || class == BPF_JMP32) {
++		if (opcode == BPF_CALL) {
++			if (insn->src_reg == BPF_PSEUDO_CALL) {
++				diag_record(dw, idx, DIAG_WALK_END, DIAG_NO_REG);
++				return false;
++			}
++			if (dw->reg_mask & (1u << BPF_REG_0)) {
++				dw->reg_mask &= ~(1u << BPF_REG_0);
++				diag_record(dw, idx, DIAG_ORIGIN_CALL, BPF_REG_0);
++			}
++		} else if (opcode != BPF_JA && opcode != BPF_EXIT &&
++			   opcode != BPF_JCOND) {
++			bool dreg_hit = dw->reg_mask & (1u << dreg);
++			bool sreg_hit = BPF_SRC(insn->code) == BPF_X &&
++					(dw->reg_mask & (1u << sreg));
++
++			if (dreg_hit || sreg_hit) {
++				bool null_check = (opcode == BPF_JEQ || opcode == BPF_JNE) &&
++						  BPF_SRC(insn->code) == BPF_K &&
++						  insn->imm == 0;
++				struct diag_event *e;
++
++				e = diag_record(dw, idx,
++						null_check ? DIAG_CHECK_NULL : DIAG_CHECK,
++						dreg_hit ? dreg : sreg);
++				if (BPF_SRC(insn->code) == BPF_K)
++					diag_set_val(e, opcode, false, insn->imm);
++				else
++					diag_set_val(e, opcode, true,
++						     dreg_hit ? sreg : dreg);
++			}
++		}
++	} else if (class == BPF_LD) {
++		if (!(dw->reg_mask & (1u << dreg)))
++			return true;
++		dw->reg_mask &= ~(1u << dreg);
++		diag_record(dw, idx, DIAG_ORIGIN_CONST, dreg);
++	}
++
++	return dw->reg_mask || dw->stack_mask;
++}
++
++static const struct bpf_line_info *diag_find_linfo(struct bpf_verifier_env *env,
++						   u32 insn_off)
++{
++	const struct bpf_line_info *linfo = env->prog->aux->linfo;
++	const struct bpf_line_info *best = NULL;
++	u32 nr = env->prog->aux->nr_linfo;
++	u32 i;
++
++	for (i = 0; i < nr; i++) {
++		if (linfo[i].insn_off > insn_off)
++			break;
++		best = &linfo[i];
++	}
++	return best;
++}
++
++static void diag_emit_loc(struct bpf_verifier_env *env, int insn_idx)
++{
++	const struct bpf_line_info *linfo = diag_find_linfo(env, insn_idx);
++
++	if (!linfo) {
++		verbose(env, "?");
++		return;
++	}
++	verbose(env, "%s:%u:%u",
++		btf_name_by_offset(env->prog->aux->btf, linfo->file_name_off),
++		BPF_LINE_INFO_LINE_NUM(linfo->line_col),
++		BPF_LINE_INFO_LINE_COL(linfo->line_col));
++}
++
++/* mem_regno >= 0 names the memory-argument register a rejected helper
++ * size argument was paired with; its capacity is the violated constraint.
++ */
++static void bpf_diag_provenance_mem(struct bpf_verifier_env *env, u32 regno,
++				    int mem_regno)
++{
++	struct bpf_verifier_state *st = env->cur_state;
++	struct diag_walk dw = { .reg_mask = 1u << regno };
++	struct bpf_reg_state *reg;
++	bool skip_first = true;
++	int i, budget = 4096;
++
++	if (!(env->log.level & BPF_LOG_LEVEL))
++		return;
++	if (!st || st->speculative)
++		return;
++
++	i = env->insn_idx;
++	while (st && budget > 0) {
++		u32 history = st->jmp_history_cnt;
++
++		for (; budget > 0; budget--) {
++			struct bpf_jmp_history_entry *hist;
++
++			if (skip_first) {
++				skip_first = false;
++			} else {
++				hist = get_jmp_hist_entry(st, history, i);
++				if (!diag_step(env, i, hist, &dw))
++					goto walk_done;
++			}
++			i = get_prev_insn_idx(st, i, &history);
++			if (i == -ENOENT)
++				break;
++			if (i < 0 || i >= env->prog->len)
++				goto walk_done;
++		}
++		st = st->parent;
++		if (st)
++			i = st->last_insn_idx;
++	}
++walk_done:
++
++	reg = &cur_regs(env)[regno];
++	verbose(env, "DIAG1 reg=%d umin=%llu umax=%llu smin=%lld smax=%lld off=%d",
++		regno, reg->umin_value, reg->umax_value,
++		reg->smin_value, reg->smax_value, reg->off);
++	if (base_type(reg->type) == PTR_TO_MAP_VALUE && reg->map_ptr)
++		verbose(env, " map=%s", reg->map_ptr->name);
++	if (mem_regno >= 0) {
++		struct bpf_reg_state *mreg = &cur_regs(env)[mem_regno];
++		s32 moff = mreg->off;
++
++		if (tnum_is_const(mreg->var_off))
++			moff += mreg->var_off.value;
++		if (mreg->type == PTR_TO_STACK) {
++			verbose(env, " mem=fp mem_off=%d", moff);
++		} else if (base_type(mreg->type) == PTR_TO_MAP_VALUE &&
++			   mreg->map_ptr) {
++			verbose(env, " mem=map_value mem_size=%u mem_map=%s mem_off=%d",
++				mreg->map_ptr->value_size, mreg->map_ptr->name,
++				moff);
++		} else if (base_type(mreg->type) == PTR_TO_MEM) {
++			verbose(env, " mem=mem mem_size=%u", mreg->mem_size);
++		}
++	}
++	verbose(env, " use=%d use_loc=", env->insn_idx);
++	diag_emit_loc(env, env->insn_idx);
++	verbose(env, "\n");
++	for (i = dw.nr_events - 1; i >= 0; i--) {
++		struct diag_event *e = &dw.events[i];
++
++		verbose(env, "DIAG1E kind=%s insn=%d cnt=%u",
++			diag_kind_str(e->kind), e->insn_idx, e->cnt);
++		if (e->reg != DIAG_NO_REG)
++			verbose(env, " reg=r%d", e->reg);
++		if (e->has_val) {
++			if (e->kind == DIAG_CHECK || e->kind == DIAG_CHECK_NULL ||
++			    e->kind == DIAG_NARROW)
++				verbose(env, " op=%s", diag_op_str(e));
++			if (e->val_is_reg)
++				verbose(env, " valreg=r%d", e->val);
++			else
++				verbose(env, " val=%d", e->val);
++		}
++		verbose(env, " loc=");
++		diag_emit_loc(env, e->insn_idx);
++		verbose(env, "\n");
++	}
++}
++
++static void bpf_diag_provenance(struct bpf_verifier_env *env, u32 regno)
++{
++	bpf_diag_provenance_mem(env, regno, -1);
++}
++
+ static inline void bt_init(struct backtrack_state *bt, u32 frame)
+ {
+ 	bt->frame = frame;
+@@ -5701,6 +6075,7 @@
+ 	      reg->smin_value + off < 0)) {
+ 		verbose(env, "R%d min value is negative, either use unsigned index or do a if (index >=0) check.\n",
+ 			regno);
++		bpf_diag_provenance(env, regno);
+ 		return -EACCES;
+ 	}
+ 	err = __check_mem_access(env, regno, reg->smin_value + off, size,
+@@ -5708,6 +6083,7 @@
+ 	if (err) {
+ 		verbose(env, "R%d min value is outside of the allowed memory range\n",
+ 			regno);
++		bpf_diag_provenance(env, regno);
+ 		return err;
+ 	}
+ 
+@@ -5718,6 +6094,7 @@
+ 	if (reg->umax_value >= BPF_MAX_VAR_OFF) {
+ 		verbose(env, "R%d unbounded memory access, make sure to bounds check any such access\n",
+ 			regno);
++		bpf_diag_provenance(env, regno);
+ 		return -EACCES;
+ 	}
+ 	err = __check_mem_access(env, regno, reg->umax_value + off, size,
+@@ -5725,6 +6102,7 @@
+ 	if (err) {
+ 		verbose(env, "R%d max value is outside of the allowed memory range\n",
+ 			regno);
++		bpf_diag_provenance(env, regno);
+ 		return err;
+ 	}
+ 
+@@ -6137,6 +6515,7 @@
+ 	if (reg->smin_value < 0) {
+ 		verbose(env, "R%d min value is negative, either use unsigned index or do a if (index >=0) check.\n",
+ 			regno);
++		bpf_diag_provenance(env, regno);
+ 		return -EACCES;
+ 	}
+ 
+@@ -6218,6 +6597,7 @@
+ 	if (reg->smin_value < 0) {
+ 		verbose(env, "R%d min value is negative, either use unsigned index or do a if (index >=0) check.\n",
+ 			regno);
++		bpf_diag_provenance(env, regno);
+ 		return -EACCES;
+ 	}
+ 
+@@ -7416,6 +7796,7 @@
+ 		    reg->smin_value <= -BPF_MAX_VAR_OFF) {
+ 			verbose(env, "invalid unbounded variable-offset%s stack R%d\n",
+ 				err_extra, regno);
++			bpf_diag_provenance(env, regno);
+ 			return -EACCES;
+ 		}
+ 		min_off = reg->smin_value + off;
+@@ -7442,6 +7823,7 @@
+ 			verbose(env, "invalid variable-offset%s stack R%d var_off=%s off=%d size=%d\n",
+ 				err_extra, regno, tn_buf, off, access_size);
+ 		}
++		bpf_diag_provenance(env, regno);
+ 		return err;
+ 	}
+ 
+@@ -7547,6 +7929,7 @@
+ 		if (type_may_be_null(reg->type)) {
+ 			verbose(env, "R%d invalid mem access '%s'\n", regno,
+ 				reg_type_str(env, reg->type));
++			bpf_diag_provenance(env, regno);
+ 			return -EACCES;
+ 		}
+ 
+@@ -7709,6 +8092,7 @@
+ 	} else {
+ 		verbose(env, "R%d invalid mem access '%s'\n", regno,
+ 			reg_type_str(env, reg->type));
++		bpf_diag_provenance(env, regno);
+ 		return -EACCES;
+ 	}
+ 
+@@ -8231,18 +8615,21 @@
+ 	if (reg->smin_value < 0) {
+ 		verbose(env, "R%d min value is negative, either use unsigned or 'var &= const'\n",
+ 			regno);
++		bpf_diag_provenance_mem(env, regno, regno - 1);
+ 		return -EACCES;
+ 	}
+ 
+ 	if (reg->umin_value == 0 && !zero_size_allowed) {
+ 		verbose(env, "R%d invalid zero-sized read: u64=[%lld,%lld]\n",
+ 			regno, reg->umin_value, reg->umax_value);
++		bpf_diag_provenance_mem(env, regno, regno - 1);
+ 		return -EACCES;
+ 	}
+ 
+ 	if (reg->umax_value >= BPF_MAX_VAR_SIZ) {
+ 		verbose(env, "R%d unbounded memory access, use 'var &= const' or 'if (var < const)'\n",
+ 			regno);
++		bpf_diag_provenance_mem(env, regno, regno - 1);
+ 		return -EACCES;
+ 	}
+ 	err = check_helper_mem_access(env, regno - 1, reg->umax_value,
+@@ -9281,6 +9668,7 @@
+ 	for (j = 0; j + 1 < i; j++)
+ 		verbose(env, "%s, ", reg_type_str(env, compatible->types[j]));
+ 	verbose(env, "%s\n", reg_type_str(env, compatible->types[j]));
++	bpf_diag_provenance(env, regno);
+ 	return -EACCES;
+ 
+ found:
+@@ -9885,6 +10273,7 @@
+ 		if (!tnum_is_const(reg->var_off)) {
+ 			verbose(env, "R%d is not a known constant'\n",
+ 				regno);
++			bpf_diag_provenance(env, regno);
+ 			return -EACCES;
+ 		}
+ 		meta->mem_size = reg->var_off.value;
+@@ -14666,8 +15055,10 @@
+ 	dst_reg->id = ptr_reg->id;
+ 
+ 	if (!check_reg_sane_offset(env, off_reg, ptr_reg->type) ||
+-	    !check_reg_sane_offset(env, ptr_reg, ptr_reg->type))
++	    !check_reg_sane_offset(env, ptr_reg, ptr_reg->type)) {
++		bpf_diag_provenance(env, (u32)(off_reg - regs));
+ 		return -EINVAL;
++	}
+ 
+ 	/* pointer types do not carry 32-bit bounds at the moment. */
+ 	__mark_reg32_unbounded(dst_reg);
+@@ -14795,8 +15186,10 @@
+ 		return -EACCES;
+ 	}
+ 
+-	if (!check_reg_sane_offset(env, dst_reg, ptr_reg->type))
++	if (!check_reg_sane_offset(env, dst_reg, ptr_reg->type)) {
++		bpf_diag_provenance(env, (u32)(off_reg - regs));
+ 		return -EINVAL;
++	}
+ 	reg_bounds_sync(dst_reg);
+ 	bounds_ret = sanitize_check_bounds(env, insn, dst_reg);
+ 	if (bounds_ret == -EACCES)
