@@ -78,8 +78,16 @@ pub struct Event {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum Access {
-    MapValue { value_size: u32, off: u32, size: u32 },
-    Stack { off: i32, size: u32, write: bool },
+    MapValue {
+        value_size: u32,
+        off: u32,
+        size: u32,
+    },
+    Stack {
+        off: i32,
+        size: u32,
+        write: bool,
+    },
 }
 
 /// The memory argument a rejected helper size argument was paired with.
@@ -197,8 +205,7 @@ fn classify_error(line: &str) -> Option<ErrorKind> {
     }
     // Fixed-offset helper/direct access whose size overflows a stack slot,
     // e.g. `invalid write to stack R1 off=-16 size=17`.
-    if (line.starts_with("invalid write to stack")
-        || line.starts_with("invalid read from stack"))
+    if (line.starts_with("invalid write to stack") || line.starts_with("invalid read from stack"))
         && line.contains("off=")
         && line.contains("size=")
     {
@@ -326,18 +333,15 @@ fn render_global_fn(name: &str, source: &str, elf: &[u8]) -> String {
         name
     );
 
-    let span = dwarf::function_decl_line(elf, name)
-        .and_then(|line| name_span_on_line(source, line, name));
+    let span =
+        dwarf::function_decl_line(elf, name).and_then(|line| name_span_on_line(source, line, name));
     let title_group = match span {
         Some(range) => Level::ERROR.primary_title(&title).element(
-            Snippet::source(source)
-
-                .fold(true)
-                .annotation(
-                    AnnotationKind::Primary
-                        .span(range)
-                        .label("verified in isolation"),
-                ),
+            Snippet::source(source).fold(true).annotation(
+                AnnotationKind::Primary
+                    .span(range)
+                    .label("verified in isolation"),
+            ),
         ),
         None => Group::with_title(Level::ERROR.primary_title(&title)),
     };
@@ -390,15 +394,11 @@ fn render_ctx_access(log: &str, source: &str) -> Option<String> {
     let help = "the context layout is fixed by the program type; access only its \
                 declared fields (e.g. `ctx->args[i]` within range for tracepoints)";
 
-    let snippet = Snippet::source(source)
-
-        .fold(true)
-        .line_start(1)
-        .annotation(
-            AnnotationKind::Primary
-                .span(line_span(source, loc))
-                .label("invalid context access"),
-        );
+    let snippet = Snippet::source(source).fold(true).line_start(1).annotation(
+        AnnotationKind::Primary
+            .span(line_span(source, loc))
+            .label("invalid context access"),
+    );
     let report = vec![
         Level::ERROR.primary_title(&title).element(snippet),
         Group::with_title(Level::HELP.secondary_title(help)),
@@ -638,8 +638,12 @@ pub fn enrich(
 ) -> Enrichment {
     let mut e = Enrichment::default();
 
-    if let (Some(map), Some(Access::MapValue { value_size, off, .. })) =
-        (&d.map, d.access.as_ref())
+    if let (
+        Some(map),
+        Some(Access::MapValue {
+            value_size, off, ..
+        }),
+    ) = (&d.map, d.access.as_ref())
     {
         let resolve_off = (*off).min(value_size.saturating_sub(1)) as u64;
         e.member = dwarf::resolve_map_value_member(elf, map, resolve_off)
@@ -712,20 +716,6 @@ fn span_at(source: &str, loc: Loc) -> Option<std::ops::Range<usize>> {
     None
 }
 
-/// The comparison as the user wrote it, when it is safe to quote: relational
-/// ops against a constant. Equality exits of strength-reduced loops would
-/// mislead (`jne 800` for `i < 200` over a u32[170]).
-fn quoted_cmp(ev: &Event) -> Option<String> {
-    let sym = match ev.op.as_deref()? {
-        "jgt" | "jsgt" => ">",
-        "jge" | "jsge" => ">=",
-        "jlt" | "jslt" => "<",
-        "jle" | "jsle" => "<=",
-        _ => return None,
-    };
-    Some(format!("`{} {}`", sym, ev.val?))
-}
-
 struct Span {
     loc: Loc,
     label: String,
@@ -737,10 +727,18 @@ struct Span {
 
 impl Span {
     fn token(loc: Loc, label: impl Into<String>) -> Span {
-        Span { loc, label: label.into(), whole_line: false }
+        Span {
+            loc,
+            label: label.into(),
+            whole_line: false,
+        }
     }
     fn line(loc: Loc, label: impl Into<String>) -> Span {
-        Span { loc, label: label.into(), whole_line: true }
+        Span {
+            loc,
+            label: label.into(),
+            whole_line: true,
+        }
     }
 }
 
@@ -751,11 +749,6 @@ struct Msg {
     /// (line, name-to-underline, label) — declaration site of the violated object.
     decl: Option<(u32, String, String)>,
     help: Option<String>,
-}
-
-fn decl_note(hit: &MemberHit) -> Option<(u32, String, String)> {
-    let line = hit.decl_line? as u32;
-    Some((line, hit.name.clone(), "declared here".to_string()))
 }
 
 fn var_decl_note(v: &StackVar) -> Option<(u32, String, String)> {
@@ -779,7 +772,11 @@ fn humanize_reg_type(t: &str) -> String {
 }
 
 fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
-    let checks: Vec<&Event> = d.events.iter().filter(|e| e.kind.is_bound_check()).collect();
+    let checks: Vec<&Event> = d
+        .events
+        .iter()
+        .filter(|e| e.kind.is_bound_check())
+        .collect();
     let origins: Vec<&Event> = d
         .events
         .iter()
@@ -861,11 +858,17 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
                         "this access {} {} bytes into `{}`, which holds only {}",
                         verb, size, v.name, cap
                     ),
-                    Some(format!("pass a size that fits: `sizeof({})` is {}", v.name, cap)),
+                    Some(format!(
+                        "pass a size that fits: `sizeof({})` is {}",
+                        v.name, cap
+                    )),
                 )
             }
             None => (
-                format!("this access {} {} bytes, past the end of the stack buffer", verb, size),
+                format!(
+                    "this access {} {} bytes, past the end of the stack buffer",
+                    verb, size
+                ),
                 None,
             ),
         };
@@ -975,7 +978,9 @@ fn oob_msg(
 ) -> Msg {
     let check = checks.last();
     let elem = match d.access {
-        Some(Access::MapValue { size, .. }) | Some(Access::Stack { size, .. }) => size.max(1) as i64,
+        Some(Access::MapValue { size, .. }) | Some(Access::Stack { size, .. }) => {
+            size.max(1) as i64
+        }
         _ => 1,
     };
 
@@ -1007,9 +1012,9 @@ fn oob_msg(
                     .map(|s| (s as i64 / elem) - 1)
             })
             .or_else(|| match d.access {
-                Some(Access::MapValue { value_size, size, .. }) => {
-                    Some((value_size as i64 / size.max(1) as i64) - 1)
-                }
+                Some(Access::MapValue {
+                    value_size, size, ..
+                }) => Some((value_size as i64 / size.max(1) as i64) - 1),
                 _ => None,
             });
         Framing::Index(valid_max)
@@ -1018,7 +1023,13 @@ fn oob_msg(
     // The value's range, in index units (shared). Signed bounds when it can be
     // negative (a `bpf_strstr` result); otherwise the unsigned max, or — for a
     // strength-reduced loop where umax is 0 — the loop bound in the check.
-    let scale = |b: i64| if elem > 1 && b % elem == 0 { b / elem } else { b };
+    let scale = |b: i64| {
+        if elem > 1 && b % elem == 0 {
+            b / elem
+        } else {
+            b
+        }
+    };
     let (lo, hi) = if d.smin < 0 {
         (scale(d.smin), scale(d.smax))
     } else {
@@ -1041,13 +1052,22 @@ fn oob_msg(
             fmt_bound(*vm)
         ),
         Framing::Index(None) => {
-            format!("index can be {}, and is never narrowed to the buffer", range)
+            format!(
+                "index can be {}, and is never narrowed to the buffer",
+                range
+            )
         }
         Framing::Size(Some(n), bytes) => {
-            format!("size can be {}, while `{}` holds only {} bytes", range, n, bytes)
+            format!(
+                "size can be {}, while `{}` holds only {} bytes",
+                range, n, bytes
+            )
         }
         Framing::Size(None, bytes) => {
-            format!("size can be {}, larger than the {}-byte destination", range, bytes)
+            format!(
+                "size can be {}, larger than the {}-byte destination",
+                range, bytes
+            )
         }
     };
 
@@ -1059,7 +1079,10 @@ fn oob_msg(
     if let Some(c) = check {
         context.push(Span::line(c.loc, "this narrowing is not strict enough"));
     } else if let Some(o) = origins.iter().rev().find(|o| o.loc.line != d.use_loc.line) {
-        context.push(Span::token(o.loc, "the value comes from here and is never narrowed"));
+        context.push(Span::token(
+            o.loc,
+            "the value comes from here and is never narrowed",
+        ));
     }
     if let Some(w) = walk_end {
         context.push(Span::token(
@@ -1069,9 +1092,15 @@ fn oob_msg(
     }
 
     let help = if lo < 0 {
-        Some("narrow it before indexing, e.g. `if (i < 0 || i >= sizeof(buf)) return 0;`".to_string())
+        Some(
+            "narrow it before indexing, e.g. `if (i < 0 || i >= sizeof(buf)) return 0;`"
+                .to_string(),
+        )
     } else if let Framing::Size(Some(n), _) = &framing {
-        Some(format!("narrow it first, e.g. `if (size > sizeof({})) return 0;`", n))
+        Some(format!(
+            "narrow it first, e.g. `if (size > sizeof({})) return 0;`",
+            n
+        ))
     } else {
         None
     };
@@ -1091,7 +1120,6 @@ fn oob_msg(
         help,
     }
 }
-
 
 /// Byte range of `name` on the given source line, for declaration spans
 /// where only a line number is known.

@@ -30,6 +30,7 @@ export default function EventViewer({
     if (event.type === "guestMessage") {
       if (event.data.type === "debugMapNotFound") return "error";
       if (event.data.type === "noProgramsFound") return "error";
+      if (event.data.type === "cantAttachProgram") return "error";
       if (event.data.type === "verifierFail") return "error";
       if (event.data.type === "crashed") return "error";
     }
@@ -62,6 +63,16 @@ export default function EventViewer({
       if (event.data.type === "noProgramsFound") {
         return "Error: No eBPF programs found in code. Missing a SEC() decorator?";
       }
+      if (event.data.type === "cantAttachProgram") {
+        const { section, kind } = event.data.data;
+        if (kind === "noSuchHook") {
+          return `Could not attach to \`${section}\`, check the hook name for a typo.`;
+        }
+        if (kind === "denied") {
+          return `The kernel rejected the program for hook \`${section}\`. Usually this is an over-read of ctx.`;
+        }
+        return `Could not attach to \`${section}\`.`;
+      }
       if (event.data.type === "verifierFail") {
         return event.data.data;
       }
@@ -73,6 +84,10 @@ export default function EventViewer({
   // When a structured diagnostic is present, the raw verifierFail row is
   // redundant: the diagnostic component shows the raw log under its own tab.
   const hasDiagnostic = events.some((e) => e.type === "verifierDiagnostic");
+
+  // If anything errored, the program never ran, so a "you didn't submit an
+  // answer" warning is noise — there was no chance to submit one.
+  const hasError = events.some((e) => getEventStyle(e) === "error");
 
   return (
     <div className={styles.eventViewer}>
@@ -102,6 +117,7 @@ export default function EventViewer({
               event.type !== "guestMessage" ||
               event.data.type !== "verifierFail"
           )
+          .filter((event) => !(hasError && event.type === "noAnswer"))
           .map((event, i) => {
             if (event.type === "verifierDiagnostic") {
               return <VerifierDiagnosticView key={i} data={event.data} />;

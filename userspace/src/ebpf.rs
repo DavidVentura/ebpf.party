@@ -1,6 +1,6 @@
 use libbpf_rs::{Link, MapCore, MapType, ObjectBuilder, PrintLevel, RingBuffer, RingBufferBuilder};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
-use shared::GuestMessage;
+use shared::{AttachFailKind, GuestMessage};
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -78,8 +78,13 @@ impl<'a> EbpfLoader<'a> {
 
             let link = match p.attach() {
                 Ok(l) => l,
-                Err(_e) => {
-                    return Err(GuestMessage::CantAttachProgram(section));
+                Err(e) => {
+                    let kind = match e.kind() {
+                        libbpf_rs::ErrorKind::NotFound => AttachFailKind::NoSuchHook,
+                        libbpf_rs::ErrorKind::PermissionDenied => AttachFailKind::Denied,
+                        _ => AttachFailKind::Other,
+                    };
+                    return Err(GuestMessage::CantAttachProgram { section, kind });
                 }
             };
             links.push(link);

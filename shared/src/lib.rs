@@ -5,6 +5,19 @@ use aetos::core::Label;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
+/// Why `bpf_program__attach` failed, from the attach `errno`. `NoSuchHook`
+/// (ENOENT) means the attach point does not exist — a typo, or a tracepoint
+/// absent from this kernel. `Denied` (EACCES) means the hook exists but the
+/// kernel rejected the program for it (e.g. a tracepoint program that reads
+/// more of the context than the hook actually provides).
+#[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum AttachFailKind {
+    NoSuchHook,
+    Denied,
+    Other,
+}
+
 #[derive(Encode, Decode, Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", content = "data")]
 #[serde(rename_all = "camelCase")]
@@ -14,7 +27,7 @@ pub enum GuestMessage {
     VerifierFail(String),
     DebugMapNotFound,
     NoProgramsFound,
-    CantAttachProgram(String),
+    CantAttachProgram { section: String, kind: AttachFailKind },
     FoundProgram { name: String, section: String },
     FoundMap { name: String },
     Event(Vec<u8>),

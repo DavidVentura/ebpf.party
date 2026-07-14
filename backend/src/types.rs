@@ -54,8 +54,8 @@ impl TryFrom<&PlatformMessage> for ExerciseResult {
                 // interesting
                 GuestMessage::DebugMapNotFound => Ok(ExerciseResult::DebugMapNotFound),
                 GuestMessage::LoadFail(..) => Ok(ExerciseResult::VerifierFail),
-                GuestMessage::CantAttachProgram(s) => {
-                    Ok(ExerciseResult::CantAttachProgram(s.clone()))
+                GuestMessage::CantAttachProgram { section, .. } => {
+                    Ok(ExerciseResult::CantAttachProgram(section.clone()))
                 }
                 GuestMessage::VerifierFail(..) => Ok(ExerciseResult::VerifierFail),
                 GuestMessage::Crashed => Ok(ExerciseResult::Crashed),

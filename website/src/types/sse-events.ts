@@ -38,6 +38,10 @@ export type GuestMessage =
   | { type: "foundMap"; data: { name: string } }
   | { type: "debugMapNotFound" }
   | { type: "noProgramsFound" }
+  | {
+      type: "cantAttachProgram";
+      data: { section: string; kind: "noSuchHook" | "denied" | "other" };
+    }
   | { type: "verifierFail"; data: string }
   | { type: "event"; data: number[] }
   | { type: "finished" }
