@@ -3,6 +3,6 @@ error: possible out-of-bounds buffer access
  9 |     int pos = bpf_strstr(req, "GET ");
    |               ---------- the value comes from here and is never narrowed
 10 |     return req[pos];
-   |            ^^^ index can be [INT32_MIN, INT32_MAX], and is never narrowed to the buffer
+   |                ^^^ index can be [INT32_MIN, INT32_MAX], and is never narrowed to the buffer
    |
 help: narrow it before indexing, e.g. `if (i < 0 || i >= sizeof(buf)) return 0;`

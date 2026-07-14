@@ -4,4 +4,4 @@ error: possible out-of-bounds buffer access
    |     ------------ this narrowing is not strict enough
 26 |         return 0;
 27 |     return buf[i];
-   |            ^^^ index can be [0, 100], while the buffer can be accessed on [0, 15]
+   |                ^ index can be [0, 100], while the buffer can be accessed on [0, 15]

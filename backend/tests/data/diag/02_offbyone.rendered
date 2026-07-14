@@ -4,4 +4,4 @@ error: possible out-of-bounds buffer access
    |     ------------- this narrowing is not strict enough
 24 |         return 0;
 25 |     return v->data[idx];
-   |            ^ index can be [0, 16], while the buffer can be accessed on [0, 15]
+   |                    ^^^ index can be [0, 16], while the buffer can be accessed on [0, 15]

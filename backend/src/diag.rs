@@ -752,13 +752,216 @@ fn span_at(source: &str, loc: Loc) -> Option<std::ops::Range<usize>> {
     None
 }
 
+/// Byte offset of `loc` within `source`. Column is 1-based, matching
+/// `span_at`'s convention. `None` when the line is unknown or past the end.
+fn byte_offset(source: &str, loc: Loc) -> Option<usize> {
+    if loc.line == 0 {
+        return None;
+    }
+    let mut offset = 0;
+    for (i, l) in source.split_inclusive('\n').enumerate() {
+        if i + 1 == loc.line as usize {
+            let col = (loc.col.max(1) as usize - 1).min(l.len());
+            return Some(offset + col);
+        }
+        offset += l.len();
+    }
+    None
+}
+
+/// If a lexically insignificant atom begins at `i` — whitespace, a `//` or
+/// `/* */` comment, or a string/char literal — return the index just past it.
+/// `None` means `i` sits on a significant character. Literals are skipped whole
+/// so commas and brackets inside them never count toward argument splitting or
+/// delimiter depth.
+fn skip_lexical(b: &[u8], i: usize) -> Option<usize> {
+    match b[i] {
+        c if c.is_ascii_whitespace() => {
+            let mut j = i + 1;
+            while j < b.len() && b[j].is_ascii_whitespace() {
+                j += 1;
+            }
+            Some(j)
+        }
+        b'/' if b.get(i + 1) == Some(&b'/') => {
+            let mut j = i + 2;
+            while j < b.len() && b[j] != b'\n' {
+                j += 1;
+            }
+            Some(j)
+        }
+        b'/' if b.get(i + 1) == Some(&b'*') => {
+            let mut j = i + 2;
+            while j + 1 < b.len() && !(b[j] == b'*' && b[j + 1] == b'/') {
+                j += 1;
+            }
+            Some((j + 2).min(b.len()))
+        }
+        q @ (b'"' | b'\'') => {
+            let mut j = i + 1;
+            while j < b.len() {
+                if b[j] == b'\\' {
+                    j += 2;
+                    continue;
+                }
+                let end = b[j] == q;
+                j += 1;
+                if end {
+                    break;
+                }
+            }
+            Some(j.min(b.len()))
+        }
+        _ => None,
+    }
+}
+
+/// Trim ASCII whitespace off both ends of `start..end`. `None` when empty.
+fn trim_range(b: &[u8], mut start: usize, mut end: usize) -> Option<std::ops::Range<usize>> {
+    while start < end && b[start].is_ascii_whitespace() {
+        start += 1;
+    }
+    while end > start && b[end - 1].is_ascii_whitespace() {
+        end -= 1;
+    }
+    (start < end).then_some(start..end)
+}
+
+/// Byte range of the `n`th (1-based) argument of the call whose callee
+/// identifier starts at `loc`. Anchored, not searched: only an identifier
+/// followed (across whitespace/comments) by `(` is accepted as a call, so a
+/// column that lands on something else — or a macro-hidden paren — yields
+/// `None` and the caller falls back to a coarser span.
+fn call_arg_range(source: &str, loc: Loc, n: usize) -> Option<std::ops::Range<usize>> {
+    if n == 0 {
+        return None;
+    }
+    let b = source.as_bytes();
+    let start = byte_offset(source, loc)?;
+    let mut i = start;
+    while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_') {
+        i += 1;
+    }
+    if i == start {
+        return None;
+    }
+    while let Some(j) = skip_lexical(b, i) {
+        i = j;
+    }
+    if b.get(i) != Some(&b'(') {
+        return None;
+    }
+    i += 1;
+
+    let mut depth = 1usize;
+    let mut arg = 1usize;
+    let mut seg_start = i;
+    while i < b.len() {
+        if let Some(j) = skip_lexical(b, i) {
+            i = j;
+            continue;
+        }
+        match b[i] {
+            b'(' | b'[' | b'{' => depth += 1,
+            b')' | b']' | b'}' => {
+                depth -= 1;
+                if depth == 0 {
+                    return (arg == n).then(|| trim_range(b, seg_start, i)).flatten();
+                }
+            }
+            b',' if depth == 1 => {
+                if arg == n {
+                    return trim_range(b, seg_start, i);
+                }
+                arg += 1;
+                seg_start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// Byte range of the index expression of the first top-level subscript at or
+/// after `loc` (`arr[idx]` -> `idx`, `arr[sub[x]]` -> `sub[x]`). Bracket depth
+/// is tracked so a nested `]` doesn't close early. `None` if the expression
+/// ends (`;`, top-level `,`, or an unbalanced `)`) before a `[` is seen.
+fn subscript_range(source: &str, loc: Loc) -> Option<std::ops::Range<usize>> {
+    let b = source.as_bytes();
+    let mut i = byte_offset(source, loc)?;
+    let mut paren = 0usize;
+    while i < b.len() {
+        if let Some(j) = skip_lexical(b, i) {
+            i = j;
+            continue;
+        }
+        match b[i] {
+            b'(' | b'{' => paren += 1,
+            b')' | b'}' => {
+                if paren == 0 {
+                    return None;
+                }
+                paren -= 1;
+            }
+            b';' => return None,
+            b',' if paren == 0 => return None,
+            b'[' if paren == 0 => {
+                i += 1;
+                let inner_start = i;
+                let mut depth = 1usize;
+                while i < b.len() {
+                    if let Some(j) = skip_lexical(b, i) {
+                        i = j;
+                        continue;
+                    }
+                    match b[i] {
+                        b'[' => depth += 1,
+                        b']' => {
+                            depth -= 1;
+                            if depth == 0 {
+                                return trim_range(b, inner_start, i);
+                            }
+                        }
+                        _ => {}
+                    }
+                    i += 1;
+                }
+                return None;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
+}
+
+/// What part of the source a span underlines.
+enum Extent {
+    /// The identifier token starting at the column.
+    Token,
+    /// The whole source line.
+    Line,
+    /// The `n`th (1-based) argument of the call whose callee is at the column,
+    /// falling back to `Coarse` when the argument list can't be isolated.
+    CallArg(usize, Coarse),
+    /// The index expression of the subscript whose base is at the column,
+    /// falling back to `Coarse` when no subscript is found.
+    Subscript(Coarse),
+}
+
+/// The span a narrowing extent falls back to when its scan fails — always the
+/// extent the un-narrowed rendering used, so a failed scan reproduces the
+/// previous output byte-for-byte.
+enum Coarse {
+    Token,
+    Line,
+}
+
 struct Span {
     loc: Loc,
     label: String,
-    /// Mark the whole source line rather than the token at the column. Used
-    /// when line_info can't isolate the relevant sub-expression (a call
-    /// argument, a loop/if condition).
-    whole_line: bool,
+    extent: Extent,
 }
 
 impl Span {
@@ -766,14 +969,28 @@ impl Span {
         Span {
             loc,
             label: label.into(),
-            whole_line: false,
+            extent: Extent::Token,
         }
     }
     fn line(loc: Loc, label: impl Into<String>) -> Span {
         Span {
             loc,
             label: label.into(),
-            whole_line: true,
+            extent: Extent::Line,
+        }
+    }
+    fn call_arg(loc: Loc, n: usize, coarse: Coarse, label: impl Into<String>) -> Span {
+        Span {
+            loc,
+            label: label.into(),
+            extent: Extent::CallArg(n, coarse),
+        }
+    }
+    fn subscript(loc: Loc, coarse: Coarse, label: impl Into<String>) -> Span {
+        Span {
+            loc,
+            label: label.into(),
+            extent: Extent::Subscript(coarse),
         }
     }
 }
@@ -830,20 +1047,27 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
                 ));
             }
         }
+        // NullArg is a call argument (reg = its position); NullDeref is a
+        // dereference whose pointer is the token at the column.
         let (title, primary) = if d.error == ErrorKind::NullArg {
             (
                 "possibly-NULL pointer passed to a call that needs a valid pointer",
-                "this pointer may be NULL",
+                Span::call_arg(
+                    d.use_loc,
+                    d.reg as usize,
+                    Coarse::Token,
+                    "this pointer may be NULL",
+                ),
             )
         } else {
             (
                 "possibly-NULL pointer is dereferenced without a check",
-                "dereferenced here",
+                Span::token(d.use_loc, "dereferenced here"),
             )
         };
         return Msg {
             title: title.to_string(),
-            primary: Span::token(d.use_loc, primary),
+            primary,
             context,
             decl: None,
             help: Some("check the result before use: `if (!v) return 0;`".to_string()),
@@ -875,7 +1099,13 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
         // see next, and overloading this one is confusing.
         return Msg {
             title: "the size passed here can be zero, which this helper rejects".to_string(),
-            primary: Span::line(d.use_loc, "this size must not be zero"),
+            // reg is the size argument itself (`R2 invalid zero-sized read`).
+            primary: Span::call_arg(
+                d.use_loc,
+                d.reg as usize,
+                Coarse::Line,
+                "this size must not be zero",
+            ),
             context: Vec::new(),
             decl: None,
             help: Some("ensure it is non-zero before the call".to_string()),
@@ -910,7 +1140,14 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
         };
         return Msg {
             title,
-            primary: Span::line(d.use_loc, format!("{} {} bytes here", verb, size)),
+            // reg is the stack pointer argument (`invalid write to stack R1`);
+            // the size sits in the next argument by BPF helper convention.
+            primary: Span::call_arg(
+                d.use_loc,
+                d.reg as usize + 1,
+                Coarse::Line,
+                format!("{} {} bytes here", verb, size),
+            ),
             context: Vec::new(),
             decl: enrich.stack_var.as_ref().and_then(var_decl_note),
             help,
@@ -938,7 +1175,7 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
         }
         return Msg {
             title,
-            primary: Span::token(d.use_loc, primary_label),
+            primary: Span::call_arg(d.use_loc, d.reg as usize, Coarse::Token, primary_label),
             context,
             decl: None,
             help: None,
@@ -962,8 +1199,10 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
         };
         return Msg {
             title,
-            primary: Span::token(
+            primary: Span::call_arg(
                 d.use_loc,
+                d.reg as usize,
+                Coarse::Token,
                 "this call requires a constant, but the argument is runtime-dependent",
             ),
             context,
@@ -1141,11 +1380,14 @@ fn oob_msg(
         None
     };
 
-    // A size argument sits inside a call whose column line_info can't isolate,
-    // so mark the whole statement; a direct index expression keeps its caret.
+    // A size argument is the `reg`th argument of the call at use_loc; a direct
+    // index expression is the subscript anchored at use_loc. Both fall back to
+    // their prior span (whole line / callee token) if the scan can't isolate.
     let primary = match framing {
-        Framing::Size(..) => Span::line(d.use_loc, primary_label),
-        Framing::Index(..) => Span::token(d.use_loc, primary_label),
+        Framing::Size(..) => {
+            Span::call_arg(d.use_loc, d.reg as usize, Coarse::Line, primary_label)
+        }
+        Framing::Index(..) => Span::subscript(d.use_loc, Coarse::Token, primary_label),
     };
 
     Msg {
@@ -1177,14 +1419,25 @@ fn name_span_on_line(source: &str, line: u32, name: &str) -> Option<std::ops::Ra
 pub fn render(d: &VerifierDiagnostic, source: &str, enrich: &Enrichment) -> String {
     let msg = build_msg(d, enrich);
 
-    // A span marks either the token at its column or the whole line, decided
-    // per-span (call arguments and if/loop conditions can't be isolated from
-    // line_info, so those are marked whole-line).
+    // Each span resolves to a byte range per its extent: the identifier token,
+    // the whole line, a specific call argument, or a subscript index. Narrowing
+    // extents fall back to a coarser range when their scan can't isolate.
+    let coarse_range = |c: &Coarse, loc: Loc| -> Option<std::ops::Range<usize>> {
+        match c {
+            Coarse::Token => span_at(source, loc),
+            Coarse::Line => (loc.line != 0).then(|| line_span(source, loc.line)),
+        }
+    };
     let range_of = |sp: &Span| -> Option<std::ops::Range<usize>> {
-        if sp.whole_line && sp.loc.line != 0 {
-            Some(line_span(source, sp.loc.line))
-        } else {
-            span_at(source, sp.loc)
+        match &sp.extent {
+            Extent::Token => span_at(source, sp.loc),
+            Extent::Line => (sp.loc.line != 0).then(|| line_span(source, sp.loc.line)),
+            Extent::CallArg(n, coarse) => {
+                call_arg_range(source, sp.loc, *n).or_else(|| coarse_range(coarse, sp.loc))
+            }
+            Extent::Subscript(coarse) => {
+                subscript_range(source, sp.loc).or_else(|| coarse_range(coarse, sp.loc))
+            }
         }
     };
 
@@ -1212,4 +1465,110 @@ pub fn render(d: &VerifierDiagnostic, source: &str, enrich: &Enrichment) -> Stri
         report.push(Group::with_title(Level::HELP.secondary_title(help)));
     }
     Renderer::plain().render(&report).to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Loc of the first occurrence of `needle` in `source` (1-based line/col).
+    fn at(source: &str, needle: &str) -> Loc {
+        let idx = source.find(needle).expect("needle not found");
+        let line = source[..idx].matches('\n').count() + 1;
+        let line_start = source[..idx].rfind('\n').map(|p| p + 1).unwrap_or(0);
+        Loc {
+            line: line as u32,
+            col: (idx - line_start + 1) as u32,
+        }
+    }
+
+    fn call_arg<'a>(source: &'a str, callee: &str, n: usize) -> Option<&'a str> {
+        call_arg_range(source, at(source, callee), n).map(|r| &source[r])
+    }
+
+    fn subscript<'a>(source: &'a str, base: &str) -> Option<&'a str> {
+        subscript_range(source, at(source, base)).map(|r| &source[r])
+    }
+
+    #[test]
+    fn call_arg_basic() {
+        let s = "bpf_map_lookup_elem(&counts, ctx);";
+        assert_eq!(call_arg(s, "bpf_map_lookup_elem", 1), Some("&counts"));
+        assert_eq!(call_arg(s, "bpf_map_lookup_elem", 2), Some("ctx"));
+        assert_eq!(call_arg(s, "bpf_map_lookup_elem", 3), None);
+    }
+
+    #[test]
+    fn call_arg_nested_parens_and_brackets() {
+        let s = "foo(a, bar(b, c), d[e], f);";
+        assert_eq!(call_arg(s, "foo", 2), Some("bar(b, c)"));
+        assert_eq!(call_arg(s, "foo", 3), Some("d[e]"));
+        assert_eq!(call_arg(s, "foo", 4), Some("f"));
+    }
+
+    #[test]
+    fn call_arg_string_and_char_literals_hide_commas() {
+        let s = r#"foo(a, "x, y)z", ',', b);"#;
+        assert_eq!(call_arg(s, "foo", 2), Some(r#""x, y)z""#));
+        assert_eq!(call_arg(s, "foo", 3), Some("','"));
+        assert_eq!(call_arg(s, "foo", 4), Some("b"));
+    }
+
+    #[test]
+    fn call_arg_comment_hides_comma() {
+        let s = "foo(a /* , ) */, b);";
+        assert_eq!(call_arg(s, "foo", 1), Some("a /* , ) */"));
+        assert_eq!(call_arg(s, "foo", 2), Some("b"));
+    }
+
+    #[test]
+    fn call_arg_multiline_and_newline_before_paren() {
+        let s = "foo\n  (a,\n   b,\n   c);";
+        assert_eq!(call_arg(s, "foo", 1), Some("a"));
+        assert_eq!(call_arg(s, "foo", 2), Some("b"));
+        assert_eq!(call_arg(s, "foo", 3), Some("c"));
+    }
+
+    #[test]
+    fn call_arg_no_paren_is_none() {
+        // A bare identifier, with no following call, isn't a call.
+        assert_eq!(call_arg("just_an_ident + 1;", "just_an_ident", 1), None);
+    }
+
+    #[test]
+    fn subscript_basic() {
+        assert_eq!(subscript("return v->arr[idx];", "v->arr"), Some("idx"));
+    }
+
+    #[test]
+    fn subscript_nested() {
+        assert_eq!(subscript("x = arr[sub[y]];", "arr"), Some("sub[y]"));
+    }
+
+    #[test]
+    fn subscript_skips_call_before_bracket() {
+        assert_eq!(subscript("x = foo(a)[i];", "foo"), Some("i"));
+    }
+
+    #[test]
+    fn subscript_none_when_no_index() {
+        assert_eq!(subscript("y = v->field;", "v->field"), None);
+    }
+
+    #[test]
+    fn subscript_stops_at_semicolon_between_statements() {
+        // The anchored statement has no subscript; the `;` must stop the scan
+        // before it reaches the next statement's `w[k]`.
+        let s = "a = b; c = w[k];";
+        assert_eq!(subscript(s, "b"), None);
+        // And the anchored statement's own subscript is found despite a trailer.
+        assert_eq!(subscript(s, "w"), Some("k"));
+    }
+
+    #[test]
+    fn call_arg_two_calls_same_line() {
+        let s = "foo(a, b); bar(c, d);";
+        assert_eq!(call_arg(s, "foo", 2), Some("b"));
+        assert_eq!(call_arg(s, "bar", 1), Some("c"));
+    }
 }

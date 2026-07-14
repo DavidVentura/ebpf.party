@@ -3,4 +3,4 @@ error: possible out-of-bounds buffer access
 22 |     for (int i = 0; i < 200; i++)
    |     ----------------------------- this narrowing is not strict enough
 23 |         sum += v->arr[i];
-   |                ^ index can be [0, 200], while the buffer can be accessed on [0, 169]
+   |                       ^ index can be [0, 200], while the buffer can be accessed on [0, 169]

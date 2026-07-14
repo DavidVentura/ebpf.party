@@ -3,4 +3,4 @@ error: possible out-of-bounds buffer access
 22 |     __u32 idx = v->idx;
    |                    --- the value comes from here and is never narrowed
 23 |     return v->data[idx];
-   |            ^ index can be [0, UINT32_MAX], and is never narrowed to the buffer
+   |                    ^^^ index can be [0, UINT32_MAX], and is never narrowed to the buffer

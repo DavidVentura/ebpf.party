@@ -1,6 +1,6 @@
 error: the size passed here can be zero, which this helper rejects
    |
 10 |     if (bpf_strncmp(fname, len, "/bin/secret") == 0) {
-   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this size must not be zero
+   |                            ^^^ this size must not be zero
    |
 help: ensure it is non-zero before the call

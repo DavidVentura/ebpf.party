@@ -1,4 +1,4 @@
 error: wrong type for argument 2 of `bpf_map_lookup_elem`
    |
 13 |     __u64 *cnt = bpf_map_lookup_elem(&counts, ctx);
-   |                  ^^^^^^^^^^^^^^^^^^^ this is the program context, but a pointer is expected here
+   |                                               ^^^ this is the program context, but a pointer is expected here
