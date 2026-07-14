@@ -1,0 +1,4 @@
+error: the program context is read-only and cannot be written to
+  |
+6 |     ctx->__data_loc_filename = 0;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot write to the context here
