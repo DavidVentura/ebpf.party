@@ -1,3 +1,3 @@
 R1 invalid mem access 'scalar'
-DIAG1 reg=1 umin=0 umax=18446744073709551615 off=0 use=1 use_loc=<stdin>:10:32
+DIAG1 reg=1 umin=0 umax=18446744073709551615 smin=-9223372036854775808 smax=9223372036854775807 off=0 use=1 use_loc=<stdin>:10:32
 DIAG1E kind=origin_load insn=0 cnt=1 reg=r1 loc=<stdin>:9:38

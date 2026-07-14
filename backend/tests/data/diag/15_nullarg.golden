@@ -1,3 +1,3 @@
 R1 type=map_value_or_null expected=fp, pkt, pkt_meta, map_key, map_value, mem, ringbuf_mem, buf, trusted_ptr_
-DIAG1 reg=1 umin=0 umax=0 off=0 map=process_names use=11 use_loc=<stdin>:15:12
+DIAG1 reg=1 umin=0 umax=0 smin=0 smax=0 off=0 map=process_names use=11 use_loc=<stdin>:15:12
 DIAG1E kind=origin_call insn=6 cnt=1 reg=r0 loc=<stdin>:14:18

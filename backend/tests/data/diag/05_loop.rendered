@@ -1,9 +1,6 @@
-error: access to element 170 of a 170-element array (valid: 0..=169)
+error: possible out-of-bounds buffer access
    |
- 4 |     __u32 arr[170];
-   |           --- declared here
-...
 22 |     for (int i = 0; i < 200; i++)
-   |     --- this condition lets the index reach 170 after 170 iterations; it must stop at 169
+   |     ----------------------------- this narrowing is not strict enough
 23 |         sum += v->arr[i];
-   |                ^ fails when the index reaches 170
+   |                ^ index can be [0, 200], while the buffer can be accessed on [0, 169]

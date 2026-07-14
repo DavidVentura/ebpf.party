@@ -1,10 +1,7 @@
-error: stack buffer access can reach index 100, past the end of `buf` (16 bytes)
+error: possible out-of-bounds buffer access
    |
-19 |     __u8 buf[16] = {};
-   |          --- declared here
-...
 25 |     if (i > 100)
-   |         - the only bound comes from your `> 100`; it must stop at 15
+   |     ------------ this narrowing is not strict enough
 26 |         return 0;
 27 |     return buf[i];
-   |            ^^^ index can be up to 100 here; 15 is the largest valid index
+   |            ^^^ index can be [0, 100], while the buffer can be accessed on [0, 15]

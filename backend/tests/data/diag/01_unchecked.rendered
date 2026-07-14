@@ -1,6 +1,6 @@
-error: value used as index/size can be as large as 4294967295 and is never bounds-checked
+error: possible out-of-bounds buffer access
    |
 22 |     __u32 idx = v->idx;
-   |                    --- loaded here, unchecked
+   |                    --- the value comes from here and is never narrowed
 23 |     return v->data[idx];
-   |            ^ used here
+   |            ^ index can be [0, UINT32_MAX], and is never narrowed to the buffer

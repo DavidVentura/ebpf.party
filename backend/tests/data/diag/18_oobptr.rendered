@@ -1,8 +1,8 @@
-error: adding an unchecked value to a pointer takes it out of bounds
+error: possible out-of-bounds buffer access
    |
  9 |     int pos = bpf_strstr(req, "GET ");
-   |               ---------- this value is unchecked here (it can be negative — e.g. -1 when a search fails)
+   |               ---------- the value comes from here and is never narrowed
 10 |     return req[pos];
-   |            ^^^ offset may be negative or too large here
+   |            ^^^ index can be [INT32_MIN, INT32_MAX], and is never narrowed to the buffer
    |
-help: check the value before indexing, e.g. `if (i < 0 || i >= sizeof(buf)) return 0;`
+help: narrow it before indexing, e.g. `if (i < 0 || i >= sizeof(buf)) return 0;`

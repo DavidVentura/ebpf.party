@@ -1,5 +1,5 @@
 R0 max value is outside of the allowed memory range
-DIAG1 reg=0 umin=0 umax=16 off=0 map=vals use=11 use_loc=<stdin>:25:9
+DIAG1 reg=0 umin=0 umax=16 smin=0 smax=16 off=0 map=vals use=11 use_loc=<stdin>:25:9
 DIAG1E kind=origin_call insn=6 cnt=1 reg=r0 loc=<stdin>:19:18
 DIAG1E kind=null_check insn=7 cnt=1 reg=r0 op=jeq val=0 loc=<stdin>:20:6
 DIAG1E kind=origin_load insn=8 cnt=1 reg=r1 loc=<stdin>:22:17

@@ -1,3 +1,3 @@
 R2 invalid zero-sized read: u64=[0,65535]
-DIAG1 reg=2 umin=0 umax=65535 off=0 mem=fp mem_off=-32 use=15 use_loc=?
+DIAG1 reg=2 umin=0 umax=65535 smin=0 smax=65535 off=0 mem=fp mem_off=-32 use=15 use_loc=?
 DIAG1E kind=origin_load insn=1 cnt=1 reg=r6 loc=?

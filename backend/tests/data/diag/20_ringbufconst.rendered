@@ -1,0 +1,8 @@
+error: `bpf_ringbuf_reserve` needs a compile-time-constant argument here
+   |
+11 |     __u32 n = bpf_get_current_pid_tgid();
+   |               ------------------------ this is a runtime-dependent value
+12 |     void *e = bpf_ringbuf_reserve(&rb, n, 0);
+   |               ^^^^^^^^^^^^^^^^^^^ this call requires a constant, but the argument is runtime-dependent
+   |
+help: reserve a fixed maximum, e.g. `bpf_ringbuf_reserve(&rb, sizeof(struct event), 0)`

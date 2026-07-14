@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 pub enum ErrorKind {
     NullDeref,
     NullArg,
+    ArgType,
+    NotConst,
     ScalarDeref,
     OobPtrArith,
     Unbounded,
@@ -89,6 +91,16 @@ pub enum MemArg {
     Mem { size: u32 },
 }
 
+/// A helper/kfunc argument whose register type does not match what the call
+/// accepts (`R2 type=ctx expected=fp, map_key, ...`). The verifier names the
+/// actual type and the accepted set.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ArgType {
+    pub actual: String,
+    pub expected: Vec<String>,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct VerifierDiagnostic {
@@ -96,9 +108,13 @@ pub struct VerifierDiagnostic {
     pub reg: u8,
     pub umin: u64,
     pub umax: u64,
+    pub smin: i64,
+    pub smax: i64,
     pub off: i64,
     pub map: Option<String>,
     pub mem_arg: Option<MemArg>,
+    pub arg_type: Option<ArgType>,
+    pub helper: Option<String>,
     pub use_insn: u32,
     pub use_loc: Loc,
     pub access: Option<Access>,
@@ -161,6 +177,17 @@ fn classify_error(line: &str) -> Option<ErrorKind> {
     // cause as NullDeref: an unchecked map lookup.
     if line.contains("type=") && line.contains("expected=") && line.contains("_or_null") {
         return Some(ErrorKind::NullArg);
+    }
+    // Any other register-type mismatch on a call argument, e.g. `R2 type=ctx
+    // expected=fp, map_key, map_value, mem, ...` (passing the context, a
+    // scalar, or the wrong pointer where a helper needs a specific kind).
+    if line.starts_with('R') && line.contains("type=") && line.contains("expected=") {
+        return Some(ErrorKind::ArgType);
+    }
+    // A helper argument that must be a compile-time constant (e.g. the size of
+    // `bpf_ringbuf_reserve`) fed a runtime value.
+    if line.contains("is not a known constant") {
+        return Some(ErrorKind::NotConst);
     }
     if line.contains("unbounded memory access") {
         return Some(ErrorKind::Unbounded);
@@ -399,12 +426,39 @@ fn line_span(source: &str, line: u32) -> std::ops::Range<usize> {
 pub fn parse(log: &str) -> Option<VerifierDiagnostic> {
     let mut error = None;
     let mut access = None;
+    let mut arg_actual = None;
+    let mut arg_expected: Vec<String> = Vec::new();
+    let mut calls: Vec<(u32, String)> = Vec::new();
     let mut head: Option<VerifierDiagnostic> = None;
     let mut events = Vec::new();
 
     for line in log.lines() {
         if let Some(kind) = classify_error(line) {
             error = Some(kind);
+        }
+        // `R2 type=ctx expected=fp, map_key, map_value, mem, ...`: the actual
+        // type sits between `type=` and ` expected=`; the accepted set is the
+        // comma list after it (kernel truncates names, e.g. `trusted_ptr_`).
+        if line.starts_with('R')
+            && !line.contains("_or_null")
+            && let (Some(ts), Some(es)) = (line.find(" type="), line.find(" expected="))
+        {
+            arg_actual = Some(line[ts + 6..es].trim().to_string());
+            arg_expected = line[es + 10..]
+                .split(',')
+                .map(|s| s.trim().trim_end_matches('_').to_string())
+                .filter(|s| !s.is_empty())
+                .collect();
+        }
+        // Disassembly of a helper call, `N: (85) call bpf_foo#K`, so the
+        // failing call site can be named from its instruction index.
+        if let Some((num, rest)) = line.split_once(": (85) call ") {
+            if let Ok(insn) = num.trim().parse::<u32>() {
+                let helper = rest.split(['#', ' ']).next().unwrap_or("").to_string();
+                if !helper.is_empty() {
+                    calls.push((insn, helper));
+                }
+            }
         }
         if let Some(rest) = line.strip_prefix("invalid access to map value, ") {
             let mut value_size = None;
@@ -458,6 +512,8 @@ pub fn parse(log: &str) -> Option<VerifierDiagnostic> {
             let mut mem_off = None;
             let mut mem_size = None;
             let mut mem_map = None;
+            let mut smin = None;
+            let mut smax = None;
             for tok in rest.split_whitespace() {
                 if let Some(v) = kv(tok, "reg") {
                     reg = v.parse().ok();
@@ -465,6 +521,10 @@ pub fn parse(log: &str) -> Option<VerifierDiagnostic> {
                     umin = v.parse().ok();
                 } else if let Some(v) = kv(tok, "umax") {
                     umax = v.parse().ok();
+                } else if let Some(v) = kv(tok, "smin") {
+                    smin = v.parse().ok();
+                } else if let Some(v) = kv(tok, "smax") {
+                    smax = v.parse().ok();
                 } else if let Some(v) = kv(tok, "off") {
                     off = v.parse().ok();
                 } else if let Some(v) = kv(tok, "use") {
@@ -492,15 +552,29 @@ pub fn parse(log: &str) -> Option<VerifierDiagnostic> {
                 Some("mem") => Some(MemArg::Mem { size: mem_size? }),
                 _ => None,
             };
+            let umax = umax?;
+            let use_insn = use_insn?;
+            let arg_type = arg_actual.take().map(|actual| ArgType {
+                actual,
+                expected: std::mem::take(&mut arg_expected),
+            });
+            let helper = calls
+                .iter()
+                .find(|(i, _)| *i == use_insn)
+                .map(|(_, h)| h.clone());
             head = Some(VerifierDiagnostic {
                 error: error?,
                 reg: reg?,
                 umin: umin?,
-                umax: umax?,
+                umax,
+                smin: smin.unwrap_or(0),
+                smax: smax.unwrap_or(umax as i64),
                 off: off?,
                 map,
                 mem_arg,
-                use_insn: use_insn?,
+                arg_type,
+                helper,
+                use_insn,
                 use_loc,
                 access,
                 events: Vec::new(),
@@ -652,10 +726,28 @@ fn quoted_cmp(ev: &Event) -> Option<String> {
     Some(format!("`{} {}`", sym, ev.val?))
 }
 
+struct Span {
+    loc: Loc,
+    label: String,
+    /// Mark the whole source line rather than the token at the column. Used
+    /// when line_info can't isolate the relevant sub-expression (a call
+    /// argument, a loop/if condition).
+    whole_line: bool,
+}
+
+impl Span {
+    fn token(loc: Loc, label: impl Into<String>) -> Span {
+        Span { loc, label: label.into(), whole_line: false }
+    }
+    fn line(loc: Loc, label: impl Into<String>) -> Span {
+        Span { loc, label: label.into(), whole_line: true }
+    }
+}
+
 struct Msg {
     title: String,
-    primary: (Loc, String),
-    context: Vec<(Loc, String)>,
+    primary: Span,
+    context: Vec<Span>,
     /// (line, name-to-underline, label) — declaration site of the violated object.
     decl: Option<(u32, String, String)>,
     help: Option<String>,
@@ -671,6 +763,21 @@ fn var_decl_note(v: &StackVar) -> Option<(u32, String, String)> {
     Some((line, v.name.clone(), "declared here".to_string()))
 }
 
+/// Plain-language name for a verifier register type. The raw tokens (`ctx`,
+/// `fp`, `map_value`, ...) mean nothing to a user; this is what we show
+/// instead. Unknown types fall back to the raw token in backticks.
+fn humanize_reg_type(t: &str) -> String {
+    match t {
+        "ctx" => "the program context".to_string(),
+        "scalar" => "a plain integer".to_string(),
+        "fp" => "a stack pointer".to_string(),
+        "map_value" => "a pointer into a map value".to_string(),
+        "map_ptr" => "a map".to_string(),
+        "pkt" => "a pointer into the packet".to_string(),
+        other => format!("`{}`", other),
+    }
+}
+
 fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
     let checks: Vec<&Event> = d.events.iter().filter(|e| e.kind.is_bound_check()).collect();
     let origins: Vec<&Event> = d
@@ -684,9 +791,9 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
         let mut context = Vec::new();
         for o in &origins {
             if o.kind == EventKind::OriginCall && o.loc.line != d.use_loc.line {
-                context.push((
+                context.push(Span::token(
                     o.loc,
-                    "this lookup returns NULL when the key is absent".to_string(),
+                    "this lookup returns NULL when the key is absent",
                 ));
             }
         }
@@ -703,43 +810,22 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
         };
         return Msg {
             title: title.to_string(),
-            primary: (d.use_loc, primary.to_string()),
+            primary: Span::token(d.use_loc, primary),
             context,
             decl: None,
             help: Some("check the result before use: `if (!v) return 0;`".to_string()),
         };
     }
 
-    if d.error == ErrorKind::OobPtrArith {
-        let mut context = Vec::new();
-        if let Some(o) = origins.iter().find(|o| o.loc.line != d.use_loc.line) {
-            let what = match o.kind {
-                EventKind::OriginCall => "this value is unchecked here (it can be negative — e.g. -1 when a search fails)",
-                _ => "this value is unchecked here",
-            };
-            context.push((o.loc, what.to_string()));
-        }
-        return Msg {
-            title: "adding an unchecked value to a pointer takes it out of bounds".to_string(),
-            primary: (d.use_loc, "offset may be negative or too large here".to_string()),
-            context,
-            decl: None,
-            help: Some(
-                "check the value before indexing, e.g. `if (i < 0 || i >= sizeof(buf)) return 0;`"
-                    .to_string(),
-            ),
-        };
-    }
-
     if d.error == ErrorKind::ScalarDeref {
         let mut context = Vec::new();
         if let Some(o) = origins.iter().find(|o| o.loc.line != d.use_loc.line) {
-            context.push((o.loc, "the address comes from here".to_string()));
+            context.push(Span::token(o.loc, "the address comes from here"));
         }
         return Msg {
             title: "dereferencing a value the verifier treats as a plain integer, not a pointer"
                 .to_string(),
-            primary: (d.use_loc, "not a valid pointer here".to_string()),
+            primary: Span::token(d.use_loc, "not a valid pointer here"),
             context,
             decl: None,
             help: Some(
@@ -756,7 +842,7 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
         // see next, and overloading this one is confusing.
         return Msg {
             title: "the size passed here can be zero, which this helper rejects".to_string(),
-            primary: (d.use_loc, "this size must not be zero".to_string()),
+            primary: Span::line(d.use_loc, "this size must not be zero"),
             context: Vec::new(),
             decl: None,
             help: Some("ensure it is non-zero before the call".to_string()),
@@ -775,224 +861,237 @@ fn build_msg(d: &VerifierDiagnostic, enrich: &Enrichment) -> Msg {
                         "this access {} {} bytes into `{}`, which holds only {}",
                         verb, size, v.name, cap
                     ),
-                    Some(format!(
-                        "pass a size that fits: `sizeof({})` is {}",
-                        v.name, cap
-                    )),
+                    Some(format!("pass a size that fits: `sizeof({})` is {}", v.name, cap)),
                 )
             }
             None => (
-                format!(
-                    "this access {} {} bytes, past the end of the stack buffer",
-                    verb, size
-                ),
+                format!("this access {} {} bytes, past the end of the stack buffer", verb, size),
                 None,
             ),
         };
         return Msg {
             title,
-            primary: (
-                d.use_loc,
-                format!("{} {} bytes here", verb, size),
-            ),
+            primary: Span::line(d.use_loc, format!("{} {} bytes here", verb, size)),
             context: Vec::new(),
             decl: enrich.stack_var.as_ref().and_then(var_decl_note),
             help,
         };
     }
 
-    if checks.is_empty() {
-        let constraint = match (&d.mem_arg, &enrich.stack_var) {
-            (Some(MemArg::Stack { .. }), Some(v)) => Some((
-                format!(
-                    ", but the destination `{}` holds only {} bytes",
-                    v.name,
-                    v.size.unwrap_or(0)
-                ),
-                Some(format!(
-                    "bound it before the call: `if (size > sizeof({})) return 0;`",
-                    v.name
-                )),
-            )),
-            (Some(MemArg::Stack { off }), None) => Some((
-                format!(
-                    ", but the destination is a stack region of at most {} bytes",
-                    -off
-                ),
-                None,
-            )),
-            (Some(MemArg::MapValue { size, .. }), _) => Some((
-                format!(", but the destination map value is {} bytes", size),
-                None,
-            )),
-            (Some(MemArg::Mem { size }), _) => {
-                Some((format!(", but the destination is {} bytes", size), None))
-            }
-            _ => None,
+    if d.error == ErrorKind::ArgType {
+        let actual = d.arg_type.as_ref().map(|a| a.actual.as_str()).unwrap_or("");
+        let title = match &d.helper {
+            Some(h) => format!("wrong type for argument {} of `{}`", d.reg, h),
+            None => format!("wrong type for argument {}", d.reg),
         };
-        let (constraint, help) = constraint.unwrap_or_default();
-        let title = if walk_end.is_some() {
-            format!(
-                "value used as index/size can be as large as {}{}; no check in this function bounds it",
-                d.umax, constraint
-            )
-        } else {
-            format!(
-                "value used as index/size can be as large as {}{} and is never bounds-checked",
-                d.umax, constraint
-            )
+        // The verifier's `expected=` list is a union of pointer kinds in
+        // kernel spelling (fp, pkt, map_key, ...) — useless to a user. Say
+        // plainly that a pointer is wanted for the cases that reach here
+        // (context / plain integer), and lean on the help for the concrete fix.
+        let human = humanize_reg_type(actual);
+        let primary_label = match actual {
+            "ctx" | "scalar" => format!("this is {}, but a pointer is expected here", human),
+            _ => format!("this is {}, which is not the type expected here", human),
         };
         let mut context = Vec::new();
-        if let Some(load) = origins.iter().rev().find(|o| o.kind == EventKind::OriginLoad) {
-            if load.loc.line != d.use_loc.line {
-                context.push((load.loc, "loaded here, unchecked".to_string()));
-            }
-        }
-        if let Some(w) = walk_end {
-            context.push((
-                w.loc,
-                "the value flows through this call; cross-call provenance is not tracked yet"
-                    .to_string(),
-            ));
+        if let Some(o) = origins.iter().find(|o| o.loc.line != d.use_loc.line) {
+            context.push(Span::token(o.loc, "the value comes from here"));
         }
         return Msg {
             title,
-            primary: (d.use_loc, "used here".to_string()),
+            primary: Span::token(d.use_loc, primary_label),
             context,
-            decl: enrich.stack_var.as_ref().and_then(var_decl_note),
-            help,
+            decl: None,
+            help: None,
         };
     }
 
-    let check = checks.last().unwrap();
-    match d.access {
-        Some(Access::MapValue { value_size, off, size }) if d.umax > 0 => {
-            let excess = (off + size) as i64 - value_size as i64;
-            // The register bounds are in bytes; the user's check compares the
-            // index. When the element stride divides everything cleanly,
-            // report in index units so the numbers line up with the source.
-            let elem = size as i64;
-            let scaled = elem > 1 && d.umax as i64 % elem == 0 && excess % elem == 0;
-            let (umax, excess_u) = if scaled {
-                (d.umax as i64 / elem, excess / elem)
-            } else {
-                (d.umax as i64, excess)
-            };
-            let safe_max = umax - excess_u;
-            Msg {
-                title: format!(
-                    "access reaches byte {} of a {}-byte value",
-                    off + size,
-                    value_size
-                ),
-                primary: (
-                    d.use_loc,
-                    format!(
-                        "index can be up to {} here; {} is the largest safe value",
-                        umax, safe_max
-                    ),
-                ),
-                context: vec![(
-                    check.loc,
-                    match quoted_cmp(check) {
-                        Some(cmp) => format!(
-                            "your {} allows {} too many; the bound must stop at {}",
-                            cmp, excess_u, safe_max
-                        ),
-                        None => format!("this bound allows {} too many", excess_u),
-                    },
-                )],
-                decl: enrich.member.as_ref().and_then(decl_note),
-                help: None,
-            }
+    if d.error == ErrorKind::NotConst {
+        let title = match &d.helper {
+            Some(h) => format!("`{}` needs a compile-time-constant argument here", h),
+            None => "this argument must be a compile-time constant".to_string(),
+        };
+        let mut context = Vec::new();
+        if let Some(o) = origins.iter().find(|o| o.loc.line != d.use_loc.line) {
+            context.push(Span::token(o.loc, "this is a runtime-dependent value"));
         }
-        Some(Access::MapValue { value_size, off, size }) => {
-            let idx = off / size;
-            let n = value_size / size;
-            let iters = if check.cnt > 1 {
-                format!(" after {} iterations", check.cnt)
-            } else {
-                String::new()
-            };
-            Msg {
-                title: format!(
-                    "access to element {} of a {}-element array (valid: 0..={})",
-                    idx,
-                    n,
-                    n - 1
-                ),
-                primary: (
-                    d.use_loc,
-                    format!("fails when the index reaches {}", idx),
-                ),
-                context: vec![(
-                    check.loc,
-                    format!(
-                        "this condition lets the index reach {}{}; it must stop at {}",
-                        idx,
-                        iters,
-                        n - 1
-                    ),
-                )],
-                decl: enrich.member.as_ref().and_then(decl_note),
-                help: None,
+        let help = match d.helper.as_deref() {
+            Some("bpf_ringbuf_reserve") => {
+                "reserve a fixed maximum, e.g. `bpf_ringbuf_reserve(&rb, sizeof(struct event), 0)`"
             }
-        }
-        Some(Access::Stack { off, size, .. }) => {
-            let (what, valid_max) = match &enrich.stack_var {
-                Some(v) => {
-                    let n = v.size.unwrap_or(0);
-                    (
-                        format!("the end of `{}` ({} bytes)", v.name, n),
-                        n.saturating_sub(1) as i64,
-                    )
-                }
-                None => (
-                    "the end of the stack frame".to_string(),
-                    -(off as i64) - size as i64,
-                ),
-            };
-            Msg {
-                title: format!(
-                    "stack buffer access can reach index {}, past {}",
-                    d.umax, what
-                ),
-                primary: (
-                    d.use_loc,
-                    format!(
-                        "index can be up to {} here; {} is the largest valid index",
-                        d.umax, valid_max
-                    ),
-                ),
-                context: vec![(
-                    check.loc,
-                    match quoted_cmp(check) {
-                        Some(cmp) => format!(
-                            "the only bound comes from your {}; it must stop at {}",
-                            cmp, valid_max
-                        ),
-                        None => "the only bound on the index comes from here".to_string(),
-                    },
-                )],
-                decl: enrich.stack_var.as_ref().and_then(var_decl_note),
-                help: None,
-            }
-        }
-        None => Msg {
-            title: format!(
-                "value can be as large as {} here, which the verifier rejected",
-                d.umax
+            _ => "use a literal or an expression the compiler can fold to a constant",
+        };
+        return Msg {
+            title,
+            primary: Span::token(
+                d.use_loc,
+                "this call requires a constant, but the argument is runtime-dependent",
             ),
-            primary: (d.use_loc, "used here".to_string()),
-            context: checks
-                .iter()
-                .map(|c| (c.loc, "constrained here".to_string()))
-                .collect(),
+            context,
             decl: None,
-            help: None,
-        },
+            help: Some(help.to_string()),
+        };
+    }
+
+    // Everything else in the bounds family — out-of-range index, unbounded
+    // index/size, variable-offset stack, out-of-bounds pointer arithmetic —
+    // shares one "the value's range exceeds the buffer" rendering.
+    oob_msg(d, enrich, &checks, &origins, walk_end)
+}
+
+/// Uniform rendering for the out-of-bounds family. Two framings: an *index*
+/// access (compare the value's index range to the buffer's valid index range)
+/// and a *size* argument (compare the value's range to the destination's byte
+/// size). The distinguishing note is whether the value was "narrowed" (a
+/// check exists but is too loose) or "never narrowed".
+enum Framing {
+    /// Element access; carries the largest valid index (None if buffer size
+    /// is unknown).
+    Index(Option<i64>),
+    /// Helper size argument; carries the destination name and byte capacity.
+    Size(Option<String>, u64),
+}
+
+/// Render the well-known signed/unsigned limits symbolically — `INT32_MAX`
+/// reads better than `2147483647` and makes "this is the type's whole range"
+/// obvious.
+fn fmt_bound(v: i64) -> String {
+    match v {
+        -2147483648 => "INT32_MIN".to_string(),
+        2147483647 => "INT32_MAX".to_string(),
+        4294967295 => "UINT32_MAX".to_string(),
+        i64::MIN => "INT64_MIN".to_string(),
+        i64::MAX => "INT64_MAX".to_string(),
+        _ => v.to_string(),
     }
 }
+
+fn oob_msg(
+    d: &VerifierDiagnostic,
+    enrich: &Enrichment,
+    checks: &[&Event],
+    origins: &[&Event],
+    walk_end: Option<&Event>,
+) -> Msg {
+    let check = checks.last();
+    let elem = match d.access {
+        Some(Access::MapValue { size, .. }) | Some(Access::Stack { size, .. }) => size.max(1) as i64,
+        _ => 1,
+    };
+
+    // Per-error-kind extraction: which framing, and the buffer's valid extent.
+    let framing = if let Some(mem) = &d.mem_arg {
+        match mem {
+            MemArg::Stack { off } => Framing::Size(
+                enrich.stack_var.as_ref().map(|v| v.name.clone()),
+                enrich
+                    .stack_var
+                    .as_ref()
+                    .and_then(|v| v.size)
+                    .unwrap_or((-off).max(0) as u64),
+            ),
+            MemArg::MapValue { size, map } => Framing::Size(map.clone(), *size as u64),
+            MemArg::Mem { size } => Framing::Size(None, *size as u64),
+        }
+    } else {
+        let valid_max = enrich
+            .member
+            .as_ref()
+            .and_then(|m| m.size)
+            .map(|s| (s as i64 / elem) - 1)
+            .or_else(|| {
+                enrich
+                    .stack_var
+                    .as_ref()
+                    .and_then(|v| v.size)
+                    .map(|s| (s as i64 / elem) - 1)
+            })
+            .or_else(|| match d.access {
+                Some(Access::MapValue { value_size, size, .. }) => {
+                    Some((value_size as i64 / size.max(1) as i64) - 1)
+                }
+                _ => None,
+            });
+        Framing::Index(valid_max)
+    };
+
+    // The value's range, in index units (shared). Signed bounds when it can be
+    // negative (a `bpf_strstr` result); otherwise the unsigned max, or — for a
+    // strength-reduced loop where umax is 0 — the loop bound in the check.
+    let scale = |b: i64| if elem > 1 && b % elem == 0 { b / elem } else { b };
+    let (lo, hi) = if d.smin < 0 {
+        (scale(d.smin), scale(d.smax))
+    } else {
+        let hi_raw = if d.umax > 0 {
+            d.umax.min(i64::MAX as u64) as i64
+        } else if let Some(v) = check.and_then(|c| c.val) {
+            v as i64
+        } else {
+            d.off
+        };
+        (scale(d.umin as i64), scale(hi_raw))
+    };
+    let range = format!("[{}, {}]", fmt_bound(lo), fmt_bound(hi));
+
+    // The one framing-specific line.
+    let primary_label = match &framing {
+        Framing::Index(Some(vm)) => format!(
+            "index can be {}, while the buffer can be accessed on [0, {}]",
+            range,
+            fmt_bound(*vm)
+        ),
+        Framing::Index(None) => {
+            format!("index can be {}, and is never narrowed to the buffer", range)
+        }
+        Framing::Size(Some(n), bytes) => {
+            format!("size can be {}, while `{}` holds only {} bytes", range, n, bytes)
+        }
+        Framing::Size(None, bytes) => {
+            format!("size can be {}, larger than the {}-byte destination", range, bytes)
+        }
+    };
+
+    // Context, help, and Msg are shared across framings.
+    // origin → narrow* → use: when narrowed, point at the loosest check;
+    // otherwise at where the value came from (load/call/const — the note is
+    // the same regardless of origin kind).
+    let mut context = Vec::new();
+    if let Some(c) = check {
+        context.push(Span::line(c.loc, "this narrowing is not strict enough"));
+    } else if let Some(o) = origins.iter().rev().find(|o| o.loc.line != d.use_loc.line) {
+        context.push(Span::token(o.loc, "the value comes from here and is never narrowed"));
+    }
+    if let Some(w) = walk_end {
+        context.push(Span::token(
+            w.loc,
+            "the value flows through this call; cross-call provenance is not tracked yet",
+        ));
+    }
+
+    let help = if lo < 0 {
+        Some("narrow it before indexing, e.g. `if (i < 0 || i >= sizeof(buf)) return 0;`".to_string())
+    } else if let Framing::Size(Some(n), _) = &framing {
+        Some(format!("narrow it first, e.g. `if (size > sizeof({})) return 0;`", n))
+    } else {
+        None
+    };
+
+    // A size argument sits inside a call whose column line_info can't isolate,
+    // so mark the whole statement; a direct index expression keeps its caret.
+    let primary = match framing {
+        Framing::Size(..) => Span::line(d.use_loc, primary_label),
+        Framing::Index(..) => Span::token(d.use_loc, primary_label),
+    };
+
+    Msg {
+        title: "possible out-of-bounds buffer access".to_string(),
+        primary,
+        context,
+        decl: None,
+        help,
+    }
+}
+
 
 /// Byte range of `name` on the given source line, for declaration spans
 /// where only a line number is known.
@@ -1014,30 +1113,28 @@ fn name_span_on_line(source: &str, line: u32, name: &str) -> Option<std::ops::Ra
 pub fn render(d: &VerifierDiagnostic, source: &str, enrich: &Enrichment) -> String {
     let msg = build_msg(d, enrich);
 
-    // For helper size-argument failures the offending value is an argument
-    // whose column we can't recover from line_info (the loc is the call site),
-    // so mark the whole statement rather than just the function identifier.
-    let whole_line = matches!(
-        d.error,
-        ErrorKind::ZeroSize | ErrorKind::StackAccessSize
-    );
+    // A span marks either the token at its column or the whole line, decided
+    // per-span (call arguments and if/loop conditions can't be isolated from
+    // line_info, so those are marked whole-line).
+    let range_of = |sp: &Span| -> Option<std::ops::Range<usize>> {
+        if sp.whole_line && sp.loc.line != 0 {
+            Some(line_span(source, sp.loc.line))
+        } else {
+            span_at(source, sp.loc)
+        }
+    };
 
     let mut snippet = Snippet::source(source).fold(true);
-    let primary_range = if whole_line && msg.primary.0.line != 0 {
-        Some(line_span(source, msg.primary.0.line))
-    } else {
-        span_at(source, msg.primary.0)
-    };
-    if let Some(range) = primary_range {
+    if let Some(range) = range_of(&msg.primary) {
         snippet = snippet.annotation(
             AnnotationKind::Primary
                 .span(range)
-                .label(&msg.primary.1),
+                .label(&msg.primary.label),
         );
     }
-    for (loc, label) in &msg.context {
-        if let Some(range) = span_at(source, *loc) {
-            snippet = snippet.annotation(AnnotationKind::Context.span(range).label(label));
+    for sp in &msg.context {
+        if let Some(range) = range_of(sp) {
+            snippet = snippet.annotation(AnnotationKind::Context.span(range).label(&sp.label));
         }
     }
     if let Some((line, name, label)) = &msg.decl {

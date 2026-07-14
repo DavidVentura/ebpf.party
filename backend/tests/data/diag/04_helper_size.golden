@@ -1,3 +1,3 @@
 R2 unbounded memory access, use 'var &= const' or 'if (var < const)'
-DIAG1 reg=2 umin=0 umax=4294967295 off=0 mem=fp mem_off=-72 use=21 use_loc=<stdin>:24:2
+DIAG1 reg=2 umin=0 umax=4294967295 smin=0 smax=4294967295 off=0 mem=fp mem_off=-72 use=21 use_loc=<stdin>:24:2
 DIAG1E kind=origin_load insn=16 cnt=1 reg=r2 loc=<stdin>:24:2

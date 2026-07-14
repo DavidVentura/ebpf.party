@@ -1,9 +1,6 @@
-error: value used as index/size can be as large as 4294967295, but the destination `buf` holds only 64 bytes and is never bounds-checked
+error: possible out-of-bounds buffer access
    |
-19 |     __u8 buf[64] = {};
-   |          --- declared here
-...
 24 |     bpf_probe_read_kernel(buf, sz, &vals);
-   |     ^^^^^^^^^^^^^^^^^^^^^ used here
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ size can be [0, UINT32_MAX], while `buf` holds only 64 bytes
    |
-help: bound it before the call: `if (size > sizeof(buf)) return 0;`
+help: narrow it first, e.g. `if (size > sizeof(buf)) return 0;`

@@ -1,0 +1,3 @@
+R2 is not a known constant'
+DIAG1 reg=2 umin=0 umax=4294967295 smin=0 smax=4294967295 off=0 use=7 use_loc=<stdin>:12:15
+DIAG1E kind=origin_call insn=0 cnt=1 reg=r0 loc=<stdin>:11:15

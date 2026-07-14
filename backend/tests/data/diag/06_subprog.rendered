@@ -1,7 +1,7 @@
-error: value used as index/size can be as large as 20; no check in this function bounds it
+error: possible out-of-bounds buffer access
    |
 17 |     return v->data[idx];
-   |            ^ used here
+   |            ^ index can be [0, 20], while the buffer can be accessed on [0, 15]
 ...
 30 |     return read_at(v, idx);
    |            ------- the value flows through this call; cross-call provenance is not tracked yet

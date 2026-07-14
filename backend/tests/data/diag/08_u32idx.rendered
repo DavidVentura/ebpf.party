@@ -1,10 +1,7 @@
-error: access reaches byte 72 of a 68-byte value
+error: possible out-of-bounds buffer access
    |
- 5 |     __u32 arr[16];
-   |           --- declared here
-...
 23 |     if (idx > 16)
-   |         --- your `> 16` allows 1 too many; the bound must stop at 15
+   |     ------------- this narrowing is not strict enough
 24 |         return 0;
 25 |     return v->arr[idx];
-   |            ^ index can be up to 16 here; 15 is the largest safe value
+   |            ^ index can be [0, 16], while the buffer can be accessed on [0, 15]
