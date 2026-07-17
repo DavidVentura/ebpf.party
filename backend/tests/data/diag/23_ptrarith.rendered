@@ -1,0 +1,6 @@
+error: the program context is a pointer and cannot be used with `<<=`
+  |
+7 |     unsigned int n = (unsigned int)ctx;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ pointer used in arithmetic here
+  |
+help: access a field through it instead, e.g. `ctx->pid`

@@ -275,6 +275,20 @@ pub fn diagnose(
             rendered,
         });
     }
+    if let Some(rendered) = render_pointer_arith(log, source, elf) {
+        return Some(Diagnosis {
+            diag: None,
+            enrichment: Enrichment::default(),
+            rendered,
+        });
+    }
+    if let Some(rendered) = render_spill(log, source, elf) {
+        return Some(Diagnosis {
+            diag: None,
+            enrichment: Enrichment::default(),
+            rendered,
+        });
+    }
     if let Some(rendered) = render_complexity(log, source, elf) {
         return Some(Diagnosis {
             diag: None,
@@ -283,6 +297,123 @@ pub fn diagnose(
         });
     }
     None
+}
+
+/// The most recent verifier type annotation for register `reg` before
+/// `err_idx` (`R1=ctx()` -> `ctx`).
+fn reg_type_token(lines: &[&str], err_idx: usize, reg: u8) -> Option<String> {
+    let needle = format!("R{}=", reg);
+    lines[..err_idx].iter().rev().find_map(|l| {
+        let start = l.find(&needle)? + needle.len();
+        let t: String = l[start..]
+            .chars()
+            .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+            .collect();
+        (!t.is_empty()).then_some(t)
+    })
+}
+
+fn pointer_cast_help(raw_type: Option<&str>) -> &'static str {
+    match raw_type {
+        Some("ctx") => "access a field through it instead, e.g. `ctx->pid`",
+        _ => "dereference it to read the value you need",
+    }
+}
+
+/// `R<N> pointer arithmetic with <OP> operator prohibited`: the verifier lets
+/// you only add or subtract a scalar to a pointer, so any other ALU op is
+/// rejected. It has no DIAG1 — the reject happens before bounds tracking.
+fn render_pointer_arith(log: &str, source: &str, elf: &[u8]) -> Option<String> {
+    let lines: Vec<&str> = log.lines().collect();
+    let err_idx = lines.iter().position(|l| {
+        l.starts_with('R')
+            && l.contains("pointer arithmetic with ")
+            && l.contains(" operator prohibited")
+    })?;
+    let err = lines[err_idx];
+    let reg: u8 = err.strip_prefix('R')?.split(' ').next()?.parse().ok()?;
+    let op = err
+        .split("pointer arithmetic with ")
+        .nth(1)?
+        .split(" operator")
+        .next()?;
+
+    let insn = lines[..err_idx].iter().rev().find_map(|l| {
+        let (idx, _) = l.trim_start().split_once(": (")?;
+        idx.parse::<u32>().ok()
+    })?;
+    let loc = {
+        let btf = crate::btf::BtfLines::parse(elf)?;
+        let cands: Vec<String> = btf.section_names().cloned().collect();
+        let section = crate::btf::identify_section(elf, log, &cands)?;
+        btf.resolve(&section, insn).map(|(line, _col)| line)?
+    };
+
+    let raw = reg_type_token(&lines, err_idx, reg);
+    let title = match raw.as_deref().map(humanize_reg_type) {
+        Some(name) => format!("{} is a pointer and cannot be used with `{}`", name, op),
+        None => format!("a pointer cannot be used with `{}`", op),
+    };
+    let help = pointer_cast_help(raw.as_deref());
+
+    let snippet = Snippet::source(source).fold(true).line_start(1).annotation(
+        AnnotationKind::Primary
+            .span(line_span(source, loc))
+            .label("pointer used in arithmetic here"),
+    );
+    let report = vec![
+        Level::ERROR.primary_title(&title).element(snippet),
+        Group::with_title(Level::HELP.secondary_title(help)),
+    ];
+    Some(Renderer::plain().render(&report).to_string())
+}
+
+/// `invalid size of register spill`: a pointer was stored to a stack slot
+/// narrower than 8 bytes (`*(u32 *)(r10 -4) = r1` with `r1` a pointer). The
+/// verifier tracks pointers only as whole 8-byte values, so a partial spill
+/// loses them. Like the `<<=` case, the usual cause is a truncating cast.
+fn render_spill(log: &str, source: &str, elf: &[u8]) -> Option<String> {
+    let lines: Vec<&str> = log.lines().collect();
+    let err_idx = lines
+        .iter()
+        .position(|l| l.trim_start().starts_with("invalid size of register spill"))?;
+
+    let (insn, size_bytes, reg) = lines[..err_idx].iter().rev().find_map(|l| {
+        let (idx, rest) = l.trim_start().split_once(": (")?;
+        let insn: u32 = idx.parse().ok()?;
+        let code = rest.split_once(')')?.1;
+        let bits: u32 = code.split("*(u").nth(1)?.split(' ').next()?.parse().ok()?;
+        let reg: u8 = code.rsplit_once("= r")?.1.trim().parse().ok()?;
+        Some((insn, bits / 8, reg))
+    })?;
+
+    let loc = {
+        let btf = crate::btf::BtfLines::parse(elf)?;
+        let cands: Vec<String> = btf.section_names().cloned().collect();
+        let section = crate::btf::identify_section(elf, log, &cands)?;
+        btf.resolve(&section, insn).map(|(line, _col)| line)?
+    };
+
+    let raw = reg_type_token(&lines, err_idx, reg);
+    let title = match raw.as_deref().map(humanize_reg_type) {
+        Some(name) => format!(
+            "{} is a pointer and cannot be stored as a {}-byte value",
+            name, size_bytes
+        ),
+        None => format!("a pointer cannot be stored as a {}-byte value", size_bytes),
+    };
+    let help = pointer_cast_help(raw.as_deref());
+
+    let snippet = Snippet::source(source).fold(true).line_start(1).annotation(
+        AnnotationKind::Primary
+            .span(line_span(source, loc))
+            .label("pointer truncated here"),
+    );
+    let report = vec![
+        Level::ERROR.primary_title(&title).element(snippet),
+        Group::with_title(Level::HELP.secondary_title(help)),
+    ];
+    Some(Renderer::plain().render(&report).to_string())
 }
 
 enum Complexity {

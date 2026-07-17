@@ -1,0 +1,6 @@
+error: the program context is a pointer and cannot be stored as a 4-byte value
+  |
+8 |     DEBUG_NUM("ctx as int", n);
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ pointer truncated here
+  |
+help: access a field through it instead, e.g. `ctx->pid`
