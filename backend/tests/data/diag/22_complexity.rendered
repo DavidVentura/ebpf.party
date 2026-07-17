@@ -1,0 +1,6 @@
+error: this program is too complex for the verifier to check
+  |
+8 |     while (n > 1) {
+  |     ^^^^^^^^^^^^^^^ the verifier cannot bound this loop
+  |
+help: the verifier gave up after checking 8193 branches. Use a constant iteration count, or `bpf_loop()`

@@ -275,7 +275,130 @@ pub fn diagnose(
             rendered,
         });
     }
+    if let Some(rendered) = render_complexity(log, source, elf) {
+        return Some(Diagnosis {
+            diag: None,
+            enrichment: Enrichment::default(),
+            rendered,
+        });
+    }
     None
+}
+
+enum Complexity {
+    /// `The sequence of N jumps is too complex.`
+    Jumps { jumps: u32 },
+    /// `BPF program is too large. Processed N insns`
+    TooLarge,
+    /// `infinite loop detected at insn N`
+    InfiniteLoop { header: u32 },
+}
+
+fn detect_complexity(log: &str) -> Option<Complexity> {
+    for line in log.lines() {
+        let l = line.trim_start();
+        if let Some(rest) = l.strip_prefix("The sequence of ") {
+            if rest.contains("jumps is too complex") {
+                let jumps = rest.split_whitespace().next()?.parse().ok()?;
+                return Some(Complexity::Jumps { jumps });
+            }
+        }
+        if l.starts_with("BPF program is too large") {
+            return Some(Complexity::TooLarge);
+        }
+        if let Some(rest) = l.strip_prefix("infinite loop detected at insn ") {
+            let header = rest
+                .split(|c: char| !c.is_ascii_digit())
+                .next()?
+                .parse()
+                .ok()?;
+            return Some(Complexity::InfiniteLoop { header });
+        }
+    }
+    None
+}
+
+/// The outermost loop's header instruction. A back-edge `INSN: ... goto pc-K`
+/// targets `INSN + 1 - K`; the smallest such target is the outermost loop.
+fn outermost_loop_header(log: &str) -> Option<u32> {
+    let mut best: Option<u32> = None;
+    for line in log.lines() {
+        let Some((idx, rest)) = line.trim_start().split_once(": (") else {
+            continue;
+        };
+        let Ok(insn) = idx.parse::<i64>() else {
+            continue;
+        };
+        let code = rest.split(';').next().unwrap_or(rest);
+        let Some(pos) = code.find("goto pc-") else {
+            continue;
+        };
+        let off: i64 = match code[pos + "goto pc-".len()..]
+            .split(|c: char| !c.is_ascii_digit())
+            .next()
+            .unwrap_or("")
+            .parse()
+        {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+        let target = insn + 1 - off;
+        if target >= 0 {
+            let t = target as u32;
+            best = Some(best.map_or(t, |b| b.min(t)));
+        }
+    }
+    best
+}
+
+fn render_complexity(log: &str, source: &str, elf: &[u8]) -> Option<String> {
+    let kind = detect_complexity(log)?;
+
+    let title = "this program is too complex for the verifier to check";
+    let help = match kind {
+        Complexity::Jumps { jumps } => format!(
+            "the verifier gave up after checking {} branches. Use a constant iteration count, \
+             or `bpf_loop()`",
+            jumps
+        ),
+        Complexity::TooLarge => {
+            "shrink the loop body or lower its iteration count to cut the instruction count"
+                .to_string()
+        }
+        Complexity::InfiniteLoop { .. } => {
+            "advance the loop counter toward a constant bound each pass".to_string()
+        }
+    };
+
+    let header = match kind {
+        Complexity::InfiniteLoop { header } => Some(header),
+        _ => outermost_loop_header(log),
+    };
+    let loc = header.and_then(|insn| {
+        let btf = crate::btf::BtfLines::parse(elf)?;
+        let cands: Vec<String> = btf.section_names().cloned().collect();
+        let section = crate::btf::identify_section(elf, log, &cands)?;
+        btf.resolve(&section, insn).map(|(line, _col)| line)
+    });
+
+    let report = match loc {
+        Some(line) => {
+            let snippet = Snippet::source(source).fold(true).line_start(1).annotation(
+                AnnotationKind::Primary
+                    .span(line_span(source, line))
+                    .label("the verifier cannot bound this loop"),
+            );
+            vec![
+                Level::ERROR.primary_title(title).element(snippet),
+                Group::with_title(Level::HELP.secondary_title(&help)),
+            ]
+        }
+        None => vec![
+            Group::with_title(Level::ERROR.primary_title(title)),
+            Group::with_title(Level::HELP.secondary_title(&help)),
+        ],
+    };
+    Some(Renderer::plain().render(&report).to_string())
 }
 
 /// Fill in any locations the kernel reported as `?` (libbpf stripped its
@@ -1384,9 +1507,7 @@ fn oob_msg(
     // index expression is the subscript anchored at use_loc. Both fall back to
     // their prior span (whole line / callee token) if the scan can't isolate.
     let primary = match framing {
-        Framing::Size(..) => {
-            Span::call_arg(d.use_loc, d.reg as usize, Coarse::Line, primary_label)
-        }
+        Framing::Size(..) => Span::call_arg(d.use_loc, d.reg as usize, Coarse::Line, primary_label),
         Framing::Index(..) => Span::subscript(d.use_loc, Coarse::Token, primary_label),
     };
 
@@ -1570,5 +1691,40 @@ mod tests {
         let s = "foo(a, b); bar(c, d);";
         assert_eq!(call_arg(s, "foo", 2), Some("b"));
         assert_eq!(call_arg(s, "bar", 1), Some("c"));
+    }
+
+    #[test]
+    fn detect_complexity_jumps() {
+        let log = "56: (15) if r2 == 0x64 goto pc-45\n\
+                   The sequence of 8193 jumps is too complex.\n\
+                   processed 155128 insns (limit 1000000)";
+        assert!(matches!(
+            detect_complexity(log),
+            Some(Complexity::Jumps { jumps: 8193 })
+        ));
+    }
+
+    #[test]
+    fn detect_complexity_too_large_and_infinite_loop() {
+        assert!(matches!(
+            detect_complexity("BPF program is too large. Processed 1000001 insns"),
+            Some(Complexity::TooLarge)
+        ));
+        assert!(matches!(
+            detect_complexity("infinite loop detected at insn 42"),
+            Some(Complexity::InfiniteLoop { header: 42 })
+        ));
+        assert!(detect_complexity("R1 min value is negative").is_none());
+    }
+
+    #[test]
+    fn outermost_loop_header_picks_furthest_back_edge() {
+        // Inner back-edge 57 -> 19, outer back-edge 56 -> 12; the outer
+        // (smallest target) is the loop to point at. Forward jumps are ignored,
+        // and register-state annotations after `;` must not be misparsed.
+        let log = "11: (05) goto pc+7\n\
+                   56: (15) if r2 == 0x64 goto pc-45     ; R2=75\n\
+                   57: (05) goto pc-39";
+        assert_eq!(outermost_loop_header(log), Some(12));
     }
 }

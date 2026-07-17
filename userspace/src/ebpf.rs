@@ -1,4 +1,6 @@
-use libbpf_rs::{Link, MapCore, MapType, ObjectBuilder, PrintLevel, RingBuffer, RingBufferBuilder};
+use libbpf_rs::{
+    AsRawLibbpf, Link, MapCore, MapType, ObjectBuilder, PrintLevel, RingBuffer, RingBufferBuilder,
+};
 use libbpf_sys::{LIBBPF_STRICT_ALL, libbpf_set_strict_mode};
 use shared::{AttachFailKind, GuestMessage};
 use std::sync::Mutex;
@@ -15,11 +17,37 @@ fn capturing_printer(lvl: PrintLevel, s: String) {
     }
 }
 
-pub fn extract_prog_load_log(log: &str) -> Option<String> {
-    let begin = log.find("BEGIN PROG LOAD LOG")?;
-    let end = log.find("END PROG LOAD LOG")?;
-    let start = log[begin..].find('\n')? + begin + 1;
-    Some(log[start..end].trim_end().to_string())
+/// A pathological program (e.g. an unbounded loop) can drive the verifier to
+/// emit tens of megabytes of log. Left to itself libbpf grows its own buffer to
+/// fit all of it; instead we hand each program a fixed buffer, so the kernel
+/// keeps only the tail — which carries the verdict and our DIAG1 provenance
+/// lines — bounding guest memory and everything we ship to the host.
+const VERIFIER_LOG_CAP: usize = 32 * 1024;
+
+/// The kernel log from the program that failed to load. Only the failing
+/// program has a non-empty buffer: earlier programs loaded at log_level 0, and
+/// libbpf aborts at the first failure. The buffer holds the raw, NUL-terminated
+/// verifier log (no libbpf `BEGIN/END` wrapper, since we own the buffer).
+fn failed_prog_log(log_bufs: &[Vec<u8>]) -> String {
+    for buf in log_bufs {
+        let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+        if end == 0 {
+            continue;
+        }
+        let log = String::from_utf8_lossy(&buf[..end]);
+        // A filled buffer means the verifier's rotating log dropped the head to
+        // keep the tail; flag it so the partial first line is not mistaken for
+        // the start of the program.
+        if end >= VERIFIER_LOG_CAP - 1 {
+            return format!(
+                "[log truncated, showing last {} KiB]\n{}",
+                VERIFIER_LOG_CAP / 1024,
+                log
+            );
+        }
+        return log.into_owned();
+    }
+    VERIFIER_LOG.lock().unwrap().clone()
 }
 
 pub struct ProgramDetails {
@@ -47,7 +75,7 @@ impl<'a> EbpfLoader<'a> {
 
         libbpf_rs::set_print(Some((PrintLevel::Info, capturing_printer)));
 
-        let open_obj = match ObjectBuilder::default().open_memory(program) {
+        let mut open_obj = match ObjectBuilder::default().open_memory(program) {
             Ok(o) => o,
             Err(_) => {
                 let captured_log = VERIFIER_LOG.lock().unwrap().clone();
@@ -55,15 +83,22 @@ impl<'a> EbpfLoader<'a> {
             }
         };
 
+        let mut log_bufs: Vec<Vec<u8>> = Vec::new();
+        for prog in open_obj.progs_mut() {
+            let mut buf = vec![0u8; VERIFIER_LOG_CAP];
+            unsafe {
+                libbpf_sys::bpf_program__set_log_buf(
+                    prog.as_libbpf_object().as_ptr(),
+                    buf.as_mut_ptr().cast(),
+                    VERIFIER_LOG_CAP as _,
+                );
+            }
+            log_bufs.push(buf);
+        }
+
         let mut obj = match open_obj.load() {
             Ok(o) => o,
-            Err(_) => {
-                let captured_log = VERIFIER_LOG.lock().unwrap().clone();
-                let prog_load_log = extract_prog_load_log(&captured_log);
-                return Err(GuestMessage::VerifierFail(
-                    prog_load_log.unwrap_or(captured_log),
-                ));
-            }
+            Err(_) => return Err(GuestMessage::VerifierFail(failed_prog_log(&log_bufs))),
         };
 
         let mut links: Vec<_> = Vec::new();

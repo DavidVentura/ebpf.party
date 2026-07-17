@@ -327,6 +327,21 @@ fn strip_diag_lines(log: &str) -> String {
     out
 }
 
+fn is_execution_failure(msg: &PlatformMessage) -> bool {
+    let PlatformMessage::GuestMessage(gm) = msg else {
+        return false;
+    };
+    matches!(
+        gm,
+        shared::GuestMessage::VerifierFail(_)
+            | shared::GuestMessage::LoadFail(_)
+            | shared::GuestMessage::DebugMapNotFound
+            | shared::GuestMessage::NoProgramsFound
+            | shared::GuestMessage::CantAttachProgram { .. }
+            | shared::GuestMessage::Crashed
+    )
+}
+
 fn handle_guest_events(
     body_tx: touche::body::BodyChannel,
     rx: Receiver<PlatformMessage>,
@@ -338,7 +353,11 @@ fn handle_guest_events(
 ) {
     let mut answer = None::<UserAnswer>;
     let mut answer_count = 0u8;
+    let mut program_failed = false;
     for msg in rx {
+        if is_execution_failure(&msg) {
+            program_failed = true;
+        }
         if let Some(this_answer) = guest_message::extract_answer(&msg) {
             answer_count = answer_count.saturating_add(1);
             if answer.is_none() {
@@ -393,41 +412,45 @@ fn handle_guest_events(
         }
     }
 
-    let answer_msg = match answer_count {
-        0 => PlatformMessage::NoAnswer,
-        1 => {
-            let expected_answer = shared::get_answer(exercise_id, user_key);
-            let is_correct = match answer.as_ref().unwrap() {
-                UserAnswer::String(submitted) => {
-                    let trimmed = submitted
-                        .iter()
-                        .rposition(|&b| b != 0)
-                        .map(|pos| &submitted[..=pos])
-                        .unwrap_or(&[]);
+    // A failed program never reached its SUBMIT_* calls, so an answer verdict
+    // would contradict the failure the user already saw.
+    if !program_failed {
+        let answer_msg = match answer_count {
+            0 => PlatformMessage::NoAnswer,
+            1 => {
+                let expected_answer = shared::get_answer(exercise_id, user_key);
+                let is_correct = match answer.as_ref().unwrap() {
+                    UserAnswer::String(submitted) => {
+                        let trimmed = submitted
+                            .iter()
+                            .rposition(|&b| b != 0)
+                            .map(|pos| &submitted[..=pos])
+                            .unwrap_or(&[]);
 
-                    trimmed == &expected_answer[..]
+                        trimmed == &expected_answer[..]
+                    }
+                    UserAnswer::Number(submitted) => &expected_answer[..] == submitted,
+                };
+
+                if is_correct {
+                    PlatformMessage::CorrectAnswer
+                } else {
+                    PlatformMessage::WrongAnswer
                 }
-                UserAnswer::Number(submitted) => &expected_answer[..] == submitted,
-            };
-
-            if is_correct {
-                PlatformMessage::CorrectAnswer
-            } else {
-                PlatformMessage::WrongAnswer
             }
-        }
-        _ => PlatformMessage::MultipleAnswers,
-    };
-    let _ = send_msg(&body_tx, &answer_msg);
-    drop(body_tx);
-
-    // also track metrics for answer
-    if let Ok(r) = ExerciseResult::try_from(&answer_msg) {
-        let sr = SubmissionResult {
-            exercise: exercise_id,
-            result: r,
+            _ => PlatformMessage::MultipleAnswers,
         };
-        let r = MetricEvent::ExerciseResult(sr);
-        let _ = metrics_tx.send(r);
+        let _ = send_msg(&body_tx, &answer_msg);
+
+        // also track metrics for answer
+        if let Ok(r) = ExerciseResult::try_from(&answer_msg) {
+            let sr = SubmissionResult {
+                exercise: exercise_id,
+                result: r,
+            };
+            let r = MetricEvent::ExerciseResult(sr);
+            let _ = metrics_tx.send(r);
+        }
     }
+    drop(body_tx);
 }
